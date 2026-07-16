@@ -8,7 +8,7 @@ const SEQ={"Z1|SU|070":["09:15 - Abbey St (41)", "10:45 - Swords Manor (41)", "1
 const ZONES = ["Zone 1", "Zone 2", "Skerries", "150"];
 const DAY_OFF_TYPES = ["Annual Leave", "Sick Day", "Rest Day", "Force Majeure", "Self Cert"];
 const FIXED_DUTY_TYPES = [
-  { key: "cpc", label: "CPC/Training", roster: "CPC/Training", hours: 7 + 40/60, breakHours: 1 },
+  { key: "cpc", label: "CPC/Training", full: "CPC/Training (Certificate of Professional Competence)", roster: "CPC/Training", hours: 7 + 40/60, breakHours: 1 },
   { key: "stdSpare", label: "Standard Spare", roster: "Standard Spare", hours: 7 + 40/60, breakHours: 1 },
   { key: "workSpare", label: "Workout Spare", roster: "Workout Spare", hours: 5 + 30/60, breakHours: 0 },
 ];
@@ -86,52 +86,87 @@ function wkStats(shifts, daysOff, wStart) {
   const ws = (shifts||[]).filter(s => s.date >= wStart && s.date <= wEnd);
   const wd = (daysOff||[]).filter(d => d.date >= wStart && d.date <= wEnd);
   const compliance = ws.filter(s => !s.isRestDay);
+  // Compliance figures use paid Work hours (walking/driving time), not full
+  // spreadover — spreadover includes the unpaid break, which doesn't count
+  // toward the 190h/14h30m limits. Work hours come from the xlsx roster source.
   const overtime = +ws.reduce((a,x) => {
-    if (x.isRestDay) return a + calcSpreadover(x.reportTime, x.signOffTime);
+    if (x.isRestDay) return a + (x.workHours||0);
     return a + (x.overtimeHours||0);
   }, 0).toFixed(2);
   return {
     shifts: ws, daysOff: wd, start: wStart, end: wEnd,
-    total: +compliance.reduce((a,x) => a + calcSpreadover(x.reportTime, x.signOffTime), 0).toFixed(2),
-    sunday: +compliance.filter(s => getDayType(s.date)==="sunday").reduce((a,x) => a + calcSpreadover(x.reportTime, x.signOffTime), 0).toFixed(2),
+    total: +compliance.reduce((a,x) => a + (x.workHours||0), 0).toFixed(2),
+    sunday: +compliance.filter(s => getDayType(s.date)==="sunday").reduce((a,x) => a + (x.workHours||0), 0).toFixed(2),
     overtime
   };
 }
+// Fixed rest-day pattern, by week-of-period (0=Sun...6=Sat). Same every 5-week period.
+const FIXED_REST_PATTERN = [
+  [0, 1], // Week 1: Sunday, Monday
+  [4, 0], // Week 2: Thursday, Sunday
+  [2, 6], // Week 3: Tuesday, Saturday
+  [5, 0], // Week 4: Friday, Sunday
+  [3, 6], // Week 5: Wednesday, Saturday
+];
+function fixedRestDates(periodStartDate) {
+  const dates = [];
+  FIXED_REST_PATTERN.forEach((weekdays, wIdx) => {
+    const weekStart = addDays(periodStartDate, wIdx * 7);
+    weekdays.forEach(wd => dates.push(addDays(weekStart, wd)));
+  });
+  return dates;
+}
+// Merges the fixed rest days into daysOff — skipped for any date that already
+// has a real shift or day-off logged (a swap), or was explicitly removed.
+function withFixedRestDays(startDate, daysOff, shifts, removedFixed) {
+  const removed = new Set(removedFixed || []);
+  const taken = new Set([
+    ...(daysOff || []).map(d => d.date),
+    ...(shifts || []).map(s => s.date),
+  ]);
+  const virtual = fixedRestDates(startDate)
+    .filter(d => !taken.has(d) && !removed.has(d))
+    .map(d => ({ id: `fixed-${d}`, date: d, type: "Rest Day", fixed: true }));
+  return [...(daysOff || []), ...virtual];
+}
 function pStats(p) {
-  const weeks = Array.from({length:5}, (_, i) => wkStats(p.shifts||[], p.daysOff||[], addDays(p.startDate, i*7)));
+  const mergedDaysOff = withFixedRestDays(p.startDate, p.daysOff||[], p.shifts||[], p.removedFixedRestDates);
+  const weeks = Array.from({length:5}, (_, i) => wkStats(p.shifts||[], mergedDaysOff, addDays(p.startDate, i*7)));
   return {
     weeks,
     total: +weeks.reduce((a, w) => a + w.total, 0).toFixed(2),
     sunday: +weeks.reduce((a, w) => a + w.sunday, 0).toFixed(2),
     overtime: +weeks.reduce((a, w) => a + w.overtime, 0).toFixed(2),
-    tally: dayOffTally(p.daysOff),
+    tally: dayOffTally(mergedDaysOff),
     consec: maxConsec(p.shifts)
   };
 }
 function inPeriod(date, p) { return date >= p.startDate && date <= addDays(p.startDate, 34); }
 
 async function loadData() {
-  try { const r = localStorage.getItem("dbus_v3"); return r ? JSON.parse(r) : null; }
-  catch { return null; }
+  const r = localStorage.getItem("dbus_v3");
+  if (!r) return {data:null, corrupted:false};
+  try { return {data:JSON.parse(r), corrupted:false}; }
+  catch { return {data:null, corrupted:true}; }
 }
 async function saveData(data) {
-  try { localStorage.setItem("dbus_v3", JSON.stringify(data)); }
-  catch(e) { console.error(e); }
+  try { localStorage.setItem("dbus_v3", JSON.stringify(data)); return true; }
+  catch(e) { console.error(e); return false; }
 }
 
 // ─── STYLES ───────────────────────────────────────────────────────────────────
 // let (not const) so theme changes can mutate them and trigger re-render
 let BG="#07090F",CARD="#0D1321",BORDER="#1A2438",CARD2="#141B2D";
-let TEXT="#FFFFFF",MUTED="#6B7A99";
+let TEXT="#FFFFFF",MUTED="#8C99B8";
 const ACCENT="#FFCD00",SUCCESS="#00C896",DANGER="#FF4455";
 
 let currentThemeIsDark = true;
 
-const DARK  = {BG:"#07090F",CARD:"#0D1321",BORDER:"#1A2438",CARD2:"#141B2D",TEXT:"#FFFFFF",MUTED:"#6B7A99",INPUT:"#0A0E1A"};
+const DARK  = {BG:"#07090F",CARD:"#0D1321",BORDER:"#1A2438",CARD2:"#141B2D",TEXT:"#FFFFFF",MUTED:"#8C99B8",INPUT:"#0A0E1A"};
 const LIGHT = {BG:"#F5F7FA",CARD:"#FFFFFF",BORDER:"#D8DFE8",CARD2:"#EEF1F5",TEXT:"#0D1321",MUTED:"#64748B",INPUT:"#FFFFFF"};
 
 let cardStyle={background:CARD,border:`1px solid ${BORDER}`,borderRadius:16,padding:18};
-let inputStyle={background:DARK.INPUT,border:`1px solid ${BORDER}`,borderRadius:10,padding:"12px 14px",color:TEXT,fontSize:16,width:"100%",boxSizing:"border-box",outline:"none",WebkitAppearance:"none"};
+let inputStyle={background:DARK.INPUT,border:`1px solid ${BORDER}`,borderRadius:8,padding:"12px 14px",color:TEXT,fontSize:16,width:"100%",boxSizing:"border-box",WebkitAppearance:"none"};
 let btnStyle={background:ACCENT,color:"#07090F",border:"none",borderRadius:12,padding:"16px 20px",fontSize:16,fontWeight:800,cursor:"pointer",width:"100%",letterSpacing:"0.3px"};
 const tag=(c)=>({background:c+"22",color:c,borderRadius:6,padding:"3px 10px",fontSize:11,fontWeight:700,display:"inline-block",letterSpacing:"0.5px",textTransform:"uppercase"});
 
@@ -142,7 +177,7 @@ function applyTheme(appearance, forceUpdate) {
   const t = dark ? DARK : LIGHT;
   BG=t.BG; CARD=t.CARD; BORDER=t.BORDER; CARD2=t.CARD2; TEXT=t.TEXT; MUTED=t.MUTED;
   cardStyle  = {background:CARD,border:`1px solid ${BORDER}`,borderRadius:16,padding:18};
-  inputStyle = {background:t.INPUT,border:`1px solid ${BORDER}`,borderRadius:10,padding:"12px 14px",color:TEXT,fontSize:16,width:"100%",boxSizing:"border-box",outline:"none",WebkitAppearance:"none"};
+  inputStyle = {background:t.INPUT,border:`1px solid ${BORDER}`,borderRadius:8,padding:"12px 14px",color:TEXT,fontSize:16,width:"100%",boxSizing:"border-box",WebkitAppearance:"none"};
   btnStyle   = {background:ACCENT,color:"#07090F",border:"none",borderRadius:12,padding:"16px 20px",fontSize:16,fontWeight:800,cursor:"pointer",width:"100%",letterSpacing:"0.3px"};
   if(forceUpdate) forceUpdate();
 }
@@ -187,19 +222,20 @@ function PageHeader({eyebrow, title, subtitle, right, onBack}) {
   );
 }
 
-// Field label — consistent across all forms
-function FieldLabel({children, hint}) {
+// Field label — consistent across all forms. Renders as a real <label> so
+// screen readers announce it; pass htmlFor + a matching input id to link them.
+function FieldLabel({children, hint, htmlFor}) {
   return (
-    <p style={{color:MUTED,fontSize:11,textTransform:"uppercase",letterSpacing:1.5,fontWeight:700,margin:"0 0 8px"}}>
+    <label htmlFor={htmlFor} style={{display:"block",color:TEXT,fontSize:12.5,textTransform:"uppercase",letterSpacing:1.2,fontWeight:700,margin:"0 0 8px"}}>
       {children}{hint && <span style={{color:MUTED,fontWeight:400,textTransform:"none",letterSpacing:0}}> — {hint}</span>}
-    </p>
+    </label>
   );
 }
 
-function DateInput({value, onChange, min}) {
+function DateInput({value, onChange, min, id, invalid}) {
   return (
     <div style={{position:"relative"}}>
-      <input type="date" value={value} onChange={onChange} min={min} style={{...inputStyle, paddingRight:40}}/>
+      <input id={id} type="date" value={value} onChange={onChange} min={min} style={{...inputStyle, paddingRight:40, ...(invalid?{borderColor:DANGER}:{})}}/>
       <div style={{position:"absolute",right:12,top:"50%",transform:"translateY(-50%)",pointerEvents:"none"}}>
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
           stroke={ACCENT} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -237,6 +273,37 @@ function SegGroup({options, value, onChange, cols}) {
 
 
 
+// Searchable duty picker — replaces a plain <select> with 90+ options.
+// Type a duty number to filter instead of scrolling the whole list.
+function DutyPicker({duties, value, onChange}) {
+  const [query, setQuery] = useState("");
+  const q = query.trim().toLowerCase();
+  const filtered = q ? duties.filter(d => d.r.toLowerCase().includes(q)) : duties;
+  return (
+    <div>
+      <input type="text" inputMode="search" value={query} onChange={e=>setQuery(e.target.value)}
+        placeholder="Type a duty number to search…"
+        style={{...inputStyle, marginBottom:8}}/>
+      <div style={{maxHeight:280,overflowY:"auto",border:`1px solid ${BORDER}`,borderRadius:10,background:CARD}}>
+        {filtered.length===0 ? (
+          <p style={{color:MUTED,fontSize:13,textAlign:"center",padding:"18px 12px",margin:0}}>No duties match "{query}"</p>
+        ) : filtered.map(d=>{
+          const i = duties.indexOf(d);
+          const sel = i===value;
+          return (
+            <button key={d.r} onClick={()=>onChange(i)} style={{
+              display:"block",width:"100%",textAlign:"left",padding:"12px 14px",
+              background:sel?`${ACCENT}18`:"transparent",border:"none",
+              borderBottom:`1px solid ${BORDER}`,
+              color:sel?ACCENT:TEXT,fontSize:14,fontWeight:sel?700:500,cursor:"pointer"
+            }}>{dutyLabel(d)}</button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ─── PDF EXPORT ───────────────────────────────────────────────────────────────
 function buildPDFHTML(period, stats) {
   const endDate = addDays(period.startDate, 34);
@@ -254,53 +321,48 @@ function buildPDFHTML(period, stats) {
       ...w.shifts.map(s => ({...s, _type:"shift"})),
       ...(w.daysOff||[]).map(d => ({...d, _type:"dayoff"}))
     ].sort((a,b) => a.date.localeCompare(b.date));
-    const rows = allItems.map(item => {
+    const cards = allItems.map(item => {
       if (item._type === "shift") {
         const spread = fmtHrs(calcSpreadover(item.reportTime, item.signOffTime));
         const tags = [
-          item.isSpare ? '<span style="background:#fbbf24;color:#000;padding:1px 5px;border-radius:3px;font-size:11px;margin-right:3px">Spare</span>' : "",
-          item.isRestDay ? '<span style="background:#dc2626;color:#fff;padding:1px 5px;border-radius:3px;font-size:11px;margin-right:3px">Rest Day</span>' : ""
+          item.isSpare ? '<span style="background:#fbbf24;color:#000;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:700;margin-right:4px">SPARE</span>' : "",
+          item.isRestDay ? '<span style="background:#dc2626;color:#fff;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:700;margin-right:4px">REST DAY</span>' : ""
         ].join("");
-        const otCell = item.isRestDay
-          ? `<span style="color:#dc2626;font-weight:700">${spread}</span>`
-          : item.overtimeHours > 0
-            ? `<span style="color:#d97706;font-weight:700">${fmtHrs(item.overtimeHours)}</span>${item.overtimeNote ? `<br><span style="color:#6b7280;font-size:11px;font-style:italic">${item.overtimeNote}</span>` : ""}`
-            : "—";
-        const notesCell = item.notes ? `<span style="color:#6b7280;font-style:italic">${item.notes}</span>` : "—";
-        return `<tr>
-          <td>${fmtDate(item.date)}</td>
-          <td>${item.zone}</td>
-          <td>${tags}${item.roster}</td>
-          <td>${item.reportTime}</td>
-          <td>${item.signOffTime}</td>
-          <td style="${item.isRestDay?"color:#dc2626":""}>${spread}</td>
-          <td>${item.isRestDay||item.isSpare?"—":fmtHrs(item.workHours)}</td>
-          <td>${item.isRestDay||item.isSpare?"—":fmtHrs(item.reliefHours)}</td>
-          <td>${otCell}</td>
-          <td>${notesCell}</td>
-        </tr>`;
+        const stat = (label,value,color) => `<div><span style="display:block;color:#9ca3af;font-size:9px;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:1px">${label}</span><span style="font-size:12px;font-weight:600;color:${color||"#111"}">${value}</span></div>`;
+        const stats5 = [
+          stat("Report", item.reportTime || "—"),
+          stat("Sign Off", item.signOffTime || "—"),
+          stat("Spreadover", spread, item.isRestDay?"#dc2626":null),
+          stat("Work", item.isRestDay||item.isSpare?"—":fmtHrs(item.workHours)),
+          stat("Relief", item.isRestDay||item.isSpare?"—":fmtHrs(item.reliefHours)),
+        ].join("");
+        const otLine = item.overtimeHours > 0
+          ? `<div style="margin-top:8px;padding-top:8px;border-top:1px solid #f3f4f6;font-size:11px"><span style="color:#d97706;font-weight:700">Overtime: ${fmtHrs(item.overtimeHours)}</span>${item.overtimeNote ? ` <span style="color:#6b7280;font-style:italic">— ${item.overtimeNote}</span>` : ""}</div>`
+          : "";
+        const notesLine = item.notes
+          ? `<div style="margin-top:6px;font-size:11px;color:#6b7280;font-style:italic">${item.notes}</div>`
+          : "";
+        return `<div style="border:1px solid #e5e7eb;border-radius:8px;padding:10px 14px;margin-bottom:6px;page-break-inside:avoid;break-inside:avoid">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:4px;margin-bottom:8px">
+            <div style="font-size:13px"><strong>${fmtDate(item.date)}</strong> <span style="color:#6b7280">· ${item.zone}</span></div>
+            <div style="font-size:12px;font-weight:700;color:#1e3a5f">${tags}${item.roster}</div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px">${stats5}</div>
+          ${otLine}${notesLine}
+        </div>`;
       }
-      return `<tr style="color:#6b7280;font-style:italic"><td>${fmtDate(item.date)}</td><td colspan="9">${item.type}</td></tr>`;
+      return `<div style="border:1px solid #e5e7eb;border-radius:8px;padding:9px 14px;margin-bottom:6px;background:#f9fafb;page-break-inside:avoid;break-inside:avoid;display:flex;justify-content:space-between;align-items:baseline">
+        <strong style="font-size:13px">${fmtDate(item.date)}</strong>
+        <span style="font-size:12px;font-style:italic;color:#6b7280">${item.type}</span>
+      </div>`;
     }).join("");
     weeksHTML += `
-      <h3 style="background:#1e3a5f;color:white;padding:8px 12px;margin:16px 0 0;border-radius:4px 4px 0 0">
-        Week ${i+1}: ${fmtShort(w.start)} – ${fmtShort(w.end)} &nbsp;|&nbsp; ${fmtHrs(w.total)} total${w.sunday>0?` / ${fmtHrs(w.sunday)} Sun`:""}${w.overtime>0?` / ${fmtHrs(w.overtime)} OT`:""}
-      </h3>
-      <table style="width:100%;border-collapse:collapse;margin-bottom:4px">
-        <thead><tr style="background:#f3f4f6">
-          <th style="padding:6px 8px;text-align:left;font-size:12px">Date</th>
-          <th style="padding:6px 8px;text-align:left;font-size:12px">Zone</th>
-          <th style="padding:6px 8px;text-align:left;font-size:12px">Duty</th>
-          <th style="padding:6px 8px;text-align:left;font-size:12px">Report</th>
-          <th style="padding:6px 8px;text-align:left;font-size:12px">Sign Off</th>
-          <th style="padding:6px 8px;text-align:left;font-size:12px">Spreadover</th>
-          <th style="padding:6px 8px;text-align:left;font-size:12px">Work</th>
-          <th style="padding:6px 8px;text-align:left;font-size:12px">Relief</th>
-          <th style="padding:6px 8px;text-align:left;font-size:12px">Overtime</th>
-          <th style="padding:6px 8px;text-align:left;font-size:12px">Notes</th>
-        </tr></thead>
-        <tbody>${rows || '<tr><td colspan="10" style="padding:8px;color:#6b7280;text-align:center">No entries this week</td></tr>'}</tbody>
-      </table>`;
+      <div style="page-break-inside:avoid;break-inside:avoid">
+        <h3 style="background:#1e3a5f;color:white;padding:8px 12px;margin:16px 0 8px;border-radius:6px;font-size:14px">
+          Week ${i+1}: ${fmtShort(w.start)} – ${fmtShort(w.end)} &nbsp;|&nbsp; ${fmtHrs(w.total)} total${w.sunday>0?` / ${fmtHrs(w.sunday)} Sun`:""}${w.overtime>0?` / ${fmtHrs(w.overtime)} OT`:""}
+        </h3>
+        ${cards || '<p style="color:#6b7280;text-align:center;padding:10px 0">No entries this week</p>'}
+      </div>`;
   });
 
   const tallyRows = DAY_OFF_TYPES.map(t =>
@@ -315,13 +377,15 @@ function buildPDFHTML(period, stats) {
   h1{color:#1e3a5f;margin:0 0 4px}
   h2{color:#1e3a5f;border-bottom:2px solid #fbbf24;padding-bottom:6px;margin:24px 0 12px}
   table{width:100%;border-collapse:collapse;font-size:13px}
-  td,th{padding:6px 8px;border-bottom:1px solid #e5e7eb;text-align:left}
+  td,th{padding:6px 8px;border-bottom:1px solid #e5e7eb;text-align:left;word-wrap:break-word;overflow-wrap:break-word}
   th{background:#f9fafb;font-weight:600}
   .comp-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:12px 0}
   .comp-box{border:2px solid;border-radius:8px;padding:14px}
   .bar-bg{background:#e5e7eb;border-radius:4px;height:8px;margin:8px 0}
   .bar-fill{height:8px;border-radius:4px}
-  @media print{body{padding:12px}}
+  tr{page-break-inside:avoid;break-inside:avoid}
+  @page{size:A4;margin:15mm}
+  @media print{body{padding:0;max-width:none}}
 </style>
 </head><body>
 <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px">
@@ -408,17 +472,31 @@ const WHATS_NEW = {
   title: "What's new in v1.5",
   showToExisting: true,
   features: [
-    { icon: "🌙", heading: "Light & dark mode", body: "Settings now has a working appearance toggle — System, Light, or Dark. System follows your phone's display setting automatically." },
-    { icon: "📅", heading: "Log days off from Leave tab", body: "The Leave screen now has a Log Day Off button at the top — log and track leave all in one place." },
-    { icon: "📆", heading: "Annual leave date range", body: "Log two weeks of holidays in one go. Select Annual Leave, pick From and To dates, and all days are logged at once." },
-    { icon: "🗓", heading: "Any date, any time", body: "Day-off entries are no longer restricted to the current period. Log sick days or annual leave from earlier in the year to catch up your records." },
-    { icon: "💾", heading: "Data backup & restore", body: "New in Settings — export all your data to a file and restore it on a new phone. Protects against losing everything if you clear your cache." },
-    { icon: "🔧", heading: "Date picker improved", body: "The date picker now shows a clear calendar icon and the whole box is tappable — no more hunting for the tiny icon in dark mode." },
+    { icon: "theme", heading: "Light & dark mode", body: "Settings now has a working appearance toggle — System, Light, or Dark. System follows your phone's display setting automatically." },
+    { icon: "dayoff", heading: "Log days off from Leave tab", body: "The Leave screen now has a Log Day Off button at the top — log and track leave all in one place." },
+    { icon: "daterange", heading: "Annual leave date range", body: "Log two weeks of holidays in one go. Select Annual Leave, pick From and To dates, and all days are logged at once." },
+    { icon: "anydate", heading: "Any date, any time", body: "Day-off entries are no longer restricted to the current period. Log sick days or annual leave from earlier in the year to catch up your records." },
+    { icon: "backup", heading: "Data backup & restore", body: "New in Settings — export all your data to a file and restore it on a new phone. Protects against losing everything if you clear your cache." },
+    { icon: "datepicker", heading: "Date picker improved", body: "The date picker now shows a clear calendar icon and the whole box is tappable — no more hunting for the tiny icon in dark mode." },
   ]
 };
 
+// SVG icon set for What's New — replaces raw emoji, which can render as blank
+// boxes on older/budget Android devices.
+function WhatsNewIcon({type}) {
+  const wrap = {width:38,height:38,borderRadius:10,background:`${ACCENT}18`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,marginTop:1};
+  const s = {width:19,height:19,fill:"none",stroke:ACCENT,strokeWidth:2,strokeLinecap:"round",strokeLinejoin:"round"};
+  if(type==="theme") return <div style={wrap}><svg viewBox="0 0 24 24" style={s}><path d="M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.4 5.4 0 0 1-7.54-7.54A9 9 0 0 0 12 3z"/></svg></div>;
+  if(type==="dayoff") return <div style={wrap}><svg viewBox="0 0 24 24" style={s}><rect x="3" y="4" width="18" height="17" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="12" y1="13" x2="12" y2="18"/><line x1="9.5" y1="15.5" x2="14.5" y2="15.5"/></svg></div>;
+  if(type==="daterange") return <div style={wrap}><svg viewBox="0 0 24 24" style={s}><rect x="3" y="4" width="18" height="17" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="13" x2="10" y2="13"/><line x1="14" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg></div>;
+  if(type==="anydate") return <div style={wrap}><svg viewBox="0 0 24 24" style={s}><rect x="3" y="4" width="18" height="17" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></svg></div>;
+  if(type==="backup") return <div style={wrap}><svg viewBox="0 0 24 24" style={s}><path d="M7 18a4.5 4.5 0 0 1-1-8.9 5 5 0 0 1 9.7-1.7A4 4 0 0 1 17 15.9"/><polyline points="12 12 12 21"/><polyline points="9 18 12 21 15 18"/></svg></div>;
+  if(type==="datepicker") return <div style={wrap}><svg viewBox="0 0 24 24" style={s}><rect x="3" y="4" width="18" height="17" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/><circle cx="12" cy="14" r="2.5"/></svg></div>;
+  return null;
+}
+
 // ─── WHAT'S NEW SCREEN ────────────────────────────────────────────────────────
-function WhatsNewScreen({onDone}) {
+function WhatsNewScreen({onDone, onSkipTour}) {
   return (
     <div style={{background:BG,minHeight:"100vh",display:"flex",flexDirection:"column"}}>
       <div style={{padding:"32px 20px 16px",background:`linear-gradient(180deg,${CARD2} 0%,${BG} 100%)`}}>
@@ -430,7 +508,7 @@ function WhatsNewScreen({onDone}) {
       <div style={{flex:1,overflowY:"auto",padding:"8px 16px 16px"}}>
         {WHATS_NEW.features.map((f,i)=>(
           <div key={i} style={{background:CARD,border:`1px solid ${BORDER}`,borderRadius:14,padding:"14px 16px",marginBottom:10,display:"flex",gap:14,alignItems:"flex-start"}}>
-            <span style={{fontSize:22,flexShrink:0,marginTop:1}}>{f.icon}</span>
+            <WhatsNewIcon type={f.icon}/>
             <div>
               <p style={{color:TEXT,fontSize:14,fontWeight:700,margin:"0 0 4px"}}>{f.heading}</p>
               <p style={{color:MUTED,fontSize:13,margin:0,lineHeight:1.5}}>{f.body}</p>
@@ -440,55 +518,75 @@ function WhatsNewScreen({onDone}) {
         <button onClick={onDone} style={{...btnStyle,marginTop:8}}>
           Got it — let's go
         </button>
+        {onSkipTour && (
+          <button onClick={onSkipTour} style={{background:"none",border:"none",color:MUTED,fontSize:13,fontWeight:600,cursor:"pointer",width:"100%",padding:"14px 0 0"}}>
+            Skip the tour — I know the app
+          </button>
+        )}
       </div>
     </div>
   );
 }
 
 
-function TermsScreen({onAccept}) {
+function TermsScreen({onAccept, readOnly, onClose}) {
   const [tick1, setTick1] = useState(false);
   const [tick2, setTick2] = useState(false);
+  const [hasScrolledEnd, setHasScrolledEnd] = useState(readOnly);
   const canAccept = tick1 && tick2;
 
+  function checkScrollEnd(e) {
+    if(hasScrolledEnd) return;
+    const el = e.target;
+    if(el.scrollTop + el.clientHeight >= el.scrollHeight - 12) setHasScrolledEnd(true);
+  }
+
   return (
-    <div style={{background:BG,minHeight:"100vh",display:"flex",flexDirection:"column"}}>
+    <div style={{background:BG,height:"100vh",display:"flex",flexDirection:"column",overflow:"hidden"}}>
       <div style={{padding:"32px 20px 16px",background:`linear-gradient(180deg,${CARD2} 0%,${BG} 100%)`}}>
-        <p style={{color:ACCENT,fontSize:11,textTransform:"uppercase",letterSpacing:2,fontWeight:700,margin:"0 0 6px"}}>Before you begin</p>
+        <p style={{color:ACCENT,fontSize:11,textTransform:"uppercase",letterSpacing:2,fontWeight:700,margin:"0 0 6px"}}>{readOnly?"Reference":"Before you begin"}</p>
         <h1 style={{color:TEXT,fontSize:24,fontWeight:800,margin:"0 0 4px",letterSpacing:"-0.5px"}}>Terms & Conditions</h1>
-        <p style={{color:MUTED,fontSize:13,margin:0}}>Please read carefully before using Dublin Bus Shift Tracker</p>
+        <p style={{color:MUTED,fontSize:13,margin:0}}>{readOnly?"For your reference":"Please read carefully before using Dublin Bus Shift Tracker"}</p>
       </div>
 
-      <div style={{flex:1,overflowY:"auto",padding:"0 16px 16px"}}>
-        <div style={{background:CARD,border:`1px solid ${BORDER}`,borderRadius:16,padding:"18px 16px",marginBottom:16,fontSize:13,lineHeight:1.7,color:MUTED}}>
+      <div onScroll={checkScrollEnd} style={{flex:1,overflowY:"auto",padding:"0 16px 16px"}}>
+        <div style={{background:CARD,border:`1px solid ${BORDER}`,borderRadius:16,padding:"18px 16px",marginBottom:16,fontSize:14,lineHeight:1.7,color:TEXT}}>
 
-          <p style={{color:TEXT,fontWeight:700,fontSize:14,margin:"0 0 8px"}}>1. Ownership &amp; Intellectual Property</p>
+          <p style={{color:TEXT,fontWeight:700,fontSize:15,margin:"0 0 8px"}}>1. Ownership &amp; Intellectual Property</p>
           <p style={{margin:"0 0 14px"}}>Dublin Bus Shift Tracker and all content within it, including running board data, interface design, and code, is the private property of the developer. All rights are reserved. The app may not be copied, redistributed, or reproduced in any form without the express written permission of the developer.</p>
 
-          <p style={{color:TEXT,fontWeight:700,fontSize:14,margin:"0 0 8px"}}>2. Private Use Only</p>
+          <p style={{color:TEXT,fontWeight:700,fontSize:15,margin:"0 0 8px"}}>2. Private Use Only</p>
           <p style={{margin:"0 0 14px"}}>This app is provided for the personal, private use of authorised users only. It is not affiliated with, endorsed by, or connected to Dublin Bus, Dublin Bus management, or any trade union. Any resemblance to official Dublin Bus systems is incidental.</p>
 
-          <p style={{color:TEXT,fontWeight:700,fontSize:14,margin:"0 0 8px"}}>3. Data Accuracy &amp; Responsibility</p>
+          <p style={{color:TEXT,fontWeight:700,fontSize:15,margin:"0 0 8px"}}>3. Data Accuracy &amp; Responsibility</p>
           <p style={{margin:"0 0 14px"}}>The accuracy of hours, compliance figures, and shift records displayed in this app is entirely dependent on the data entered by the user. The developer accepts no responsibility for errors arising from incorrect data entry. In any employment dispute or compliance matter, official records held by Dublin Bus take precedence over figures shown in this app.</p>
 
-          <p style={{color:TEXT,fontWeight:700,fontSize:14,margin:"0 0 8px"}}>4. Running Board Data</p>
+          <p style={{color:TEXT,fontWeight:700,fontSize:15,margin:"0 0 8px"}}>4. Running Board Data</p>
           <p style={{margin:"0 0 14px"}}>Running board and schedule information displayed in the app is sourced from Dublin Bus operational data. This data may not always reflect last-minute operational changes, diversions, or schedule amendments. Users should always verify current duties through official Dublin Bus channels. The developer will endeavour to keep data up to date but cannot guarantee real-time accuracy.</p>
 
-          <p style={{color:TEXT,fontWeight:700,fontSize:14,margin:"0 0 8px"}}>5. Data Storage &amp; Privacy</p>
+          <p style={{color:TEXT,fontWeight:700,fontSize:15,margin:"0 0 8px"}}>5. Data Storage &amp; Privacy</p>
           <p style={{margin:"0 0 14px"}}>All data entered into the app is stored locally on your device only. The developer has no access to your personal data, shift records, or usage information at any time.</p>
 
-          <p style={{color:TEXT,fontWeight:700,fontSize:14,margin:"0 0 8px"}}>6. Limitation of Liability</p>
+          <p style={{color:TEXT,fontWeight:700,fontSize:15,margin:"0 0 8px"}}>6. Limitation of Liability</p>
           <p style={{margin:"0 0 14px"}}>The developer accepts no liability for any loss, consequence, or outcome arising from the use of or reliance on information displayed in this app, including but not limited to hours calculations, compliance figures, or running board data.</p>
 
-          <p style={{color:TEXT,fontWeight:700,fontSize:14,margin:"0 0 8px"}}>7. Availability &amp; Access</p>
+          <p style={{color:TEXT,fontWeight:700,fontSize:15,margin:"0 0 8px"}}>7. Availability &amp; Access</p>
           <p style={{margin:"0 0 14px"}}>The app may be updated, modified, or taken offline at any time and without prior notice. Access may be revoked at the developer's sole discretion. Features may be added or removed without notice.</p>
 
-          <p style={{color:TEXT,fontWeight:700,fontSize:14,margin:"0 0 8px"}}>8. Safe Use</p>
+          <p style={{color:TEXT,fontWeight:700,fontSize:15,margin:"0 0 8px"}}>8. Safe Use</p>
           <p style={{margin:"0 0 0"}}>This app must never be used while driving, operating a vehicle, or in any situation where use of a mobile device is prohibited by law or company policy. The developer accepts no liability for any incident arising from unsafe use of the app.</p>
         </div>
 
+        {readOnly ? (
+          <button onClick={onClose} style={{...btnStyle,marginBottom:32}}>Close</button>
+        ) : (<>
+
+        {!hasScrolledEnd && (
+          <p style={{color:ACCENT,fontSize:12,textAlign:"center",margin:"0 0 10px",fontWeight:600}}>Scroll to the bottom to continue ↓</p>
+        )}
+
         {/* Checkbox 1 */}
-        <div onClick={()=>setTick1(!tick1)} style={{background:CARD,border:`1px solid ${tick1?ACCENT:BORDER}`,borderRadius:14,padding:"16px",marginBottom:10,cursor:"pointer",display:"flex",gap:14,alignItems:"flex-start"}}>
+        <div onClick={()=>hasScrolledEnd&&setTick1(!tick1)} style={{background:CARD,border:`1px solid ${tick1?ACCENT:BORDER}`,borderRadius:14,padding:"16px",marginBottom:10,cursor:hasScrolledEnd?"pointer":"not-allowed",opacity:hasScrolledEnd?1:0.5,display:"flex",gap:14,alignItems:"flex-start"}}>
           <div style={{width:22,height:22,borderRadius:6,border:`2px solid ${tick1?ACCENT:BORDER}`,background:tick1?ACCENT:"none",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",marginTop:1}}>
             {tick1&&<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#07090F" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
           </div>
@@ -496,7 +594,7 @@ function TermsScreen({onAccept}) {
         </div>
 
         {/* Checkbox 2 */}
-        <div onClick={()=>setTick2(!tick2)} style={{background:CARD,border:`1px solid ${tick2?ACCENT:BORDER}`,borderRadius:14,padding:"16px",marginBottom:20,cursor:"pointer",display:"flex",gap:14,alignItems:"flex-start"}}>
+        <div onClick={()=>hasScrolledEnd&&setTick2(!tick2)} style={{background:CARD,border:`1px solid ${tick2?ACCENT:BORDER}`,borderRadius:14,padding:"16px",marginBottom:20,cursor:hasScrolledEnd?"pointer":"not-allowed",opacity:hasScrolledEnd?1:0.5,display:"flex",gap:14,alignItems:"flex-start"}}>
           <div style={{width:22,height:22,borderRadius:6,border:`2px solid ${tick2?ACCENT:BORDER}`,background:tick2?ACCENT:"none",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",marginTop:1}}>
             {tick2&&<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#07090F" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
           </div>
@@ -506,6 +604,7 @@ function TermsScreen({onAccept}) {
         <button onClick={onAccept} disabled={!canAccept} style={{...btnStyle,opacity:canAccept?1:0.35,marginBottom:32}}>
           Accept &amp; Continue
         </button>
+        </>)}
       </div>
     </div>
   );
@@ -586,15 +685,15 @@ function TodayDutyCard({shift, label, accentColor, defaultExpanded=true}) {
         {/* Key times row */}
         <div style={{display:"grid",gridTemplateColumns:`1fr ${duty?.b?"1fr ":""}1fr`,gap:6}}>
           <div style={{background:"#07090F55",borderRadius:10,padding:"8px 10px"}}>
-            <p style={{color:MUTED,fontSize:9,textTransform:"uppercase",letterSpacing:1,fontWeight:700,margin:"0 0 2px"}}>Report</p>
+            <p style={{color:MUTED,fontSize:11,textTransform:"uppercase",letterSpacing:1,fontWeight:700,margin:"0 0 2px"}}>Report</p>
             <p style={{color:ac,fontSize:15,fontWeight:800,margin:0,fontVariantNumeric:"tabular-nums"}}>{shift.reportTime}</p>
           </div>
           {duty?.b&&<div style={{background:"#07090F55",borderRadius:10,padding:"8px 10px"}}>
-            <p style={{color:MUTED,fontSize:9,textTransform:"uppercase",letterSpacing:1,fontWeight:700,margin:"0 0 2px"}}>Break</p>
+            <p style={{color:MUTED,fontSize:11,textTransform:"uppercase",letterSpacing:1,fontWeight:700,margin:"0 0 2px"}}>Break</p>
             <p style={{color:"#F59E0B",fontSize:15,fontWeight:800,margin:0,fontVariantNumeric:"tabular-nums"}}>{duty.bs||"–"}</p>
           </div>}
           <div style={{background:"#07090F55",borderRadius:10,padding:"8px 10px"}}>
-            <p style={{color:MUTED,fontSize:9,textTransform:"uppercase",letterSpacing:1,fontWeight:700,margin:"0 0 2px"}}>Finish</p>
+            <p style={{color:MUTED,fontSize:11,textTransform:"uppercase",letterSpacing:1,fontWeight:700,margin:"0 0 2px"}}>Finish</p>
             <p style={{color:SUCCESS,fontSize:15,fontWeight:800,margin:0,fontVariantNumeric:"tabular-nums"}}>{shift.signOffTime}</p>
           </div>
         </div>
@@ -638,9 +737,10 @@ function TodayDutyCard({shift, label, accentColor, defaultExpanded=true}) {
 }
 
 // ─── HOME SCREEN ──────────────────────────────────────────────────────────────
-function HomeScreen({period, onLog, onLogDayOff, onGoWeek, onHelp, onLookup, onThemeChange, leaveSettings, onLeaveSettingsChange}) {
+function HomeScreen({period, onLog, onGoWeek, onHelp, onThemeChange, leaveSettings, onLeaveSettingsChange, onViewTerms}) {
   const stats = useMemo(() => pStats(period), [period]);
   const [showSettings, setShowSettings] = useState(false);
+  const [confirmFeedback, setConfirmFeedback] = useState(false);
   const todayDate = today();
   const cwIdx = stats.weeks.findIndex(w => todayDate >= w.start && todayDate <= w.end);
   const wi = cwIdx >= 0 ? cwIdx : 0;
@@ -653,10 +753,13 @@ function HomeScreen({period, onLog, onLogDayOff, onGoWeek, onHelp, onLookup, onT
   const todayShift = (period.shifts||[]).find(s => s.date === todayDate);
   // Tomorrow's duty — look for a shift logged for tomorrow
   const tomorrowShift = (period.shifts||[]).find(s => s.date === addDays(todayDate,1));
+  // Fixed rest day — comes from the merged (real + auto) daysOff on the current week
+  const todayRestEntry = (cw.daysOff||[]).find(d => d.date === todayDate && d.type === "Rest Day");
 
   return (
     <div style={{background:BG,minHeight:"100vh",paddingBottom:100}}>
-      {showSettings && <SettingsPanel onClose={()=>setShowSettings(false)} onThemeChange={onThemeChange} leaveSettings={leaveSettings} onLeaveSettingsChange={onLeaveSettingsChange}/>}
+      {showSettings && <SettingsPanel onClose={()=>setShowSettings(false)} onThemeChange={onThemeChange} leaveSettings={leaveSettings} onLeaveSettingsChange={onLeaveSettingsChange} onReplayTour={()=>{setShowSettings(false);onHelp();}} onViewTerms={()=>{setShowSettings(false);onViewTerms();}}/>}
+      {confirmFeedback && <ConfirmDialog msg="This opens a feedback form in a new tab, outside the app. Continue?" yesLabel="Continue" onYes={()=>{setConfirmFeedback(false);window.open("https://docs.google.com/forms/d/e/1FAIpQLScgZEIoRM7xqkOpSyVcDQl23fbDJ_UTq99sF0c4mgta5bwrUQ/viewform?usp=header","_blank");}} onNo={()=>setConfirmFeedback(false)}/>}
 
       {/* Header gradient */}
       <div style={{padding:"28px 20px 20px",background:`linear-gradient(180deg,${CARD2} 0%,${BG} 100%)`}}>
@@ -668,14 +771,14 @@ function HomeScreen({period, onLog, onLogDayOff, onGoWeek, onHelp, onLookup, onT
             </p>
             <p style={{color:MUTED,fontSize:12,margin:"4px 0 0"}}>Week {wi+1} of 5 · {fmtShort(cw.start)} – {fmtShort(cw.end)}</p>
           </div>
-        <div style={{display:"flex",gap:8}}>
-          <button onClick={()=>window.open("https://docs.google.com/forms/d/e/1FAIpQLScgZEIoRM7xqkOpSyVcDQl23fbDJ_UTq99sF0c4mgta5bwrUQ/viewform?usp=header","_blank")} style={{background:CARD,border:`1px solid ${BORDER}`,color:MUTED,borderRadius:10,width:36,height:36,fontSize:13,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",padding:0,flexShrink:0}}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={MUTED} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        <div style={{display:"flex",gap:10}}>
+          <button aria-label="Send feedback" onClick={()=>setConfirmFeedback(true)} style={{background:CARD,border:`1px solid ${BORDER}`,color:MUTED,borderRadius:10,width:44,height:44,fontSize:13,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",padding:0,flexShrink:0}}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={MUTED} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
           </button>
-          <button onClick={()=>setShowSettings(true)} style={{background:CARD,border:`1px solid ${BORDER}`,color:MUTED,borderRadius:10,width:36,height:36,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",padding:0,flexShrink:0}}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={MUTED} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          <button aria-label="Settings" onClick={()=>setShowSettings(true)} style={{background:CARD,border:`1px solid ${BORDER}`,color:MUTED,borderRadius:10,width:44,height:44,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",padding:0,flexShrink:0}}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={MUTED} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
           </button>
-          <button onClick={onHelp} style={{background:CARD,border:`1px solid ${BORDER}`,color:MUTED,borderRadius:10,width:36,height:36,fontSize:14,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",padding:0,flexShrink:0}}>?</button>
+          <button aria-label="Help / tour" onClick={onHelp} style={{background:CARD,border:`1px solid ${BORDER}`,color:MUTED,borderRadius:10,width:44,height:44,fontSize:15,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",padding:0,flexShrink:0}}>?</button>
         </div>
         </div>
       </div>
@@ -685,6 +788,16 @@ function HomeScreen({period, onLog, onLogDayOff, onGoWeek, onHelp, onLookup, onT
         {/* TODAY'S DUTY — hero card when a shift is logged for today */}
         {todayShift ? (
           <TodayDutyCard shift={todayShift} label="Today's Duty" accentColor={ACCENT} />
+        ) : todayRestEntry ? (
+          <div style={{background:CARD,border:`1px solid ${BORDER}`,borderRadius:18,padding:"16px 18px",marginBottom:12,display:"flex",alignItems:"center",gap:14}}>
+            <div style={{width:42,height:42,borderRadius:12,background:`${SUCCESS}14`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={SUCCESS} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12.5l2.5 2.5L16 9"/></svg>
+            </div>
+            <div style={{flex:1}}>
+              <p style={{color:TEXT,fontSize:14,fontWeight:700,margin:"0 0 2px"}}>Resting today</p>
+              <p style={{color:MUTED,fontSize:12,margin:0}}>Scheduled rest day — nothing to log</p>
+            </div>
+          </div>
         ) : (
           <div style={{background:CARD,border:`1px solid ${BORDER}`,borderRadius:18,padding:"16px 18px",marginBottom:12,display:"flex",alignItems:"center",gap:14}}>
             <div style={{width:42,height:42,borderRadius:12,background:`${ACCENT}14`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
@@ -701,15 +814,10 @@ function HomeScreen({period, onLog, onLogDayOff, onGoWeek, onHelp, onLookup, onT
           <TodayDutyCard shift={tomorrowShift} label="Tomorrow's Duty" accentColor="#60a5fa" defaultExpanded={false} />
         )}
 
-        {/* Quick actions */}
-        <div style={{display:"grid",gridTemplateColumns:"1fr auto",gap:10,marginBottom:12}}>
-          <button style={{...btnStyle,fontSize:16,padding:"16px 20px",borderRadius:14,textAlign:"left"}} onClick={onLog}>
-            + Log a Shift
-          </button>
-          <button style={{background:CARD,color:MUTED,border:`1px solid ${BORDER}`,borderRadius:14,padding:"16px 14px",fontSize:14,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap"}} onClick={onLogDayOff}>
-            + Day Off
-          </button>
-        </div>
+        {/* Quick action */}
+        <button style={{...btnStyle,fontSize:16,padding:"16px 20px",borderRadius:14,textAlign:"left",marginBottom:12}} onClick={onLog}>
+          + Log a Shift
+        </button>
 
         {/* Remaining hours + week totals */}
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
@@ -733,9 +841,9 @@ function HomeScreen({period, onLog, onLogDayOff, onGoWeek, onHelp, onLookup, onT
               border:`1px solid ${i===wi?ACCENT:BORDER}`,
               borderRadius:12, padding:"10px 4px", textAlign:"center", cursor:"pointer"
             }}>
-              <p style={{color:i===wi?ACCENT:MUTED,fontSize:10,margin:"0 0 4px",fontWeight:700,textTransform:"uppercase",letterSpacing:0.5}}>W{i+1}</p>
-              <p style={{color:w.total>0?TEXT:MUTED,fontWeight:700,fontSize:12,margin:0}}>{w.total>0?fmtHrs(w.total):"–"}</p>
-              {w.sunday>0&&<p style={{color:SUCCESS,fontSize:9,margin:"2px 0 0"}}>{fmtHrs(w.sunday)}</p>}
+              <p style={{color:i===wi?ACCENT:MUTED,fontSize:11,margin:"0 0 4px",fontWeight:700,textTransform:"uppercase",letterSpacing:0.5}}>W{i+1}</p>
+              <p style={{color:w.total>0?TEXT:MUTED,fontWeight:700,fontSize:14,margin:0}}>{w.total>0?fmtHrs(w.total):"–"}</p>
+              {w.sunday>0&&<p style={{color:SUCCESS,fontSize:10.5,margin:"2px 0 0"}}>{fmtHrs(w.sunday)}</p>}
             </div>
           ))}
         </div>
@@ -751,6 +859,7 @@ function HomeScreen({period, onLog, onLogDayOff, onGoWeek, onHelp, onLookup, onT
             <div style={{background:BORDER,borderRadius:4,height:5}}>
               <div style={{width:"100%",transform:`scaleX(${totalPct/100})`,transformOrigin:"left",background:stats.total>MAX_HOURS?DANGER:totalPct>80?"#F59E0B":SUCCESS,height:5,borderRadius:4,transition:"transform 0.4s"}}/>
             </div>
+            {stats.total>MAX_HOURS && <p style={{color:DANGER,fontSize:11,margin:"6px 0 0",fontWeight:600}}>Limit exceeded</p>}
           </div>
           <div style={{marginBottom:14}}>
             <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
@@ -760,6 +869,7 @@ function HomeScreen({period, onLog, onLogDayOff, onGoWeek, onHelp, onLookup, onT
             <div style={{background:BORDER,borderRadius:4,height:5}}>
               <div style={{width:"100%",transform:`scaleX(${sunPct/100})`,transformOrigin:"left",background:stats.sunday>MAX_SUNDAY?DANGER:sunPct>80?"#F59E0B":SUCCESS,height:5,borderRadius:4,transition:"transform 0.4s"}}/>
             </div>
+            {stats.sunday>MAX_SUNDAY && <p style={{color:DANGER,fontSize:11,margin:"6px 0 0",fontWeight:600}}>Limit exceeded</p>}
           </div>
           {stats.overtime>0 && (
             <div style={{marginTop:14}}>
@@ -823,6 +933,14 @@ function LogScreen({period, editShift, lookupDuty, onSave, onCancel}) {
   const [overtimeH, setOvertimeH] = useState(Math.floor(editShift?.overtimeHours||0));
   const [overtimeM, setOvertimeM] = useState(Math.round(((editShift?.overtimeHours||0)%1)*60));
   const [overtimeNote, setOvertimeNote] = useState(editShift?.overtimeNote || "");
+  const [pendingAction, setPendingAction] = useState(null); // {msg, run} — confirm before wiping entered times
+
+  function hasEnteredTimes() {
+    return !!reportTime || signOffVal!=="00:00" || workH>0 || workM>0 || reliefH>0 || reliefM>0;
+  }
+  function guardedRun(msg, run) {
+    if (hasEnteredTimes()) setPendingAction({msg, run}); else run();
+  }
 
   // Use lookupDuty's dayType for duty filtering when coming from Lookup
   // so the right duties show regardless of today's day
@@ -862,7 +980,17 @@ function LogScreen({period, editShift, lookupDuty, onSave, onCancel}) {
 
   const signOffStr = buildSignOff();
   const inRange = inPeriod(date, period);
-  const canSave = (rIdx >= 0 || isSpare || fixedType) && date && reportTime && signOffVal && inRange;
+  // Same date already has another shift logged (never valid — one driver, one duty a day)
+  const conflictShift = (period.shifts||[]).find(s => s.date === date && s.id !== editShift?.id);
+  // Same date already has a day off logged (Annual Leave, Sick Day, etc.) — flag, don't block
+  const conflictDayOff = (period.daysOff||[]).find(d => d.date === date);
+  const canSave = (rIdx >= 0 || isSpare || fixedType) && date && reportTime && signOffVal && inRange && !conflictShift;
+  const saveBlockReason = !date ? "Pick a date."
+    : !inRange ? "This date falls outside the current 5-week period."
+    : conflictShift ? "A shift is already logged on this date — edit or delete it first."
+    : !(rIdx >= 0 || isSpare || fixedType) ? "Pick a duty, or choose Spare / another duty type."
+    : (!reportTime || !signOffVal) ? "Enter a start and finish time."
+    : null;
   const spreadover = reportTime && signOffVal ? calcSpreadover(reportTime, signOffStr) : null;
   const fixedDef = fixedType ? FIXED_DUTY_TYPES.find(f => f.key === fixedType) : null;
 
@@ -893,7 +1021,6 @@ function LogScreen({period, editShift, lookupDuty, onSave, onCancel}) {
       reportTime, signOffTime: signOffStr,
       workHours: fixedDef ? fixedDef.hours : isSpare ? calcSpreadover(reportTime, signOffStr) : workH + workM/60,
       reliefHours: (isSpare || fixedType) ? 0 : reliefH + reliefM/60,
-      hasBreak: (isSpare || fixedType) ? false : duty.b,
       isSpare, isRestDay,
       overtimeHours: overtimeH + overtimeM/60,
       overtimeNote: overtimeNote.trim(),
@@ -914,34 +1041,54 @@ function LogScreen({period, editShift, lookupDuty, onSave, onCancel}) {
         )}
         {/* Date */}
         <div style={{marginBottom:16}}>
-          <FieldLabel>Date</FieldLabel>
-          <DateInput value={date} onChange={e => setDate(e.target.value)}/>
+          <FieldLabel htmlFor="log-date">Date</FieldLabel>
+          <DateInput id="log-date" value={date} onChange={e => setDate(e.target.value)} invalid={!inRange && !!date}/>
           <div style={{display:"flex",alignItems:"center",gap:8,marginTop:8,flexWrap:"wrap"}}>
             <span style={tag(dayColor)}>{dayLabel}</span>
-            {!inRange && date && <span style={tag(DANGER)}>Outside period</span>}
           </div>
+          {!inRange && date && (
+            <p style={{color:DANGER,fontSize:12,margin:"8px 0 0",fontWeight:600}}>This date falls outside the current 5-week period ({fmtShort(period.startDate)} – {fmtShort(addDays(period.startDate,34))}).</p>
+          )}
+          {conflictShift && (
+            <div style={{display:"flex",alignItems:"center",gap:8,marginTop:10,padding:"10px 12px",background:`${DANGER}14`,border:`1px solid ${DANGER}44`,borderRadius:10}}>
+              <span style={{width:6,height:6,borderRadius:"50%",background:DANGER,flexShrink:0}}/>
+              <p style={{color:DANGER,fontSize:13,margin:0}}>A shift ({conflictShift.roster}) is already logged for this date. Edit or delete it first, or pick a different date.</p>
+            </div>
+          )}
+          {!conflictShift && conflictDayOff && (
+            <div style={{display:"flex",alignItems:"center",gap:8,marginTop:10,padding:"10px 12px",background:"#F59E0B14",border:"1px solid #F59E0B44",borderRadius:10}}>
+              <span style={{width:6,height:6,borderRadius:"50%",background:"#F59E0B",flexShrink:0}}/>
+              <p style={{color:"#F59E0B",fontSize:13,margin:0}}>{conflictDayOff.type} is already logged for this date. Saving a shift will keep both records — check that's right.</p>
+            </div>
+          )}
         </div>
 
         {/* Zone */}
         <div style={{marginBottom:16}}>
           <FieldLabel>Zone</FieldLabel>
           <SegGroup options={ZONES} value={zone} cols={4}
-            onChange={z=>{setZone(z);setRIdx(-1);setReportTime("");setSignOffVal("00:00");setNextDay(false);setWorkH(0);setWorkM(0);setReliefH(0);setReliefM(0);}}/>
+            onChange={z=>{
+              if (z===zone) return;
+              guardedRun("Changing zone will clear the times you've already entered. Continue?", ()=>{
+                setZone(z);setRIdx(-1);setReportTime("");setSignOffVal("00:00");setNextDay(false);setWorkH(0);setWorkM(0);setReliefH(0);setReliefM(0);
+              });
+            }}/>
         </div>
 
         {/* Duty */}
         {!isSpare && !fixedType && (
           <div style={{marginBottom:16}}>
             <FieldLabel hint={`${duties.length} for ${dayLabel}`}>Duty</FieldLabel>
-            <select value={rIdx} onChange={e=>pick(Number(e.target.value))} style={inputStyle}>
-              <option value={-1}>— Select duty —</option>
-              {duties.map((d,i)=><option key={i} value={i}>{dutyLabel(d)}</option>)}
-            </select>
+            <DutyPicker key={zone+dutyDayType} duties={duties} value={rIdx} onChange={pick}/>
           </div>
         )}
 
         {/* Spare driver toggle — compact, sits between duty and shift details */}
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16,padding:"10px 14px",background:CARD,border:`1px solid ${isSpare?ACCENT:BORDER}`,borderRadius:12,cursor:"pointer"}} onClick={()=>{const ns=!isSpare;setIsSpare(ns);if(ns)setFixedType(null);setRIdx(-1);setReportTime("");setSignOffVal("00:00");setNextDay(false);setWorkH(0);setWorkM(0);}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16,padding:"10px 14px",background:CARD,border:`1px solid ${isSpare?ACCENT:BORDER}`,borderRadius:12,cursor:"pointer"}} onClick={()=>{
+          guardedRun("Toggling Spare will clear the times you've already entered. Continue?", ()=>{
+            const ns=!isSpare;setIsSpare(ns);if(ns)setFixedType(null);setRIdx(-1);setReportTime("");setSignOffVal("00:00");setNextDay(false);setWorkH(0);setWorkM(0);
+          });
+        }}>
           <span style={{color:isSpare?ACCENT:MUTED,fontSize:13,fontWeight:600}}>Spare driver shift</span>
           <div style={{width:40,height:24,borderRadius:12,background:isSpare?ACCENT:BORDER,position:"relative",transition:"background 0.2s",flexShrink:0}}>
             <div style={{width:18,height:18,borderRadius:"50%",background:"#fff",position:"absolute",top:3,left:isSpare?19:3,transition:"left 0.2s"}}/>
@@ -951,6 +1098,7 @@ function LogScreen({period, editShift, lookupDuty, onSave, onCancel}) {
         {/* Other duty types — CPC/Training & fixed-duration spares */}
         <div style={{marginBottom:16}}>
           <FieldLabel>Other duty types</FieldLabel>
+          <p style={{color:MUTED,fontSize:11,margin:"-6px 0 10px"}}>CPC/Training = Certificate of Professional Competence</p>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
             {FIXED_DUTY_TYPES.map(f => {
               const active = fixedType === f.key;
@@ -973,7 +1121,7 @@ function LogScreen({period, editShift, lookupDuty, onSave, onCancel}) {
         {(rIdx>=0 || isSpare || fixedType) && (
           <div style={{...cardStyle,marginBottom:16}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-              <FieldLabel>{fixedDef ? fixedDef.label : isSpare?"Spare shift times":"Shift details"}</FieldLabel>
+              <FieldLabel>{fixedDef ? (fixedDef.full||fixedDef.label) : isSpare?"Spare shift times":"Shift details"}</FieldLabel>
               {!isSpare && !fixedType && <span style={{color:MUTED,fontSize:11,marginTop:-8}}>adjust if needed</span>}
             </div>
 
@@ -995,13 +1143,13 @@ function LogScreen({period, editShift, lookupDuty, onSave, onCancel}) {
               /* Report + Sign off — two time pickers side by side */
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:!isSpare?14:0}}>
                 <div>
-                  <FieldLabel>Report</FieldLabel>
-                  <input type="time" value={reportTime} onChange={e=>setReportTime(e.target.value)} style={inputStyle}/>
+                  <FieldLabel htmlFor="log-report">Report</FieldLabel>
+                  <input id="log-report" type="time" value={reportTime} onChange={e=>setReportTime(e.target.value)} style={inputStyle}/>
                 </div>
                 <div>
-                  <FieldLabel>Sign off</FieldLabel>
+                  <FieldLabel htmlFor="log-signoff">Sign off</FieldLabel>
                   <div style={{display:"flex",gap:6,alignItems:"center"}}>
-                    <input type="time" value={signOffVal} onChange={e=>setSignOffVal(e.target.value)} style={{...inputStyle,flex:1,minWidth:0}}/>
+                    <input id="log-signoff" type="time" value={signOffVal} onChange={e=>setSignOffVal(e.target.value)} style={{...inputStyle,flex:1,minWidth:0}}/>
                     <button onClick={()=>setNextDay(!nextDay)} style={{
                       background:nextDay?ACCENT:CARD2,color:nextDay?"#07090F":MUTED,
                       border:`1px solid ${nextDay?ACCENT:BORDER}`,borderRadius:8,
@@ -1054,18 +1202,18 @@ function LogScreen({period, editShift, lookupDuty, onSave, onCancel}) {
         {/* Overtime section */}
         {(rIdx>=0 || isSpare || fixedType) && !isRestDay && (
           <div style={{...cardStyle,marginBottom:16}}>
-            <FieldLabel hint="optional">Overtime hours</FieldLabel>
+            <FieldLabel htmlFor="log-ot-h" hint="optional">Overtime hours</FieldLabel>
             <p style={{color:MUTED,fontSize:12,margin:"0 0 10px"}}>Extra time worked on top of this duty — tracked separately, doesn't count toward 190h</p>
             <div style={{display:"flex",gap:6,alignItems:"center",marginBottom:12}}>
-              <input type="number" min="0" max="12" value={overtimeH} onChange={e=>setOvertimeH(parseInt(e.target.value)||0)} style={{...inputStyle,padding:"12px 8px",textAlign:"center",minWidth:58}} />
+              <input id="log-ot-h" type="number" min="0" max="12" value={overtimeH} onChange={e=>setOvertimeH(Math.min(12,Math.max(0,parseInt(e.target.value)||0)))} style={{...inputStyle,padding:"12px 8px",textAlign:"center",minWidth:58}} />
               <span style={{color:MUTED,fontSize:13}}>h</span>
-              <input type="number" min="0" max="59" value={overtimeM} onChange={e=>setOvertimeM(parseInt(e.target.value)||0)} style={{...inputStyle,padding:"12px 8px",textAlign:"center",minWidth:58}} />
+              <input type="number" min="0" max="59" value={overtimeM} onChange={e=>setOvertimeM(Math.min(59,Math.max(0,parseInt(e.target.value)||0)))} style={{...inputStyle,padding:"12px 8px",textAlign:"center",minWidth:58}} />
               <span style={{color:MUTED,fontSize:13}}>m</span>
             </div>
             {(overtimeH > 0 || overtimeM > 0) && (
               <div>
-                <FieldLabel hint="optional">What was this overtime for?</FieldLabel>
-                <textarea value={overtimeNote} onChange={e=>setOvertimeNote(e.target.value)}
+                <FieldLabel htmlFor="log-ot-note" hint="optional">What was this overtime for?</FieldLabel>
+                <textarea id="log-ot-note" value={overtimeNote} onChange={e=>setOvertimeNote(e.target.value)}
                   placeholder="e.g. covered part of duty, late relief, traffic delay"
                   style={{...inputStyle,minHeight:64,resize:"vertical",fontFamily:"inherit",lineHeight:1.5}} />
               </div>
@@ -1076,16 +1224,23 @@ function LogScreen({period, editShift, lookupDuty, onSave, onCancel}) {
         {/* Notes — only show once a duty is selected */}
         {(rIdx>=0 || isSpare || fixedType) && (
           <div style={{marginBottom:20}}>
-            <FieldLabel hint="optional">Notes</FieldLabel>
-            <textarea value={notes} onChange={e=>setNotes(e.target.value)} placeholder="e.g. duty changed at short notice, covered for a colleague"
+            <FieldLabel htmlFor="log-notes" hint="optional">Notes</FieldLabel>
+            <textarea id="log-notes" value={notes} onChange={e=>setNotes(e.target.value)} placeholder="e.g. duty changed at short notice, covered for a colleague"
               style={{...inputStyle,minHeight:72,resize:"vertical",fontFamily:"inherit",lineHeight:1.5}} />
           </div>
         )}
 
-        {canSave && (
-          <button style={btnStyle} onClick={handleSave}>
-            {editShift?"Save Changes":"Log Shift"}
-          </button>
+        <button style={{...btnStyle,opacity:canSave?1:0.4,cursor:canSave?"pointer":"not-allowed"}} onClick={handleSave} disabled={!canSave}>
+          {editShift?"Save Changes":"Log Shift"}
+        </button>
+        {!canSave && saveBlockReason && (
+          <p style={{color:MUTED,fontSize:12,margin:"8px 0 0",textAlign:"center"}}>{saveBlockReason}</p>
+        )}
+
+        {pendingAction && (
+          <ConfirmDialog msg={pendingAction.msg} yesLabel="Continue" danger={false}
+            onYes={()=>{pendingAction.run();setPendingAction(null);}}
+            onNo={()=>setPendingAction(null)}/>
         )}
         {!canSave && (rIdx>=0 || isSpare || fixedType) && (
           <button style={{...btnStyle,opacity:0.4}} disabled>
@@ -1103,7 +1258,7 @@ function LogDayOffScreen({periods, editDayOff, onSave, onCancel}) {
   const [date, setDate] = useState(editDayOff?.date || today());
   // Range mode for Annual Leave
   const [rangeTo, setRangeTo] = useState(editDayOff?.date || today());
-  const isRange = type === "Annual Leave" && !editDayOff;
+  const isRange = !editDayOff;
 
   // Generate all calendar days between from and to inclusive
   function getDaysInRange(from, to) {
@@ -1118,6 +1273,9 @@ function LogDayOffScreen({periods, editDayOff, onSave, onCancel}) {
 
   const rangeDays = isRange ? getDaysInRange(date, rangeTo < date ? date : rangeTo) : [];
   const rangeCount = rangeDays.length;
+
+  const allShifts = useMemo(()=>periods.flatMap(p=>p.shifts||[]), [periods]);
+  const conflictDates = (isRange ? rangeDays : [date]).filter(d => allShifts.some(s=>s.date===d));
 
   function handleSave() {
     if (isRange && rangeCount > 0) {
@@ -1160,7 +1318,7 @@ function LogDayOffScreen({periods, editDayOff, onSave, onCancel}) {
         {isRange ? (
           <div style={{marginBottom:20}}>
             <FieldLabel>Date range</FieldLabel>
-            <p style={{color:MUTED,fontSize:12,margin:"0 0 10px"}}>Select the first and last day of your leave — all days in between will be logged.</p>
+            <p style={{color:MUTED,fontSize:12,margin:"0 0 10px"}}>Select the first and last day — all days in between will be logged. Logging just one day? Leave From and To the same.</p>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
               <div>
                 <p style={{color:MUTED,fontSize:11,textTransform:"uppercase",letterSpacing:1,fontWeight:700,margin:"0 0 6px"}}>From</p>
@@ -1175,7 +1333,7 @@ function LogDayOffScreen({periods, editDayOff, onSave, onCancel}) {
               <div style={{background:`${ACCENT}14`,border:`1px solid ${ACCENT}33`,borderRadius:12,padding:"10px 14px",display:"flex",alignItems:"center",gap:10}}>
                 <span style={{color:ACCENT,fontSize:18}}>📅</span>
                 <p style={{color:ACCENT,fontSize:13,fontWeight:700,margin:0}}>
-                  {rangeCount} day{rangeCount!==1?"s":""} of annual leave
+                  {rangeCount} day{rangeCount!==1?"s":""} of {type}
                   {rangeCount > 1 ? ` · ${fmtDate(date)} to ${fmtDate(rangeTo < date ? date : rangeTo)}` : ""}
                 </p>
               </div>
@@ -1188,6 +1346,15 @@ function LogDayOffScreen({periods, editDayOff, onSave, onCancel}) {
           </div>
         )}
 
+        {conflictDates.length > 0 && (
+          <div style={{display:"flex",alignItems:"flex-start",gap:8,marginBottom:16,padding:"10px 12px",background:"#F59E0B14",border:"1px solid #F59E0B44",borderRadius:10}}>
+            <span style={{width:6,height:6,borderRadius:"50%",background:"#F59E0B",flexShrink:0,marginTop:6}}/>
+            <p style={{color:"#F59E0B",fontSize:13,margin:0}}>
+              {conflictDates.length===1 ? `A shift is already logged on ${fmtDate(conflictDates[0])}.` : `${conflictDates.length} of these days already have a shift logged.`} Saving will keep both records — check that's right.
+            </p>
+          </div>
+        )}
+
         <button style={{...btnStyle,opacity:canSave?1:0.4}} disabled={!canSave} onClick={handleSave}>
           {editDayOff ? "Save Changes" : isRange && rangeCount > 1 ? `Log ${rangeCount} Days` : "Log Day Off"}
         </button>
@@ -1197,35 +1364,36 @@ function LogDayOffScreen({periods, editDayOff, onSave, onCancel}) {
 }
 
 // ─── PERIOD SCREEN ────────────────────────────────────────────────────────────
-function RepeatDutyPanel({weekStart, onConfirm, onClose}) {
+function RepeatDutyPanel({weekStart, existingDates, onConfirm, onClose}) {
   const [zone, setZone] = useState("Zone 1");
   const [dayType, setDayType] = useState("weekday");
   const [rIdx, setRIdx] = useState(-1);
   const [selectedDays, setSelectedDays] = useState([]);
+  const [confirming, setConfirming] = useState(false);
   const duties = useMemo(()=>getDuties(zone,dayType),[zone,dayType]);
   const dayOpts=[{v:"weekday",l:"Mon–Fri"},{v:"saturday",l:"Saturday"},{v:"sunday",l:"Sunday"}];
+  const taken = existingDates || new Set();
 
   // Generate the 7 days of the week starting from weekStart
   const weekDays = Array.from({length:7},(_,i)=>{
     const date = addDays(weekStart,i);
     const names=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
     const d = new Date(date+"T00:00:00");
-    return {date, label:names[d.getDay()]};
+    return {date, label:names[d.getDay()], taken:taken.has(date)};
   });
 
   function toggleDay(date) {
+    if (taken.has(date)) return;
     setSelectedDays(prev => prev.includes(date) ? prev.filter(d=>d!==date) : [...prev,date]);
   }
 
-  function handleConfirm() {
-    if(rIdx<0||selectedDays.length===0) return;
+  function buildShifts() {
     const duty = duties[rIdx];
-    const shifts = selectedDays.map(date=>({
+    return selectedDays.map(date=>({
       id:uid(), date, zone, dayType:getDayType(date),
       roster:duty.r, duty:duty.d2, reportTime:duty.s, signOffTime:duty.e,
-      workHours:duty.w, reliefHours:duty.l, hasBreak:duty.b, notes:""
+      workHours:duty.w, reliefHours:duty.l, notes:""
     }));
-    onConfirm(shifts);
   }
 
   const canConfirm = rIdx>=0 && selectedDays.length>0;
@@ -1240,53 +1408,45 @@ function RepeatDutyPanel({weekStart, onConfirm, onClose}) {
 
         {/* Zone */}
         <p style={{color:MUTED,fontSize:11,textTransform:"uppercase",letterSpacing:1.5,fontWeight:700,margin:"0 0 8px"}}>Zone</p>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:6,marginBottom:14}}>
-          {ZONES.map(z=>(
-            <button key={z} onClick={()=>{setZone(z);setRIdx(-1);}} style={{
-              background:zone===z?ACCENT:CARD2, color:zone===z?"#07090F":MUTED,
-              border:zone===z?"none":`1px solid ${BORDER}`,
-              borderRadius:10, padding:"9px 4px", fontSize:12, fontWeight:zone===z?800:500, cursor:"pointer"
-            }}>{z}</button>
-          ))}
+        <div style={{marginBottom:14}}>
+          <SegGroup options={ZONES} value={zone} cols={4} onChange={z=>{setZone(z);setRIdx(-1);}}/>
         </div>
 
         {/* Day type */}
         <p style={{color:MUTED,fontSize:11,textTransform:"uppercase",letterSpacing:1.5,fontWeight:700,margin:"0 0 8px"}}>Day type</p>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:6,marginBottom:14}}>
-          {dayOpts.map(o=>(
-            <button key={o.v} onClick={()=>{setDayType(o.v);setRIdx(-1);}} style={{
-              background:dayType===o.v?ACCENT:CARD2, color:dayType===o.v?"#07090F":MUTED,
-              border:dayType===o.v?"none":`1px solid ${BORDER}`,
-              borderRadius:10, padding:"9px 4px", fontSize:12, fontWeight:dayType===o.v?800:500, cursor:"pointer"
-            }}>{o.l}</button>
-          ))}
+        <div style={{marginBottom:14}}>
+          <SegGroup options={dayOpts.map(o=>({v:o.v,l:o.l}))} value={dayType} cols={3}
+            onChange={v=>{setDayType(v);setRIdx(-1);}}/>
         </div>
 
         {/* Duty */}
         <p style={{color:MUTED,fontSize:11,textTransform:"uppercase",letterSpacing:1.5,fontWeight:700,margin:"0 0 8px"}}>Duty</p>
-        <select value={rIdx} onChange={e=>setRIdx(Number(e.target.value))} style={{...inputStyle,marginBottom:16,fontSize:14}}>
-          <option value={-1}>— Select duty —</option>
-          {duties.map((d,i)=><option key={i} value={i}>{d.r} · {d.s}–{d.e} · {fmtHrs(d.w)}</option>)}
-        </select>
+        <div style={{marginBottom:16}}>
+          <DutyPicker key={zone+dayType} duties={duties} value={rIdx} onChange={setRIdx}/>
+        </div>
 
         {/* Day picker */}
         <p style={{color:MUTED,fontSize:11,textTransform:"uppercase",letterSpacing:1.5,fontWeight:700,margin:"0 0 8px"}}>Days working this week</p>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:5,marginBottom:20}}>
-          {weekDays.map(({date,label})=>{
+        <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:4,marginBottom:8}}>
+          {weekDays.map(({date,label,taken:isTaken})=>{
             const sel = selectedDays.includes(date);
             return (
-              <button key={date} onClick={()=>toggleDay(date)} style={{
-                background:sel?ACCENT:CARD2, color:sel?"#07090F":MUTED,
+              <button key={date} onClick={()=>toggleDay(date)} disabled={isTaken} style={{
+                background:sel?ACCENT:isTaken?CARD:CARD2, color:sel?"#07090F":isTaken?MUTED:TEXT,
                 border:sel?"none":`1px solid ${BORDER}`,
-                borderRadius:10, padding:"10px 2px", cursor:"pointer",
+                borderRadius:10, padding:"10px 1px", cursor:isTaken?"not-allowed":"pointer",
+                opacity:isTaken?0.5:1,
                 display:"flex",flexDirection:"column",alignItems:"center",gap:3
               }}>
-                <span style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:0.5}}>{label}</span>
-                <span style={{fontSize:9,opacity:0.7}}>{date.slice(8)}</span>
+                <span style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:0.3}}>{label}</span>
+                <span style={{fontSize:10.5,opacity:0.8}}>{date.slice(8)}</span>
               </button>
             );
           })}
         </div>
+        {weekDays.some(d=>d.taken) && (
+          <p style={{color:MUTED,fontSize:11,margin:"0 0 20px"}}>Greyed-out days already have a shift logged — edit or delete it first if you need to change it.</p>
+        )}
 
         {selectedDays.length>0 && rIdx>=0 && (
           <p style={{color:MUTED,fontSize:12,textAlign:"center",margin:"0 0 12px"}}>
@@ -1294,15 +1454,23 @@ function RepeatDutyPanel({weekStart, onConfirm, onClose}) {
           </p>
         )}
 
-        <button style={{...btnStyle,opacity:canConfirm?1:0.4}} disabled={!canConfirm} onClick={handleConfirm}>
+        <button style={{...btnStyle,opacity:canConfirm?1:0.4}} disabled={!canConfirm} onClick={()=>setConfirming(true)}>
           Log {selectedDays.length>0?selectedDays.length+" day"+(selectedDays.length!==1?"s":""):"Selected Days"} →
         </button>
       </div>
+      {confirming && (
+        <ConfirmDialog
+          msg={`Log ${duties[rIdx]?.r} on ${selectedDays.length} day${selectedDays.length!==1?"s":""}: ${selectedDays.map(fmtDate).join(", ")}?`}
+          yesLabel="Log Shifts" danger={false}
+          onYes={()=>{onConfirm(buildShifts());setConfirming(false);}}
+          onNo={()=>setConfirming(false)}
+        />
+      )}
     </div>
   );
 }
 
-function PeriodScreen({period, onEdit, onDelete, onEditDayOff, onDeleteDayOff, onRepeat, initWeek=null, readOnly=false}) {
+function PeriodScreen({period, onEdit, onDelete, onEditDayOff, onDeleteDayOff, onRepeat, onViewArchive, onEndPeriod, initWeek=null, readOnly=false}) {
   const stats = useMemo(() => pStats(period), [period]);
   // Default to current week, fallback to week 0
   const defaultWeek = useMemo(() => {
@@ -1365,9 +1533,18 @@ function PeriodScreen({period, onEdit, onDelete, onEditDayOff, onDeleteDayOff, o
         )}
       </div>
 
+      {!readOnly && (
+        <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:12}}>
+          <button onClick={onViewArchive} style={{...btnStyle,padding:"12px 16px",fontSize:13}}>
+            View Period Archive
+          </button>
+        </div>
+      )}
+
       {repeatWeekIdx>=0 && (
         <RepeatDutyPanel
           weekStart={stats.weeks[repeatWeekIdx].start}
+          existingDates={new Set((period.shifts||[]).map(s=>s.date))}
           onClose={()=>setRepeatWeekIdx(-1)}
           onConfirm={shifts=>{onRepeat(shifts);setRepeatWeekIdx(-1);}}
         />
@@ -1402,7 +1579,11 @@ function PeriodScreen({period, onEdit, onDelete, onEditDayOff, onDeleteDayOff, o
             {open===i&&(
               <div style={{marginTop:12,borderTop:`1px solid ${BORDER}`,paddingTop:12}}>
                 {allItems.length===0?(
-                  <p style={{color:MUTED,fontSize:14,textAlign:"center",padding:"12px 0",margin:0}}>No entries this week</p>
+                  <EmptyState
+                    icon={<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke={MUTED} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></svg>}
+                    title="No entries this week"
+                    body="Log a shift or a day off to see it here."
+                  />
                 ):allItems.map(item=>item._type==="shift"?(
                   <div key={item.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 0",borderBottom:`1px solid ${BORDER}`}}>
                     <div style={{flex:1,minWidth:0}}>
@@ -1418,7 +1599,7 @@ function PeriodScreen({period, onEdit, onDelete, onEditDayOff, onDeleteDayOff, o
                       <p style={{color:MUTED,fontSize:12,margin:"0 0 1px"}}>{fmtDate(item.date)} · {item.zone}</p>
                       <p style={{color:MUTED,fontSize:12,margin:0}}>{item.reportTime} – {item.signOffTime} · Spread: {fmtHrs(calcSpreadover(item.reportTime,item.signOffTime))}</p>
                       {item.overtimeNote&&<p style={{color:"#F59E0B",fontSize:12,margin:"3px 0 0",fontStyle:"italic"}}>OT: {item.overtimeNote}</p>}
-                      {item.notes && <p style={{color:"#93c5fd",fontSize:12,margin:"3px 0 0",fontStyle:"italic"}}>{item.notes}</p>}
+                      {item.notes && <p style={{color:"#60a5fa",fontSize:12,margin:"3px 0 0",fontStyle:"italic"}}>{item.notes}</p>}
                     </div>
                     <div style={{textAlign:"right",marginLeft:10,flexShrink:0}}>
                       <p style={{color:item.isRestDay?DANGER:ACCENT,fontWeight:700,margin:"0 0 6px"}}>{fmtHrs(calcSpreadover(item.reportTime,item.signOffTime))}</p>
@@ -1430,17 +1611,24 @@ function PeriodScreen({period, onEdit, onDelete, onEditDayOff, onDeleteDayOff, o
                       )}
                     </div>
                   </div>
-                ):(
+):(
                   <div key={item.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 0",borderBottom:`1px solid ${BORDER}`}}>
                     <div>
-                      <p style={{color:MUTED,fontSize:13,fontStyle:"italic",margin:0}}>{item.type}</p>
+                      <div style={{display:"flex",alignItems:"center",gap:6}}>
+                        <p style={{color:MUTED,fontSize:13,fontStyle:"italic",margin:0}}>{item.type}</p>
+                        {item.fixed && <span style={tag(MUTED)}>Fixed</span>}
+                      </div>
                       <p style={{color:MUTED,fontSize:12,margin:"2px 0 0"}}>{fmtDate(item.date)}</p>
                     </div>
                     {!readOnly&&(
-                      <div style={{display:"flex",gap:6}}>
-                        <button onClick={()=>onEditDayOff(item)} style={{background:"none",border:`1px solid ${ACCENT}`,color:ACCENT,borderRadius:6,padding:"4px 10px",fontSize:12,cursor:"pointer"}}>Edit</button>
-                        <button onClick={()=>onDeleteDayOff(item.id)} style={{background:"none",border:`1px solid ${DANGER}`,color:DANGER,borderRadius:6,padding:"4px 10px",fontSize:12,cursor:"pointer"}}>Del</button>
-                      </div>
+                      item.fixed ? (
+                        <button onClick={()=>onDeleteDayOff(item.id)} style={{background:"none",border:`1px solid ${BORDER}`,color:MUTED,borderRadius:8,padding:"8px 14px",fontSize:13,fontWeight:600,cursor:"pointer"}}>Remove</button>
+                      ) : (
+                        <div style={{display:"flex",gap:6}}>
+                          <button onClick={()=>onEditDayOff(item)} style={{background:"none",border:`1px solid ${ACCENT}`,color:ACCENT,borderRadius:8,padding:"8px 14px",fontSize:13,fontWeight:600,cursor:"pointer"}}>Edit</button>
+                          <button onClick={()=>onDeleteDayOff(item.id)} style={{background:"none",border:`1px solid ${DANGER}`,color:DANGER,borderRadius:8,padding:"8px 14px",fontSize:13,fontWeight:600,cursor:"pointer"}}>Del</button>
+                        </div>
+                      )
                     )}
                   </div>
                 ))}
@@ -1456,7 +1644,23 @@ function PeriodScreen({period, onEdit, onDelete, onEditDayOff, onDeleteDayOff, o
           </div>
         );
       })}
+      {!readOnly && (
+        <button onClick={onEndPeriod} style={{...btnStyle,marginTop:4,marginBottom:12}}>
+          {today() > addDays(period.startDate,34) ? "This period has ended — start a new one" : "End period & start new"}
+        </button>
+      )}
       </div>
+    </div>
+  );
+}
+
+// Reusable empty-state — icon + heading + explanatory copy, consistent everywhere a list can be empty.
+function EmptyState({icon, title, body}) {
+  return (
+    <div style={{...cardStyle,textAlign:"center",padding:"28px 20px"}}>
+      {icon && <div style={{opacity:0.4,marginBottom:10,display:"flex",justifyContent:"center"}}>{icon}</div>}
+      <p style={{color:TEXT,margin:"0 0 4px",fontSize:14,fontWeight:600}}>{title}</p>
+      {body && <p style={{color:MUTED,fontSize:12,margin:0,lineHeight:1.5}}>{body}</p>}
     </div>
   );
 }
@@ -1470,13 +1674,11 @@ function ArchiveScreen({periods, activePeriodId, onStartNew, onView}) {
       <div style={{padding:"4px 16px 0"}}>
       <button style={{...btnStyle,marginBottom:20}} onClick={onStartNew}>Start New Period</button>
       {archived.length===0?(
-        <div style={{...cardStyle,textAlign:"center",padding:"36px 24px"}}>
-          <div style={{opacity:0.4,marginBottom:12,display:"flex",justifyContent:"center"}}>
-            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke={MUTED} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7l1.5-4h15L21 7"/><rect x="3" y="7" width="18" height="14" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/></svg>
-          </div>
-          <p style={{color:TEXT,margin:"0 0 6px",fontSize:15,fontWeight:600}}>No archived periods yet</p>
-          <p style={{color:MUTED,fontSize:13,margin:0,lineHeight:1.5}}>When you start a new period, the current one moves here for safe keeping.</p>
-        </div>
+        <EmptyState
+          icon={<svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke={MUTED} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7l1.5-4h15L21 7"/><rect x="3" y="7" width="18" height="14" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/></svg>}
+          title="No archived periods yet"
+          body="When you start a new period, the current one moves here for safe keeping."
+        />
       ):archived.map(p=>{
         const st=pStats(p);
         return (
@@ -1505,7 +1707,7 @@ function ArchiveScreen({periods, activePeriodId, onStartNew, onView}) {
 
 // ─── LEAVE SCREEN HELPERS ─────────────────────────────────────────────────────
 function DayList({items, emptyMsg}) {
-  if(items.length===0) return <p style={{color:MUTED,fontSize:13,margin:"8px 0 0",fontStyle:"italic"}}>{emptyMsg}</p>;
+  if(items.length===0) return <p style={{color:MUTED,fontSize:13,margin:"8px 0 0",lineHeight:1.5}}>{emptyMsg}</p>;
   return (
     <div style={{marginTop:10,display:"flex",flexDirection:"column",gap:4}}>
       {items.map((d,i)=>(
@@ -1553,6 +1755,51 @@ function LeaveCard({title, subtitle, color, used, total, remaining, children}) {
   );
 }
 
+// Self Cert — same collapsible header/tap pattern as LeaveCard, but keeps its
+// own two-half-year body since it tracks two independent 2-day allowances.
+function SelfCertCard({scH1, scH2, scColor}) {
+  const [open, setOpen] = useState(false);
+  const totalUsed = scH1.length + scH2.length;
+  return (
+    <div style={{background:CARD,border:`1px solid ${BORDER}`,borderRadius:16,marginBottom:10,overflow:"hidden"}}>
+      <div style={{padding:"14px 16px",cursor:"pointer"}} onClick={()=>setOpen(!open)}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <div style={{display:"flex",alignItems:"center",gap:10}}>
+            <TrafficDot color={scColor(Math.max(scH1.length,scH2.length))}/>
+            <div>
+              <p style={{color:TEXT,fontSize:15,fontWeight:700,margin:0}}>Self Cert</p>
+              <p style={{color:MUTED,fontSize:12,margin:"2px 0 0"}}>2 days per half-year · resets 1 Jan &amp; 1 Jul</p>
+            </div>
+          </div>
+          <div style={{textAlign:"right"}}>
+            <p style={{color:TEXT,fontSize:18,fontWeight:800,margin:0}}>{totalUsed} <span style={{color:MUTED,fontSize:12,fontWeight:400}}>used</span></p>
+            <span style={{color:MUTED,fontSize:11,display:"block",marginTop:3}}>{open?"▲ hide":"▼ dates"}</span>
+          </div>
+        </div>
+      </div>
+      {open && (
+        <div style={{padding:"0 16px 14px",borderTop:`1px solid ${BORDER}`}}>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginTop:12}}>
+            {[{label:"Jan – Jun",items:scH1},{label:"Jul – Dec",items:scH2}].map(({label,items})=>(
+              <div key={label} style={{background:CARD2,borderRadius:12,padding:"12px 14px",border:`1px solid ${scColor(items.length)}44`}}>
+                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
+                  <TrafficDot color={scColor(items.length)}/>
+                  <p style={{color:TEXT,fontSize:13,fontWeight:700,margin:0}}>{label}</p>
+                </div>
+                <p style={{color:scColor(items.length),fontSize:22,fontWeight:800,margin:"0 0 1px"}}>{2-items.length} <span style={{color:MUTED,fontSize:12,fontWeight:400}}>left</span></p>
+                <p style={{color:MUTED,fontSize:11,margin:0}}>{items.length} of 2 used</p>
+                {items.length>0&&<div style={{marginTop:8,borderTop:`1px solid ${BORDER}`,paddingTop:6}}>
+                  {items.map((d,i)=><p key={i} style={{color:MUTED,fontSize:12,margin:"2px 0"}}>{fmtDate(d.date)}</p>)}
+                </div>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── LEAVE SCREEN ─────────────────────────────────────────────────────────────
 const LEAVE_KEY = "dbus_leave";
 function loadLeaveSettings() {
@@ -1560,7 +1807,7 @@ function loadLeaveSettings() {
 }
 function saveLeaveSettings(s) { try{localStorage.setItem(LEAVE_KEY,JSON.stringify(s));}catch{} }
 
-function LeaveScreen({periods, leaveSettings, onViewArchive, onLogDayOff}) {
+function LeaveScreen({periods, leaveSettings, onLogDayOff}) {
   const year = new Date().getFullYear();
   const [editTotal, setEditTotal] = useState(false);
   const [totalInput, setTotalInput] = useState(String(leaveSettings?.annualTotal||20));
@@ -1607,34 +1854,13 @@ function LeaveScreen({periods, leaveSettings, onViewArchive, onLogDayOff}) {
           <DayList items={sick} emptyMsg="No sick days logged this year"/>
         </LeaveCard>
 
-        <div style={{background:CARD,border:`1px solid ${BORDER}`,borderRadius:16,marginBottom:10,padding:"14px 16px"}}>
-          <p style={{color:TEXT,fontSize:15,fontWeight:700,margin:"0 0 12px"}}>Self Cert</p>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-            {[{label:"Jan – Jun",items:scH1},{label:"Jul – Dec",items:scH2}].map(({label,items})=>(
-              <div key={label} style={{background:CARD2,borderRadius:12,padding:"12px 14px",border:`1px solid ${scColor(items.length)}44`}}>
-                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
-                  <TrafficDot color={scColor(items.length)}/>
-                  <p style={{color:TEXT,fontSize:13,fontWeight:700,margin:0}}>{label}</p>
-                </div>
-                <p style={{color:scColor(items.length),fontSize:22,fontWeight:800,margin:"0 0 1px"}}>{2-items.length} <span style={{color:MUTED,fontSize:12,fontWeight:400}}>left</span></p>
-                <p style={{color:MUTED,fontSize:11,margin:0}}>{items.length} of 2 used</p>
-                {items.length>0&&<div style={{marginTop:8,borderTop:`1px solid ${BORDER}`,paddingTop:6}}>
-                  {items.map((d,i)=><p key={i} style={{color:MUTED,fontSize:12,margin:"2px 0"}}>{fmtDate(d.date)}</p>)}
-                </div>}
-              </div>
-            ))}
-          </div>
-          <p style={{color:MUTED,fontSize:11,margin:"10px 0 0",textAlign:"center"}}>Self certs reset 1 Jan and 1 Jul — don’t carry over</p>
-        </div>
+        <SelfCertCard scH1={scH1} scH2={scH2} scColor={scColor}/>
 
         <LeaveCard title="Force Majeure" subtitle="No fixed limit · Jan–Dec"
           color={fm.length===0?MUTED:fm.length<=2?SUCCESS:"#F59E0B"} used={fm.length}>
           <DayList items={fm} emptyMsg="No force majeure logged this year"/>
         </LeaveCard>
 
-        <button onClick={onViewArchive} style={{background:"none",border:`1px solid ${BORDER}`,color:MUTED,borderRadius:12,padding:"12px 16px",fontSize:13,fontWeight:600,cursor:"pointer",width:"100%",marginTop:4}}>
-          View Period Archive →
-        </button>
       </div>
     </div>
   );
@@ -1649,10 +1875,26 @@ function loadSettings() {
 }
 function saveSettings(s) { try{localStorage.setItem(SETTINGS_KEY,JSON.stringify(s));}catch{} }
 
-function SettingsPanel({onClose, onThemeChange, leaveSettings, onLeaveSettingsChange}) {
+function SettingsPanel({onClose, onThemeChange, leaveSettings, onLeaveSettingsChange, onReplayTour, onViewTerms}) {
   const [settings, setSettings] = useState(loadSettings);
   const [annualInput, setAnnualInput] = useState(String(leaveSettings?.annualTotal||20));
+  const [annualError, setAnnualError] = useState(null);
+  const [toast, setToast] = useState(null);
+  const [confirmDialog, setConfirmDialog] = useState(null);
+  const [showReload, setShowReload] = useState(false);
+  const [scrolledToEnd, setScrolledToEnd] = useState(false);
   const appearances = [{v:"system",l:"📱 System"},{v:"light",l:"☀️ Light"},{v:"dark",l:"🌙 Dark"}];
+
+  useEffect(()=>{
+    if(!toast) return;
+    const t = setTimeout(()=>setToast(null), 4000);
+    return ()=>clearTimeout(t);
+  },[toast]);
+
+  function checkScrollEnd(e) {
+    const el = e.target;
+    setScrolledToEnd(el.scrollTop + el.clientHeight >= el.scrollHeight - 8);
+  }
 
   function setAppearance(val) {
     const next = {...settings, appearance:val};
@@ -1665,29 +1907,33 @@ function SettingsPanel({onClose, onThemeChange, leaveSettings, onLeaveSettingsCh
     localStorage.setItem("dbus_last_zone", z);
   }
   function saveAnnual() {
-    const n = parseInt(annualInput)||20;
+    const n = parseInt(annualInput,10);
+    if(isNaN(n) || n<1 || n>30) { setAnnualError("Enter a number between 1 and 30."); return; }
+    setAnnualError(null);
     onLeaveSettingsChange({...(leaveSettings||{}), annualTotal:n});
+    setToast("Annual leave entitlement saved.");
   }
 
   return (
     <div style={{position:"fixed",inset:0,background:"#000000bb",zIndex:200,display:"flex",flexDirection:"column",justifyContent:"flex-end"}} onClick={onClose}>
-      <div style={{background:CARD,borderRadius:"20px 20px 0 0",padding:24,border:`1px solid ${BORDER}`,borderBottom:"none",maxHeight:"85vh",overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
+      <div style={{position:"relative",background:CARD,borderRadius:"20px 20px 0 0",border:`1px solid ${BORDER}`,borderBottom:"none",maxHeight:"85vh"}} onClick={e=>e.stopPropagation()}>
+      <div onScroll={checkScrollEnd} style={{padding:24,maxHeight:"85vh",overflowY:"auto"}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
           <h2 style={{color:TEXT,fontSize:20,fontWeight:800,margin:0}}>Settings</h2>
           <button onClick={onClose} style={{background:"none",border:"none",color:MUTED,fontSize:24,cursor:"pointer",padding:"0 4px",lineHeight:1}}>×</button>
         </div>
 
+        {toast && (
+          <div style={{background:CARD2,border:`1px solid ${BORDER}`,borderRadius:10,padding:"10px 14px",marginBottom:16,color:TEXT,fontSize:13,display:"flex",justifyContent:"space-between",alignItems:"center",gap:10}}>
+            <span>{toast}</span>
+            <button onClick={()=>setToast(null)} style={{background:"none",border:"none",color:MUTED,fontSize:16,cursor:"pointer",padding:0,lineHeight:1,flexShrink:0}}>×</button>
+          </div>
+        )}
+
         {/* Appearance */}
         <p style={{color:MUTED,fontSize:11,textTransform:"uppercase",letterSpacing:1.5,fontWeight:700,margin:"0 0 10px"}}>Appearance</p>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginBottom:8}}>
-          {appearances.map(a=>(
-            <button key={a.v} onClick={()=>setAppearance(a.v)} style={{
-              background:settings.appearance===a.v?ACCENT:CARD2,
-              color:settings.appearance===a.v?"#07090F":MUTED,
-              border:settings.appearance===a.v?"none":`1px solid ${BORDER}`,
-              borderRadius:12,padding:"12px 8px",fontSize:13,fontWeight:settings.appearance===a.v?800:500,cursor:"pointer"
-            }}>{a.l}</button>
-          ))}
+        <div style={{marginBottom:8}}>
+          <SegGroup options={appearances.map(a=>({v:a.v,l:a.l}))} value={settings.appearance} cols={3} onChange={setAppearance}/>
         </div>
         <p style={{color:MUTED,fontSize:12,margin:"0 0 20px"}}>
           {settings.appearance==="system"?"Matches your phone's display setting.":settings.appearance==="light"?"Light mode — easier in bright daylight.":"Dark mode — easier in low light."}
@@ -1696,41 +1942,35 @@ function SettingsPanel({onClose, onThemeChange, leaveSettings, onLeaveSettingsCh
         {/* Default Zone */}
         <p style={{color:MUTED,fontSize:11,textTransform:"uppercase",letterSpacing:1.5,fontWeight:700,margin:"0 0 10px"}}>Default zone</p>
         <p style={{color:MUTED,fontSize:12,margin:"0 0 10px"}}>Pre-selected when you open Lookup or Log a Shift.</p>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginBottom:20}}>
-          {ZONES.map(z=>(
-            <button key={z} onClick={()=>setZone(z)} style={{
-              background:settings.defaultZone===z?ACCENT:CARD2,
-              color:settings.defaultZone===z?"#07090F":MUTED,
-              border:settings.defaultZone===z?"none":`1px solid ${BORDER}`,
-              borderRadius:12,padding:"12px 4px",fontSize:12,fontWeight:settings.defaultZone===z?800:500,cursor:"pointer"
-            }}>{z}</button>
-          ))}
+        <div style={{marginBottom:20}}>
+          <SegGroup options={ZONES} value={settings.defaultZone} cols={4} onChange={setZone}/>
         </div>
 
         {/* Annual Leave Entitlement */}
         <p style={{color:MUTED,fontSize:11,textTransform:"uppercase",letterSpacing:1.5,fontWeight:700,margin:"0 0 10px"}}>Annual leave entitlement</p>
         <p style={{color:MUTED,fontSize:12,margin:"0 0 10px"}}>Full-time drivers get 20 days. Adjust if you're part-time.</p>
-        <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:20}}>
-          <input type="number" min="1" max="30" value={annualInput} onChange={e=>setAnnualInput(e.target.value)}
-            style={{...inputStyle,width:80,textAlign:"center",fontSize:18,fontWeight:700,padding:"10px 8px"}}/>
+        <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:annualError?6:20}}>
+          <input type="number" min="1" max="30" value={annualInput} onChange={e=>{setAnnualInput(e.target.value);setAnnualError(null);}}
+            style={{...inputStyle,width:80,textAlign:"center",fontSize:18,fontWeight:700,padding:"10px 8px",...(annualError?{borderColor:DANGER}:{})}}/>
           <span style={{color:MUTED,fontSize:14}}>days</span>
           <button onClick={saveAnnual} style={{...btnStyle,width:"auto",padding:"10px 20px",fontSize:13,borderRadius:10,marginLeft:"auto"}}>Save</button>
         </div>
+        {annualError && <p style={{color:DANGER,fontSize:12,margin:"0 0 20px"}}>{annualError}</p>}
 
         {/* Backup & Restore */}
         <p style={{color:MUTED,fontSize:11,textTransform:"uppercase",letterSpacing:1.5,fontWeight:700,margin:"0 0 10px"}}>Data backup</p>
         <p style={{color:MUTED,fontSize:12,margin:"0 0 12px"}}>Export your shifts and leave to a file. Import it on a new phone to restore everything.</p>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:24}}>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:showReload?12:24}}>
           <button onClick={()=>{
             try {
               const data = localStorage.getItem("dbus_v3");
-              if(!data){alert("No data to export.");return;}
+              if(!data){setToast("No data to export yet.");return;}
               const blob = new Blob([data],{type:"application/json"});
               const url = URL.createObjectURL(blob);
               const a = document.createElement("a");
               a.href=url; a.download=`ShiftTracker-backup-${today()}.json`; a.click();
               URL.revokeObjectURL(url);
-            } catch(e){alert("Export failed.");}
+            } catch(e){setToast("Export failed — try again.");}
           }} style={{background:CARD2,color:TEXT,border:`1px solid ${BORDER}`,borderRadius:12,padding:"12px 8px",fontSize:13,fontWeight:600,cursor:"pointer"}}>
             ⬇ Export backup
           </button>
@@ -1744,17 +1984,40 @@ function SettingsPanel({onClose, onThemeChange, leaveSettings, onLeaveSettingsCh
                 try {
                   const parsed=JSON.parse(ev.target.result);
                   if(!parsed.periods||!parsed.activePeriodId) throw new Error("Invalid");
-                  if(confirm("This will replace all your current data with the backup. Continue?")){
-                    localStorage.setItem("dbus_v3",JSON.stringify(parsed));
-                    alert("Restored! Restart the app to see your data.");
-                  }
-                } catch{alert("Invalid backup file.");}
+                  setConfirmDialog({
+                    msg:"This will replace all your current data with the backup. Continue?",
+                    onYes:()=>{
+                      try {
+                        localStorage.setItem("dbus_v3",JSON.stringify(parsed));
+                        setConfirmDialog(null);
+                        setShowReload(true);
+                        setToast("Restored — tap Reload to see your data.");
+                      } catch { setConfirmDialog(null); setToast("Couldn't save the restored data — try again."); }
+                    },
+                    onNo:()=>setConfirmDialog(null)
+                  });
+                } catch{setToast("That file isn't a valid backup.");}
               };
               reader.readAsText(file);
             };
             inp.click();
           }} style={{background:CARD2,color:TEXT,border:`1px solid ${BORDER}`,borderRadius:12,padding:"12px 8px",fontSize:13,fontWeight:600,cursor:"pointer"}}>
             ⬆ Import backup
+          </button>
+        </div>
+        {showReload && (
+          <button onClick={()=>window.location.reload()} style={{...btnStyle,marginBottom:24}}>
+            Reload now
+          </button>
+        )}
+
+        {/* Help & legal */}
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:16}}>
+          <button onClick={onReplayTour} style={{background:CARD2,color:TEXT,border:`1px solid ${BORDER}`,borderRadius:12,padding:"12px 8px",fontSize:13,fontWeight:600,cursor:"pointer"}}>
+            ↻ Replay tour
+          </button>
+          <button onClick={onViewTerms} style={{background:CARD2,color:TEXT,border:`1px solid ${BORDER}`,borderRadius:12,padding:"12px 8px",fontSize:13,fontWeight:600,cursor:"pointer"}}>
+            Terms & Conditions
           </button>
         </div>
 
@@ -1769,6 +2032,11 @@ function SettingsPanel({onClose, onThemeChange, leaveSettings, onLeaveSettingsCh
           </div>
         </div>
       </div>
+      </div>
+      {!scrolledToEnd && (
+        <div style={{position:"absolute",left:0,right:0,bottom:0,height:28,background:`linear-gradient(180deg,transparent,${CARD})`,pointerEvents:"none"}}/>
+      )}
+      {confirmDialog && <ConfirmDialog msg={confirmDialog.msg} yesLabel="Restore" onYes={confirmDialog.onYes} onNo={confirmDialog.onNo}/>}
     </div>
   );
 }
@@ -1833,14 +2101,14 @@ function BottomNav({active, onChange}) {
   );
 }
 
-function ConfirmDialog({msg,onYes,onNo}) {
+function ConfirmDialog({msg,onYes,onNo,yesLabel,danger=true}) {
   return (
     <div style={{position:"fixed",inset:0,background:"#00000099",display:"flex",alignItems:"flex-end",justifyContent:"center",zIndex:200,padding:16}}>
       <div style={{...cardStyle,width:"100%",maxWidth:420,padding:24}}>
         <p style={{color:TEXT,textAlign:"center",margin:"0 0 20px",fontSize:16}}>{msg}</p>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
           <button onClick={onNo} style={{background:"none",border:`1px solid ${BORDER}`,color:TEXT,borderRadius:10,padding:"13px 0",fontSize:15,cursor:"pointer"}}>Cancel</button>
-          <button onClick={onYes} style={{background:DANGER,border:"none",color:"#fff",borderRadius:10,padding:"13px 0",fontSize:15,fontWeight:700,cursor:"pointer"}}>Confirm</button>
+          <button onClick={onYes} style={{background:danger?DANGER:ACCENT,border:"none",color:danger?"#fff":"#07090F",borderRadius:10,padding:"13px 0",fontSize:15,fontWeight:700,cursor:"pointer"}}>{yesLabel||"Confirm"}</button>
         </div>
       </div>
     </div>
@@ -1930,44 +2198,20 @@ function DutyLookup({onLogShift}) {
         {/* Zone selector */}
         <div style={{marginBottom:12}}>
           <p style={{color:MUTED,fontSize:11,textTransform:"uppercase",letterSpacing:1.5,fontWeight:600,margin:"0 0 8px"}}>Zone</p>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8}}>
-            {ZONES.map(z=>(
-              <button key={z} onClick={()=>handleZoneChange(z)} style={{
-                background: zone===z ? ACCENT : CARD,
-                color: zone===z ? "#07090F" : MUTED,
-                border: zone===z ? "none" : `1px solid ${BORDER}`,
-                borderRadius:10, padding:"10px 4px",
-                fontSize:13, fontWeight: zone===z?800:500,
-                cursor:"pointer", transition:"all 0.15s"
-              }}>{z}</button>
-            ))}
-          </div>
+          <SegGroup options={ZONES} value={zone} cols={4} onChange={handleZoneChange}/>
         </div>
 
         {/* Day selector */}
         <div style={{marginBottom:12}}>
           <p style={{color:MUTED,fontSize:11,textTransform:"uppercase",letterSpacing:1.5,fontWeight:600,margin:"0 0 8px"}}>Day</p>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8}}>
-            {dayOpts.map(o=>(
-              <button key={o.v} onClick={()=>{setDayType(o.v);setRIdx(-1);}} style={{
-                background: dayType===o.v ? ACCENT : CARD,
-                color: dayType===o.v ? "#07090F" : MUTED,
-                border: dayType===o.v ? "none" : `1px solid ${BORDER}`,
-                borderRadius:10, padding:"10px 4px",
-                fontSize:13, fontWeight: dayType===o.v?800:500,
-                cursor:"pointer", transition:"all 0.15s"
-              }}>{o.l}</button>
-            ))}
-          </div>
+          <SegGroup options={dayOpts.map(o=>({v:o.v,l:o.l}))} value={dayType} cols={3}
+            onChange={v=>{setDayType(v);setRIdx(-1);}}/>
         </div>
 
         {/* Duty selector */}
         <div style={{marginBottom:duty?20:0}}>
           <p style={{color:MUTED,fontSize:11,textTransform:"uppercase",letterSpacing:1.5,fontWeight:600,margin:"0 0 8px"}}>Duty <span style={{color:MUTED,fontWeight:400,textTransform:"none",letterSpacing:0}}>— {duties.length} available</span></p>
-          <select value={rIdx} onChange={e=>setRIdx(Number(e.target.value))} style={{...inputStyle,fontSize:15,fontWeight:500}}>
-            <option value={-1}>— Select a duty —</option>
-            {duties.map((d,i)=><option key={i} value={i}>{d.r}  ·  {d.s} – {d.e}  ·  {fmtHrs(d.w)}</option>)}
-          </select>
+          <DutyPicker key={zone+dayType} duties={duties} value={rIdx} onChange={setRIdx}/>
         </div>
 
         {/* Empty state — guides the first-time flow */}
@@ -2071,6 +2315,8 @@ function TourIcon({type}) {
   if(type==="period") return <div style={wrap}><svg viewBox="0 0 24 24" style={s}><rect x="3" y="4" width="18" height="17" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></svg></div>;
   if(type==="limits") return <div style={wrap}><svg viewBox="0 0 24 24" style={s}><path d="M12 2a10 10 0 1 0 10 10"/><path d="M12 7v5l3 2"/></svg></div>;
   if(type==="pdf") return <div style={wrap}><svg viewBox="0 0 24 24" style={s}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/></svg></div>;
+  if(type==="rest") return <div style={wrap}><svg viewBox="0 0 24 24" style={s}><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/></svg></div>;
+  if(type==="tally") return <div style={wrap}><svg viewBox="0 0 24 24" style={s}><line x1="5" y1="20" x2="5" y2="9"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="19" y1="20" x2="19" y2="13"/></svg></div>;
   return null;
 }
 
@@ -2091,7 +2337,7 @@ const TOUR_SLIDES = [
     body: "Tap Log a Shift, pick your zone and duty — report time, sign off, work and relief fill in automatically. Adjust anything that changed on the day. A partial shift? Just change the sign off time."
   },
   {
-    icon: "log",
+    icon: "rest",
     title: "Spare & Rest Day",
     body: "Covering a duty as a spare? Toggle 'Spare driver shift' and enter your times manually. Working on a rest day? Toggle 'Working on a rest day' — those hours won't count toward your 190h limit."
   },
@@ -2106,7 +2352,7 @@ const TOUR_SLIDES = [
     body: "Everything is tracked across a 5-week period starting on a Sunday. The home screen shows your remaining hours at a glance. Tap Period for a full week-by-week breakdown."
   },
   {
-    icon: "limits",
+    icon: "tally",
     title: "Three Limits Tracked",
     body: "Total hours (190h 4m), Sunday hours (14h 30m), and Overtime are all tracked separately. Bars turn amber as you approach a limit, red if you exceed it."
   },
@@ -2126,13 +2372,15 @@ function TourOverlay({onDone}) {
     <div style={{position:"fixed",inset:0,background:"#000000dd",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"flex-end",zIndex:300,padding:"0 16px 32px"}}>
       <div style={{width:"100%",maxWidth:420,background:CARD,borderRadius:24,padding:28,border:`1px solid ${BORDER}`}}>
 
-        {/* Slide counter dots */}
+        {/* Slide counter dots + step number */}
+        <p style={{color:MUTED,fontSize:12,textAlign:"center",margin:"0 0 10px",fontWeight:600}}>Step {slide+1} of {TOUR_SLIDES.length}</p>
         <div style={{display:"flex",justifyContent:"center",gap:6,marginBottom:28}}>
           {TOUR_SLIDES.map((_,i) => (
             <div key={i} style={{
-              width: i===slide ? 22 : 6, height:6, borderRadius:3,
+              width:22, height:6, borderRadius:3, transformOrigin:"left center",
+              transform: i===slide ? "scaleX(1)" : "scaleX(0.27)",
               background: i===slide ? ACCENT : BORDER,
-              transition:"width 0.3s"
+              transition:"transform 0.3s, background 0.3s"
             }}/>
           ))}
         </div>
@@ -2183,6 +2431,9 @@ export default function App() {
   const [themeKey, setThemeKey] = useState(0);
   const [leaveSettings, setLeaveSettings] = useState(loadLeaveSettings);
   const [dayOffFrom, setDayOffFrom] = useState("home"); // tracks where to return after logging day off
+  const [viewingTerms, setViewingTerms] = useState(false);
+  const [saveError, setSaveError] = useState(false);
+  const [loadCorrupted, setLoadCorrupted] = useState(false);
 
   const activePeriod = periods.find(p=>p.id===activePeriodId);
 
@@ -2194,7 +2445,8 @@ export default function App() {
     // Apply saved theme on load
     const s = loadSettings();
     applyTheme(s.appearance, null);
-    loadData().then(data=>{
+    loadData().then(({data,corrupted})=>{
+      if(corrupted) { setLoadCorrupted(true); setLoading(false); return; }
       if(data){setPeriods(data.periods||[]);setActivePeriodId(data.activePeriodId||null);}
       const terms = localStorage.getItem("dbus_terms");
       if(!terms) { setTermsAccepted(false); setLoading(false); return; }
@@ -2229,9 +2481,14 @@ export default function App() {
   function dismissWhatsNew() {
     localStorage.setItem("dbus_version", APP_VERSION);
     setShowWhatsNew(false);
-    // Reset tour for all users on major update so they see the updated slides
-    localStorage.removeItem("dbus_toured");
-    setShowTour(true);
+    // Only force the full tour for drivers who've genuinely never seen it —
+    // returning users on a routine update shouldn't be walked through it again.
+    if(!localStorage.getItem("dbus_toured")) setShowTour(true);
+  }
+
+  function skipTourFromWhatsNew() {
+    localStorage.setItem("dbus_toured","1");
+    dismissWhatsNew();
   }
 
   function dismissTour() {
@@ -2239,7 +2496,10 @@ export default function App() {
     setShowTour(false);
   }
 
-  const persist=(ps,aid)=>{setPeriods(ps);setActivePeriodId(aid);saveData({periods:ps,activePeriodId:aid});};
+  const persist=(ps,aid)=>{
+    setPeriods(ps);setActivePeriodId(aid);
+    saveData({periods:ps,activePeriodId:aid}).then(ok=>setSaveError(!ok));
+  };
 
   function createPeriod(startDate) {
     const p={id:uid(),startDate,shifts:[],daysOff:[],createdAt:new Date().toISOString()};
@@ -2283,30 +2543,52 @@ export default function App() {
   }
 
   function deleteShift(sid) {
-    setConfirm({msg:"Delete this shift? This can't be undone.",onYes:()=>{
+    setConfirm({msg:"Delete this shift? This can't be undone.",yesLabel:"Delete",onYes:()=>{
       const updated=periods.map(p=>p.id!==activePeriodId?p:{...p,shifts:p.shifts.filter(s=>s.id!==sid)});
       persist(updated,activePeriodId); setConfirm(null);
     }});
   }
 
   function deleteDayOff(did) {
-    setConfirm({msg:"Remove this day off record?",onYes:()=>{
+    if (did.startsWith("fixed-")) {
+      const date = did.slice(6);
+      setConfirm({msg:"Stop treating this date as an automatic rest day? If you're resting on a different day instead, log that separately.",yesLabel:"Stop",onYes:()=>{
+        const updated=periods.map(p=>p.id!==activePeriodId?p:{...p,removedFixedRestDates:[...(p.removedFixedRestDates||[]),date]});
+        persist(updated,activePeriodId); setConfirm(null);
+      }});
+      return;
+    }
+    setConfirm({msg:"Remove this day off record?",yesLabel:"Remove",onYes:()=>{
       const updated=periods.map(p=>p.id!==activePeriodId?p:{...p,daysOff:(p.daysOff||[]).filter(d=>d.id!==did)});
       persist(updated,activePeriodId); setConfirm(null);
     }});
   }
 
   function startNewPeriod() {
-    setConfirm({msg:"Start a new 5-week period? The current one will be archived.",onYes:()=>{
-      const np={id:uid(),startDate:thisSunday(),shifts:[],daysOff:[],createdAt:new Date().toISOString()};
-      const updated=periods.map(p=>p.id===activePeriodId?{...p,archived:true}:p);
-      persist([...updated,np],np.id); setConfirm(null); setArchiveViewId(null); setScreen("home");
-    }});
+    const currentEnd = addDays(activePeriod.startDate,34);
+    const nextStart = addDays(activePeriod.startDate,35);
+    setConfirm({
+      msg:`Start a new 5-week period beginning ${fmtShort(nextStart)}? The period ending ${fmtShort(currentEnd)} will be archived.`,
+      yesLabel:"Start New Period", danger:false,
+      onYes:()=>{
+        const np={id:uid(),startDate:nextStart,shifts:[],daysOff:[],createdAt:new Date().toISOString()};
+        const updated=periods.map(p=>p.id===activePeriodId?{...p,archived:true}:p);
+        persist([...updated,np],np.id); setConfirm(null); setArchiveViewId(null); setScreen("home");
+      }
+    });
   }
 
   if(loading) return <div style={{display:"flex",alignItems:"center",justifyContent:"center",minHeight:"100vh",background:BG}}><div style={{animation:"pulse 1.4s ease-in-out infinite"}}><BusLogo size={56}/></div><style>{`@keyframes pulse{0%,100%{opacity:0.4}50%{opacity:1}}`}</style></div>;
+  if(loadCorrupted) return (
+    <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minHeight:"100vh",background:BG,padding:24,textAlign:"center"}}>
+      <div style={{marginBottom:20}}><BusLogo size={56}/></div>
+      <p style={{color:TEXT,fontSize:17,fontWeight:700,margin:"0 0 10px"}}>We couldn't read your saved data</p>
+      <p style={{color:MUTED,fontSize:14,margin:"0 0 24px",maxWidth:320,lineHeight:1.6}}>The data stored on this device looks damaged and can't be opened. If you have an exported backup file, you can restore it from Settings after continuing.</p>
+      <button onClick={()=>{setLoadCorrupted(false);setLoading(false);}} style={{...btnStyle,maxWidth:280}}>Continue</button>
+    </div>
+  );
   if(!termsAccepted) return <TermsScreen onAccept={acceptTerms}/>;
-  if(showWhatsNew) return <WhatsNewScreen onDone={dismissWhatsNew}/>;
+  if(showWhatsNew) return <WhatsNewScreen onDone={dismissWhatsNew} onSkipTour={skipTourFromWhatsNew}/>;
   if(!activePeriodId||!activePeriod) return <SetupScreen onCreate={createPeriod}/>;
 
   const archivePeriod=periods.find(p=>p.id===archiveViewId);
@@ -2331,18 +2613,19 @@ export default function App() {
       {screen==="lookup"&&<DutyLookup onLogShift={(d,dt,date)=>{setLookupDuty({d,dt,date});setScreen("log");}}/>}
       {screen==="home"&&<HomeScreen period={activePeriod}
         onLog={()=>{setEditShift(null);setScreen("log");}}
-        onLogDayOff={()=>{setEditDayOff(null);setDayOffFrom("home");setScreen("dayoff");}}
         onGoWeek={i=>{setOpenWeek(i);setScreen("period");}}
         onHelp={()=>setShowTour(true)}
-        onLookup={()=>setScreen("lookup")}
         onThemeChange={handleThemeChange}
         leaveSettings={leaveSettings}
-        onLeaveSettingsChange={handleLeaveSettingsChange}/>}
+        onLeaveSettingsChange={handleLeaveSettingsChange}
+        onViewTerms={()=>setViewingTerms(true)}/>}
       {screen==="period"&&<PeriodScreen period={activePeriod} initWeek={openWeek}
         onEdit={s=>{setEditShift(s);setScreen("log");}}
         onDelete={deleteShift}
         onEditDayOff={d=>{setEditDayOff(d);setDayOffFrom("period");setScreen("dayoff");}}
         onDeleteDayOff={deleteDayOff}
+        onViewArchive={()=>setScreen("archive")}
+        onEndPeriod={startNewPeriod}
         onRepeat={shifts=>{
           const updated=periods.map(p=>{
             if(p.id!==activePeriodId)return p;
@@ -2352,15 +2635,27 @@ export default function App() {
           });
           persist(updated,activePeriodId);
         }}/>}
-      {screen==="leave"&&<LeaveScreen periods={periods} leaveSettings={leaveSettings} onViewArchive={()=>setScreen("archive")} onLogDayOff={()=>{setEditDayOff(null);setDayOffFrom("leave");setScreen("dayoff");}}/>}
+      {screen==="leave"&&<LeaveScreen periods={periods} leaveSettings={leaveSettings} onLogDayOff={()=>{setEditDayOff(null);setDayOffFrom("leave");setScreen("dayoff");}}/>}
       {screen==="archive"&&<ArchiveScreen periods={periods} activePeriodId={activePeriodId}
         onStartNew={startNewPeriod} onView={id=>setArchiveViewId(id)}/>}
-      <BottomNav active={["log","dayoff"].includes(screen)?"log":["archive"].includes(screen)?"leave":screen} onChange={tab=>{
+      <BottomNav active={screen==="log"?"log":["archive"].includes(screen)?"leave":screen} onChange={tab=>{
         if(tab==="log"){setEditShift(null);setLookupDuty(null);setScreen("log");}
         else setScreen(tab);
       }}/>
-      {confirm&&<ConfirmDialog msg={confirm.msg} onYes={confirm.onYes} onNo={()=>setConfirm(null)}/>}
+      {confirm&&<ConfirmDialog msg={confirm.msg} yesLabel={confirm.yesLabel} danger={confirm.danger!==false} onYes={confirm.onYes} onNo={()=>setConfirm(null)}/>}
       {showTour&&<TourOverlay onDone={dismissTour}/>}
+      {viewingTerms && (
+        <div style={{position:"fixed",inset:0,zIndex:250,background:BG}}>
+          <TermsScreen readOnly onClose={()=>setViewingTerms(false)}/>
+        </div>
+      )}
+      {saveError && (
+        <div style={{position:"fixed",top:0,left:0,right:0,zIndex:400,background:DANGER,color:"#fff",padding:"12px 16px",display:"flex",alignItems:"center",gap:10,paddingTop:"calc(12px + env(safe-area-inset-top,0px))"}}>
+          <span style={{fontSize:13,fontWeight:600,flex:1}}>Couldn't save — your last change may not have stuck.</span>
+          <button onClick={()=>persist(periods,activePeriodId)} style={{background:"#fff",color:DANGER,border:"none",borderRadius:8,padding:"6px 12px",fontSize:12,fontWeight:800,cursor:"pointer",flexShrink:0}}>Try again</button>
+          <button onClick={()=>setSaveError(false)} style={{background:"none",border:"none",color:"#fff",fontSize:18,cursor:"pointer",padding:"0 2px",lineHeight:1,flexShrink:0}}>×</button>
+        </div>
+      )}
     </div>
   );
 }
