@@ -1274,6 +1274,7 @@ function LogScreen({period, editShift, lookupDuty, initialDate, initialRestDay, 
     setFixedType(active ? null : key);
     setIsSpare(false); setRIdx(-1);
     setReportTime(""); setSignOffVal("00:00"); setNextDay(false);
+    setExtraDays([]);
   }
 
   function shiftFields() {
@@ -1297,7 +1298,10 @@ function LogScreen({period, editShift, lookupDuty, initialDate, initialRestDay, 
     if (extraDays.length > 0) {
       const fields = shiftFields();
       const allDates = [date, ...extraDays];
-      onSave(allDates.map(d => ({ id: uid(), date: d, dayType: getDayType(d), ...fields })));
+      onSave(allDates.map(d => ({
+        id: d === date ? (overwriteId || editShift?.id || uid()) : uid(),
+        date: d, dayType: getDayType(d), ...fields
+      })));
       return;
     }
     onSave({ id: overwriteId || editShift?.id || uid(), date, dayType: getDayType(date), ...shiftFields() });
@@ -1305,11 +1309,12 @@ function LogScreen({period, editShift, lookupDuty, initialDate, initialRestDay, 
 
   function handleSave() {
     if (!canSave) return;
-    if (!editShift && extraDays.length===0 && conflictShift) {
-      setPendingAction({
-        msg: `This will replace the shift already logged for ${fmtDate(date)} (${conflictShift.roster}) — continue?`,
-        run: () => performSave(conflictShift.id)
-      });
+    if (!editShift && conflictShift) {
+      const dutyName = (rIdx>=0 && duties[rIdx]) ? duties[rIdx].r : "";
+      const msg = extraDays.length>0
+        ? `This will replace the shift already logged for ${fmtDate(date)} (${conflictShift.roster}), and log ${dutyName} on ${extraDays.length} more day${extraDays.length!==1?"s":""}: ${extraDays.map(fmtDate).join(", ")} — continue?`
+        : `This will replace the shift already logged for ${fmtDate(date)} (${conflictShift.roster}) — continue?`;
+      setPendingAction({ msg, run: () => performSave(conflictShift.id) });
       return;
     }
     if (extraDays.length > 0) {
