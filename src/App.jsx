@@ -142,6 +142,7 @@ function pStats(p) {
   };
 }
 function inPeriod(date, p) { return date >= p.startDate && date <= addDays(p.startDate, 34); }
+function periodForDate(periods, date) { return periods.find(p => inPeriod(date, p)) || null; }
 // Resolves what (if anything) is logged for a single date within a period —
 // a shift, a day off (including auto-merged fixed rest days), or nothing.
 // Dates outside the period's range are treated identically to "nothing
@@ -915,7 +916,7 @@ function UpcomingDayCard({date, isToday, info, onLogDate}) {
   );
 }
 
-function UpcomingCarousel({period, todayDate, onLogDate}) {
+function UpcomingCarousel({periods, todayDate, onLogDate}) {
   const containerRef = useRef(null);
   const dates = useMemo(() => {
     const arr = [];
@@ -946,7 +947,7 @@ function UpcomingCarousel({period, todayDate, onLogDate}) {
         </button>
         <div ref={containerRef} className="upcoming-carousel-track" style={{display:"flex",gap:8,overflowX:"auto",scrollSnapType:"x mandatory",flex:1}}>
           {dates.map((date, i) => (
-            <UpcomingDayCard key={date} date={date} isToday={i===todayIndex} info={dayInfo(period, date)} onLogDate={onLogDate}/>
+            <UpcomingDayCard key={date} date={date} isToday={i===todayIndex} info={dayInfo(periodForDate(periods, date), date)} onLogDate={onLogDate}/>
           ))}
         </div>
         <button aria-label="Later days" onClick={()=>scrollByCard(1)} style={carouselArrowStyle}>
@@ -959,7 +960,7 @@ function UpcomingCarousel({period, todayDate, onLogDate}) {
 }
 
 // ─── HOME SCREEN ──────────────────────────────────────────────────────────────
-function HomeScreen({period, onLog, onLogDate, onGoWeek, onHelp, onThemeChange, leaveSettings, onLeaveSettingsChange, onViewTerms}) {
+function HomeScreen({period, periods, onLog, onLogDate, onGoWeek, onHelp, onThemeChange, leaveSettings, onLeaveSettingsChange, onViewTerms}) {
   const stats = useMemo(() => pStats(period), [period]);
   const [showSettings, setShowSettings] = useState(false);
   const [confirmFeedback, setConfirmFeedback] = useState(false);
@@ -1025,7 +1026,7 @@ function HomeScreen({period, onLog, onLogDate, onGoWeek, onHelp, onThemeChange, 
 
       <div style={{padding:"0 16px"}}>
 
-        <UpcomingCarousel period={period} todayDate={todayDate} onLogDate={onLogDate}/>
+        <UpcomingCarousel periods={periods} todayDate={todayDate} onLogDate={onLogDate}/>
 
         {showBackupNudge && <BackupNudgeBanner onDismiss={()=>setBackupBannerDismissed(true)} />}
 
@@ -2893,7 +2894,7 @@ export default function App() {
   return (
     <div style={{background:BG,minHeight:"100vh"}}>
       {screen==="lookup"&&<DutyLookup onLogShift={(d,dt,date)=>{setLookupDuty({d,dt,date});setScreen("log");}}/>}
-      {screen==="home"&&<HomeScreen period={activePeriod}
+      {screen==="home"&&<HomeScreen period={activePeriod} periods={periods}
         onLog={()=>{setEditShift(null);setLogInitDate(null);setScreen("log");}}
         onLogDate={date=>{setEditShift(null);setLookupDuty(null);setLogInitDate(date);setScreen("log");}}
         onGoWeek={i=>{setOpenWeek(i);setScreen("period");}}
