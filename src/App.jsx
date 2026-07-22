@@ -157,7 +157,16 @@ function pStats(p) {
   };
 }
 function inPeriod(date, p) { return date >= p.startDate && date <= addDays(p.startDate, 34); }
-function periodForDate(periods, date) { return periods.find(p => inPeriod(date, p)) || null; }
+// Checks the active period first — periods are meant to be strictly
+// sequential (never overlapping), but real historical data created before
+// the 2026-07-16 startNewPeriod fix can still have an archived period whose
+// range overlaps the current one. Without this, a plain array .find() could
+// silently resolve a date to the wrong (older, stale) period.
+function periodForDate(periods, date, activePeriodId) {
+  const active = activePeriodId && periods.find(p => p.id === activePeriodId);
+  if (active && inPeriod(date, active)) return active;
+  return periods.find(p => inPeriod(date, p)) || null;
+}
 // Resolves what (if anything) is logged for a single date within a period —
 // a shift, a day off (including auto-merged fixed rest days), or nothing.
 // Dates outside the period's range are treated identically to "nothing
@@ -944,7 +953,7 @@ function UpcomingDayCard({date, isToday, info, onLogDate}) {
   );
 }
 
-function UpcomingCarousel({periods, todayDate, onLogDate}) {
+function UpcomingCarousel({periods, activePeriodId, todayDate, onLogDate}) {
   const containerRef = useRef(null);
   const dates = useMemo(() => {
     const arr = [];
@@ -975,7 +984,7 @@ function UpcomingCarousel({periods, todayDate, onLogDate}) {
         </button>
         <div ref={containerRef} className="upcoming-carousel-track" style={{display:"flex",gap:8,overflowX:"auto",scrollSnapType:"x mandatory",flex:1}}>
           {dates.map((date, i) => (
-            <UpcomingDayCard key={date} date={date} isToday={i===todayIndex} info={dayInfo(periodForDate(periods, date), date)} onLogDate={onLogDate}/>
+            <UpcomingDayCard key={date} date={date} isToday={i===todayIndex} info={dayInfo(periodForDate(periods, date, activePeriodId), date)} onLogDate={onLogDate}/>
           ))}
         </div>
         <button aria-label="Later days" onClick={()=>scrollByCard(1)} style={carouselArrowStyle}>
@@ -1054,7 +1063,7 @@ function HomeScreen({period, periods, onLog, onLogDate, onGoWeek, onHelp, onThem
 
       <div style={{padding:"0 16px"}}>
 
-        <UpcomingCarousel periods={periods} todayDate={todayDate} onLogDate={onLogDate}/>
+        <UpcomingCarousel periods={periods} activePeriodId={period.id} todayDate={todayDate} onLogDate={onLogDate}/>
 
         {showBackupNudge && <BackupNudgeBanner onDismiss={()=>setBackupBannerDismissed(true)} />}
 
