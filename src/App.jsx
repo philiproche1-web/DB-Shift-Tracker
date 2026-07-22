@@ -1507,11 +1507,6 @@ function LogScreen({period, editShift, lookupDuty, initialDate, initialRestDay, 
             onYes={()=>{pendingAction.run();setPendingAction(null);}}
             onNo={()=>setPendingAction(null)}/>
         )}
-        {!canSave && (rIdx>=0 || isSpare || fixedType) && (
-          <button style={{...btnStyle,opacity:0.4}} disabled>
-            {editShift?"Save Changes":"Log Shift"}
-          </button>
-        )}
       </div>
     </div>
   );
