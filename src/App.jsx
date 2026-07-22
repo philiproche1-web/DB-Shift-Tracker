@@ -1134,10 +1134,10 @@ function HomeScreen({period, onLog, onLogDate, onGoWeek, onHelp, onThemeChange, 
 }
 
 // ─── LOG SHIFT SCREEN ─────────────────────────────────────────────────────────
-function LogScreen({period, editShift, lookupDuty, onSave, onCancel}) {
+function LogScreen({period, editShift, lookupDuty, initialDate, onSave, onCancel}) {
   // lookupDuty = {d: dutyObj, dt: dayType} from the Lookup screen
   const initZone = lookupDuty?.d.z || editShift?.zone || "Zone 1";
-  const [date, setDate] = useState(lookupDuty?.date || editShift?.date || today());
+  const [date, setDate] = useState(lookupDuty?.date || editShift?.date || initialDate || today());
   const [zone, setZone] = useState(initZone);
   const [rIdx, setRIdx] = useState(-1);
 
@@ -2703,6 +2703,7 @@ export default function App() {
   const [saveError, setSaveError] = useState(false);
   const [loadCorrupted, setLoadCorrupted] = useState(false);
   const [rosterVersion, setRosterVersion] = useState(0);
+  const [logInitDate, setLogInitDate] = useState(null);
 
   const activePeriod = periods.find(p=>p.id===activePeriodId);
 
@@ -2794,7 +2795,7 @@ export default function App() {
       const shifts=ei>=0?p.shifts.map(s=>s.id===shift.id?shift:s):[...p.shifts,shift];
       return{...p,shifts};
     });
-    persist(updated,activePeriodId); setEditShift(null); setLookupDuty(null); setScreen("home");
+    persist(updated,activePeriodId); setEditShift(null); setLookupDuty(null); setLogInitDate(null); setScreen("home");
   }
 
   function saveDayOff(dayOffOrArray) {
@@ -2874,8 +2875,8 @@ export default function App() {
 
   const archivePeriod=periods.find(p=>p.id===archiveViewId);
 
-  if(screen==="log") return <LogScreen period={activePeriod} editShift={editShift} lookupDuty={lookupDuty}
-    onSave={saveShift} onCancel={()=>{setEditShift(null);setLookupDuty(null);setScreen(editShift?"period":lookupDuty?"lookup":"home");}}/>;
+  if(screen==="log") return <LogScreen period={activePeriod} editShift={editShift} lookupDuty={lookupDuty} initialDate={logInitDate}
+    onSave={saveShift} onCancel={()=>{setEditShift(null);setLookupDuty(null);setLogInitDate(null);setScreen(editShift?"period":lookupDuty?"lookup":"home");}}/>;
 
   if(screen==="dayoff") return <LogDayOffScreen periods={periods} editDayOff={editDayOff}
     onSave={saveDayOff} onCancel={()=>{setEditDayOff(null);setScreen(editDayOff?"period":dayOffFrom);}}/>;
@@ -2893,8 +2894,8 @@ export default function App() {
     <div style={{background:BG,minHeight:"100vh"}}>
       {screen==="lookup"&&<DutyLookup onLogShift={(d,dt,date)=>{setLookupDuty({d,dt,date});setScreen("log");}}/>}
       {screen==="home"&&<HomeScreen period={activePeriod}
-        onLog={()=>{setEditShift(null);setScreen("log");}}
-        onLogDate={()=>{}}
+        onLog={()=>{setEditShift(null);setLogInitDate(null);setScreen("log");}}
+        onLogDate={date=>{setEditShift(null);setLookupDuty(null);setLogInitDate(date);setScreen("log");}}
         onGoWeek={i=>{setOpenWeek(i);setScreen("period");}}
         onHelp={()=>setShowTour(true)}
         onThemeChange={handleThemeChange}
@@ -2921,7 +2922,7 @@ export default function App() {
       {screen==="archive"&&<ArchiveScreen periods={periods} activePeriodId={activePeriodId}
         onStartNew={startNewPeriod} onView={id=>setArchiveViewId(id)}/>}
       <BottomNav active={screen==="log"?"log":["archive"].includes(screen)?"leave":screen} onChange={tab=>{
-        if(tab==="log"){setEditShift(null);setLookupDuty(null);setScreen("log");}
+        if(tab==="log"){setEditShift(null);setLookupDuty(null);setLogInitDate(null);setScreen("log");}
         else setScreen(tab);
       }}/>
       {confirm&&<ConfirmDialog msg={confirm.msg} yesLabel={confirm.yesLabel} danger={confirm.danger!==false} onYes={confirm.onYes} onNo={()=>setConfirm(null)}/>}
