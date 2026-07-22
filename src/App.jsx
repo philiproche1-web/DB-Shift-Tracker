@@ -44,6 +44,15 @@ function thisSunday() {
   return d.toISOString().slice(0, 10);
 }
 function getDuties(zone, dayType) { return DUTIES.filter(d => d.z === zone && d.t === dayType); }
+// DUTIES' `rl` field holds each duty's DEPART location (not "report location"
+// despite the name — established during the running-board Report/Depart fix).
+// Returns null for Spare/Fixed-type shifts (no fixed depart location) or if
+// no matching roster duty is found.
+function shiftDepartLocation(shift) {
+  if (shift.isSpare || shift.fixedType) return null;
+  const duty = DUTIES.find(d => d.z === shift.zone && d.t === shift.dayType && d.r === shift.roster);
+  return duty ? duty.rl : null;
+}
 function dutyLabel(d) { return `${d.r} · ${d.s}–${d.e} (${fmtHrs(d.w)})`; }
 function parseTimeToMins(t) {
   if (!t) return 0;
@@ -889,10 +898,12 @@ function UpcomingDayCard({date, isToday, info, onLogDate}) {
   const dateLabel = fmtShort(date);
   let body;
   if (info.status === "shift") {
+    const departLocation = shiftDepartLocation(info.shift);
     body = (
       <>
         <p style={{color:TEXT,fontSize:13,fontWeight:700,margin:"0 0 2px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{info.shift.roster}</p>
         <p style={{color:MUTED,fontSize:11,margin:0}}>{info.shift.reportTime}–{info.shift.signOffTime}</p>
+        {departLocation && <p style={{color:MUTED,fontSize:11,margin:"1px 0 0",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{departLocation}</p>}
       </>
     );
   } else if (info.status === "dayoff") {
