@@ -43,6 +43,12 @@ function thisSunday() {
   const d = new Date(), day = d.getDay(); d.setDate(d.getDate() - day);
   return d.toISOString().slice(0, 10);
 }
+// Sunday of the week containing an arbitrary date string (not just today's week)
+function sundayOf(dateStr) {
+  const d = new Date(dateStr + "T12:00:00");
+  d.setDate(d.getDate() - d.getDay());
+  return d.toISOString().slice(0, 10);
+}
 function getDuties(zone, dayType) { return DUTIES.filter(d => d.z === zone && d.t === dayType); }
 // DUTIES' `rl` field holds each duty's DEPART location (not "report location"
 // despite the name — established during the running-board Report/Depart fix).
@@ -1194,6 +1200,7 @@ function LogScreen({period, editShift, lookupDuty, initialDate, initialRestDay, 
   const [overtimeM, setOvertimeM] = useState(Math.round(((editShift?.overtimeHours||0)%1)*60));
   const [overtimeNote, setOvertimeNote] = useState(editShift?.overtimeNote || "");
   const [pendingAction, setPendingAction] = useState(null); // {msg, run} — confirm before wiping entered times
+  const [extraDays, setExtraDays] = useState([]); // additional dates (same week as `date`) to also log this duty on
 
   function hasEnteredTimes() {
     return !!reportTime || signOffVal!=="00:00" || workH>0 || workM>0 || reliefH>0 || reliefM>0;
@@ -1269,10 +1276,10 @@ function LogScreen({period, editShift, lookupDuty, initialDate, initialRestDay, 
     setReportTime(""); setSignOffVal("00:00"); setNextDay(false);
   }
 
-  function performSave(overwriteId) {
+  function shiftFields() {
     const duty = (isSpare || fixedType) ? null : duties[rIdx];
-    onSave({
-      id: overwriteId || editShift?.id || uid(), date, zone, dayType: getDayType(date),
+    return {
+      zone,
       roster: fixedDef ? fixedDef.roster : (isSpare ? "Spare" : duty.r),
       duty: fixedType ? fixedType : (isSpare ? "spare" : duty.d2),
       fixedType: fixedType || null,
@@ -1283,15 +1290,32 @@ function LogScreen({period, editShift, lookupDuty, initialDate, initialRestDay, 
       overtimeHours: overtimeH + overtimeM/60,
       overtimeNote: overtimeNote.trim(),
       notes: notes.trim()
-    });
+    };
+  }
+
+  function performSave(overwriteId) {
+    if (extraDays.length > 0) {
+      const fields = shiftFields();
+      const allDates = [date, ...extraDays];
+      onSave(allDates.map(d => ({ id: uid(), date: d, dayType: getDayType(d), ...fields })));
+      return;
+    }
+    onSave({ id: overwriteId || editShift?.id || uid(), date, dayType: getDayType(date), ...shiftFields() });
   }
 
   function handleSave() {
     if (!canSave) return;
-    if (!editShift && conflictShift) {
+    if (!editShift && extraDays.length===0 && conflictShift) {
       setPendingAction({
         msg: `This will replace the shift already logged for ${fmtDate(date)} (${conflictShift.roster}) — continue?`,
         run: () => performSave(conflictShift.id)
+      });
+      return;
+    }
+    if (extraDays.length > 0) {
+      setPendingAction({
+        msg: `Log ${(rIdx>=0 && duties[rIdx]) ? duties[rIdx].r : ""} on ${1+extraDays.length} days: ${[date, ...extraDays].map(fmtDate).join(", ")}?`,
+        run: () => performSave()
       });
       return;
     }
@@ -1317,7 +1341,7 @@ function LogScreen({period, editShift, lookupDuty, initialDate, initialRestDay, 
         {/* Date */}
         <div style={{marginBottom:16}}>
           <FieldLabel htmlFor="log-date">Date</FieldLabel>
-          <DateInput id="log-date" value={date} onChange={e => setDate(e.target.value)} invalid={!inRange && !!date}/>
+          <DateInput id="log-date" value={date} onChange={e => {setDate(e.target.value); setExtraDays([]);}} invalid={!inRange && !!date}/>
           <div style={{display:"flex",alignItems:"center",gap:8,marginTop:8,flexWrap:"wrap"}}>
             <span style={tag(dayColor)}>{dayLabel}</span>
           </div>
@@ -1345,7 +1369,7 @@ function LogScreen({period, editShift, lookupDuty, initialDate, initialRestDay, 
             onChange={z=>{
               if (z===zone) return;
               guardedRun("Changing zone will clear the times you've already entered. Continue?", ()=>{
-                setZone(z);setRIdx(-1);setReportTime("");setSignOffVal("00:00");setNextDay(false);setWorkH(0);setWorkM(0);setReliefH(0);setReliefM(0);
+                setZone(z);setRIdx(-1);setReportTime("");setSignOffVal("00:00");setNextDay(false);setWorkH(0);setWorkM(0);setReliefH(0);setReliefM(0);setExtraDays([]);
               });
             }}/>
         </div>
@@ -1358,10 +1382,45 @@ function LogScreen({period, editShift, lookupDuty, initialDate, initialRestDay, 
           </div>
         )}
 
+        {/* Also log this duty on other days this week — replaces the old standalone Repeat Duty screen */}
+        {!editShift && !isSpare && !fixedType && date && (
+          <div style={{marginBottom:16}}>
+            <FieldLabel hint="optional">Also log this duty on</FieldLabel>
+            <div style={{display:"flex",gap:6,justifyContent:"space-between"}}>
+              {(() => {
+                const weekStart = sundayOf(date);
+                const letters = ["S","M","T","W","T","F","S"];
+                const taken = new Set((period.shifts||[]).map(s=>s.date));
+                return Array.from({length:7},(_,i)=>{
+                  const d = addDays(weekStart, i);
+                  const isPrimary = d === date;
+                  const isTaken = taken.has(d) && !isPrimary;
+                  const sel = extraDays.includes(d);
+                  return (
+                    <button key={d} type="button" disabled={isPrimary || isTaken}
+                      onClick={()=>setExtraDays(prev => prev.includes(d) ? prev.filter(x=>x!==d) : [...prev, d])}
+                      style={{
+                        width:36, height:36, borderRadius:"50%",
+                        background: (isPrimary || sel) ? ACCENT : isTaken ? CARD : CARD2,
+                        color: (isPrimary || sel) ? "#07090F" : isTaken ? MUTED : TEXT,
+                        border: (isPrimary || sel) ? "none" : `1px solid ${BORDER}`,
+                        fontSize:12, fontWeight:700, cursor: (isPrimary || isTaken) ? "not-allowed" : "pointer",
+                        opacity: isTaken ? 0.5 : 1
+                      }}>{letters[i]}</button>
+                  );
+                });
+              })()}
+            </div>
+            {extraDays.length>0 && (
+              <p style={{color:MUTED,fontSize:12,margin:"8px 0 0"}}>Will log on {1+extraDays.length} days total{rIdx>=0 && duties[rIdx] ? ` (${duties[rIdx].r})` : ""}</p>
+            )}
+          </div>
+        )}
+
         {/* Spare driver toggle — compact, sits between duty and shift details */}
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16,padding:"10px 14px",background:CARD,border:`1px solid ${isSpare?ACCENT:BORDER}`,borderRadius:12,cursor:"pointer"}} onClick={()=>{
           guardedRun("Toggling Spare will clear the times you've already entered. Continue?", ()=>{
-            const ns=!isSpare;setIsSpare(ns);if(ns)setFixedType(null);setRIdx(-1);setReportTime("");setSignOffVal("00:00");setNextDay(false);setWorkH(0);setWorkM(0);
+            const ns=!isSpare;setIsSpare(ns);if(ns)setFixedType(null);setRIdx(-1);setReportTime("");setSignOffVal("00:00");setNextDay(false);setWorkH(0);setWorkM(0);setExtraDays([]);
           });
         }}>
           <span style={{color:isSpare?ACCENT:MUTED,fontSize:13,fontWeight:600}}>Spare driver shift</span>
@@ -1506,7 +1565,7 @@ function LogScreen({period, editShift, lookupDuty, initialDate, initialRestDay, 
         )}
 
         <button style={{...btnStyle,opacity:canSave?1:0.4,cursor:canSave?"pointer":"not-allowed"}} onClick={handleSave} disabled={!canSave}>
-          {editShift?"Save Changes":"Log Shift"}
+          {editShift ? "Save Changes" : extraDays.length>0 ? `Log ${1+extraDays.length} days` : "Log Shift"}
         </button>
         {!canSave && saveBlockReason && (
           <p style={{color:MUTED,fontSize:12,margin:"8px 0 0",textAlign:"center"}}>{saveBlockReason}</p>
@@ -1634,113 +1693,7 @@ function LogDayOffScreen({periods, editDayOff, onSave, onCancel}) {
 }
 
 // ─── PERIOD SCREEN ────────────────────────────────────────────────────────────
-function RepeatDutyPanel({weekStart, existingDates, onConfirm, onClose}) {
-  const [zone, setZone] = useState("Zone 1");
-  const [dayType, setDayType] = useState("weekday");
-  const [rIdx, setRIdx] = useState(-1);
-  const [selectedDays, setSelectedDays] = useState([]);
-  const [confirming, setConfirming] = useState(false);
-  const duties = useMemo(()=>getDuties(zone,dayType),[zone,dayType]);
-  const dayOpts=[{v:"weekday",l:"Mon–Fri"},{v:"saturday",l:"Saturday"},{v:"sunday",l:"Sunday"}];
-  const taken = existingDates || new Set();
-
-  // Generate the 7 days of the week starting from weekStart
-  const weekDays = Array.from({length:7},(_,i)=>{
-    const date = addDays(weekStart,i);
-    const names=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
-    const d = new Date(date+"T00:00:00");
-    return {date, label:names[d.getDay()], taken:taken.has(date)};
-  });
-
-  function toggleDay(date) {
-    if (taken.has(date)) return;
-    setSelectedDays(prev => prev.includes(date) ? prev.filter(d=>d!==date) : [...prev,date]);
-  }
-
-  function buildShifts() {
-    const duty = duties[rIdx];
-    return selectedDays.map(date=>({
-      id:uid(), date, zone, dayType:getDayType(date),
-      roster:duty.r, duty:duty.d2, reportTime:duty.s, signOffTime:duty.e,
-      workHours:duty.w, reliefHours:duty.l, notes:""
-    }));
-  }
-
-  const canConfirm = rIdx>=0 && selectedDays.length>0;
-
-  return (
-    <div style={{position:"fixed",inset:0,background:"#000000bb",zIndex:200,display:"flex",flexDirection:"column",justifyContent:"flex-end"}} onClick={onClose}>
-      <div style={{background:CARD,borderRadius:"20px 20px 0 0",padding:24,border:`1px solid ${BORDER}`,borderBottom:"none"}} onClick={e=>e.stopPropagation()}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
-          <h2 style={{color:TEXT,fontSize:18,fontWeight:800,margin:0}}>Repeat a Duty</h2>
-          <button onClick={onClose} style={{background:"none",border:"none",color:MUTED,fontSize:22,cursor:"pointer",padding:"0 4px",lineHeight:1}}>×</button>
-        </div>
-
-        {/* Zone */}
-        <p style={{color:MUTED,fontSize:11,textTransform:"uppercase",letterSpacing:1.5,fontWeight:700,margin:"0 0 8px"}}>Zone</p>
-        <div style={{marginBottom:14}}>
-          <SegGroup options={ZONES} value={zone} cols={4} onChange={z=>{setZone(z);setRIdx(-1);}}/>
-        </div>
-
-        {/* Day type */}
-        <p style={{color:MUTED,fontSize:11,textTransform:"uppercase",letterSpacing:1.5,fontWeight:700,margin:"0 0 8px"}}>Day type</p>
-        <div style={{marginBottom:14}}>
-          <SegGroup options={dayOpts.map(o=>({v:o.v,l:o.l}))} value={dayType} cols={3}
-            onChange={v=>{setDayType(v);setRIdx(-1);}}/>
-        </div>
-
-        {/* Duty */}
-        <p style={{color:MUTED,fontSize:11,textTransform:"uppercase",letterSpacing:1.5,fontWeight:700,margin:"0 0 8px"}}>Duty</p>
-        <div style={{marginBottom:16}}>
-          <DutyPicker key={zone+dayType} duties={duties} value={rIdx} onChange={setRIdx}/>
-        </div>
-
-        {/* Day picker */}
-        <p style={{color:MUTED,fontSize:11,textTransform:"uppercase",letterSpacing:1.5,fontWeight:700,margin:"0 0 8px"}}>Days working this week</p>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:4,marginBottom:8}}>
-          {weekDays.map(({date,label,taken:isTaken})=>{
-            const sel = selectedDays.includes(date);
-            return (
-              <button key={date} onClick={()=>toggleDay(date)} disabled={isTaken} style={{
-                background:sel?ACCENT:isTaken?CARD:CARD2, color:sel?"#07090F":isTaken?MUTED:TEXT,
-                border:sel?"none":`1px solid ${BORDER}`,
-                borderRadius:10, padding:"10px 1px", cursor:isTaken?"not-allowed":"pointer",
-                opacity:isTaken?0.5:1,
-                display:"flex",flexDirection:"column",alignItems:"center",gap:3
-              }}>
-                <span style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:0.3}}>{label}</span>
-                <span style={{fontSize:10.5,opacity:0.8}}>{date.slice(8)}</span>
-              </button>
-            );
-          })}
-        </div>
-        {weekDays.some(d=>d.taken) && (
-          <p style={{color:MUTED,fontSize:11,margin:"0 0 20px"}}>Greyed-out days already have a shift logged — edit or delete it first if you need to change it.</p>
-        )}
-
-        {selectedDays.length>0 && rIdx>=0 && (
-          <p style={{color:MUTED,fontSize:12,textAlign:"center",margin:"0 0 12px"}}>
-            Will log <strong style={{color:TEXT}}>{duties[rIdx].r}</strong> on {selectedDays.length} day{selectedDays.length!==1?"s":""}
-          </p>
-        )}
-
-        <button style={{...btnStyle,opacity:canConfirm?1:0.4}} disabled={!canConfirm} onClick={()=>setConfirming(true)}>
-          Log {selectedDays.length>0?selectedDays.length+" day"+(selectedDays.length!==1?"s":""):"Selected Days"} →
-        </button>
-      </div>
-      {confirming && (
-        <ConfirmDialog
-          msg={`Log ${duties[rIdx]?.r} on ${selectedDays.length} day${selectedDays.length!==1?"s":""}: ${selectedDays.map(fmtDate).join(", ")}?`}
-          yesLabel="Log Shifts" danger={false}
-          onYes={()=>{onConfirm(buildShifts());setConfirming(false);}}
-          onNo={()=>setConfirming(false)}
-        />
-      )}
-    </div>
-  );
-}
-
-function PeriodScreen({period, onEdit, onDelete, onEditDayOff, onDeleteDayOff, onRepeat, onViewArchive, onEndPeriod, initWeek=null, readOnly=false}) {
+function PeriodScreen({period, onEdit, onDelete, onEditDayOff, onDeleteDayOff, onViewArchive, onEndPeriod, initWeek=null, readOnly=false}) {
   const stats = useMemo(() => pStats(period), [period]);
   // Default to current week, fallback to week 0
   const defaultWeek = useMemo(() => {
@@ -1749,7 +1702,6 @@ function PeriodScreen({period, onEdit, onDelete, onEditDayOff, onDeleteDayOff, o
     return i >= 0 ? i : 0;
   }, [stats]);
   const [open, setOpen] = useState(initWeek !== null ? initWeek : defaultWeek);
-  const [repeatWeekIdx, setRepeatWeekIdx] = useState(-1);
   const tallyEntries = DAY_OFF_TYPES.map(t=>({type:t,count:stats.tally[t]||0})).filter(x=>x.count>0);
 
   return (
@@ -1811,15 +1763,6 @@ function PeriodScreen({period, onEdit, onDelete, onEditDayOff, onDeleteDayOff, o
         </div>
       )}
 
-      {repeatWeekIdx>=0 && (
-        <RepeatDutyPanel
-          weekStart={stats.weeks[repeatWeekIdx].start}
-          existingDates={new Set((period.shifts||[]).map(s=>s.date))}
-          onClose={()=>setRepeatWeekIdx(-1)}
-          onConfirm={shifts=>{onRepeat(shifts);setRepeatWeekIdx(-1);}}
-        />
-      )}
-
       {stats.weeks.map((w,i)=>{
         const allItems = [
           ...w.shifts.map(s=>({...s,_type:"shift"})),
@@ -1837,12 +1780,6 @@ function PeriodScreen({period, onEdit, onDelete, onEditDayOff, onDeleteDayOff, o
                 <p style={{color:w.total>0?ACCENT:MUTED,fontWeight:700,fontSize:16,margin:0}}>{fmtHrs(w.total)}</p>
                 {w.sunday>0&&<p style={{color:SUCCESS,fontSize:12,margin:0}}>Sun: {fmtHrs(w.sunday)}</p>}
                 {w.overtime>0&&<p style={{color:"#F59E0B",fontSize:12,margin:0}}>OT: {fmtHrs(w.overtime)}</p>}
-                {!readOnly && (
-                  <button onClick={e=>{e.stopPropagation();setRepeatWeekIdx(i);}} style={{
-                    background:"none",border:`1px solid ${BORDER}`,color:MUTED,
-                    borderRadius:8,padding:"4px 10px",fontSize:11,fontWeight:600,cursor:"pointer"
-                  }}>↻ Repeat</button>
-                )}
                 <span style={{color:MUTED,fontSize:13,transform:open===i?"rotate(180deg)":"none",transition:"transform 0.2s",display:"inline-block"}}>▾</span>
               </div>
             </div>
@@ -2815,11 +2752,21 @@ export default function App() {
     persist([...periods,p],p.id); setScreen("home");
   }
 
-  function saveShift(shift) {
+  function saveShift(shiftOrArray) {
+    const items = Array.isArray(shiftOrArray) ? shiftOrArray : [shiftOrArray];
     const updated=periods.map(p=>{
       if(p.id!==activePeriodId)return p;
-      const ei=p.shifts.findIndex(s=>s.id===shift.id);
-      const shifts=ei>=0?p.shifts.map(s=>s.id===shift.id?shift:s):[...p.shifts,shift];
+      let shifts = p.shifts;
+      items.forEach(shift=>{
+        const ei=shifts.findIndex(s=>s.id===shift.id);
+        if (ei>=0) { shifts = shifts.map(s=>s.id===shift.id?shift:s); return; }
+        // New shift (multi-day path): skip if some other shift already owns this date -
+        // the day-circle picker greys out already-logged days, but this guards a race
+        // (e.g. another device/tab logged something in between) the same way the old
+        // standalone Repeat screen's own dedup used to.
+        if (shifts.some(s=>s.date===shift.date)) return;
+        shifts = [...shifts, shift];
+      });
       return{...p,shifts};
     });
     persist(updated,activePeriodId); setEditShift(null); setLookupDuty(null); setLogInitDate(null); setLogInitRestDay(false); setScreen("home");
@@ -2935,16 +2882,7 @@ export default function App() {
         onEditDayOff={d=>{setEditDayOff(d);setDayOffFrom("period");setScreen("dayoff");}}
         onDeleteDayOff={deleteDayOff}
         onViewArchive={()=>setScreen("archive")}
-        onEndPeriod={startNewPeriod}
-        onRepeat={shifts=>{
-          const updated=periods.map(p=>{
-            if(p.id!==activePeriodId)return p;
-            const existingDates=new Set((p.shifts||[]).map(s=>s.date));
-            const newShifts=shifts.filter(s=>!existingDates.has(s.date));
-            return{...p,shifts:[...(p.shifts||[]),...newShifts]};
-          });
-          persist(updated,activePeriodId);
-        }}/>}
+        onEndPeriod={startNewPeriod}/>}
       {screen==="leave"&&<LeaveScreen periods={periods} leaveSettings={leaveSettings} onLogDayOff={()=>{setEditDayOff(null);setDayOffFrom("leave");setScreen("dayoff");}}/>}
       {screen==="archive"&&<ArchiveScreen periods={periods} activePeriodId={activePeriodId}
         onStartNew={startNewPeriod} onView={id=>setArchiveViewId(id)}/>}
