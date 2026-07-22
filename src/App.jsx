@@ -1244,10 +1244,9 @@ function LogScreen({period, editShift, lookupDuty, initialDate, initialRestDay, 
   const conflictShift = (period.shifts||[]).find(s => s.date === date && s.id !== editShift?.id);
   // Same date already has a day off logged (Annual Leave, Sick Day, etc.) — flag, don't block
   const conflictDayOff = (period.daysOff||[]).find(d => d.date === date);
-  const canSave = (rIdx >= 0 || isSpare || fixedType) && date && reportTime && signOffVal && inRange && !conflictShift;
+  const canSave = (rIdx >= 0 || isSpare || fixedType) && date && reportTime && signOffVal && inRange;
   const saveBlockReason = !date ? "Pick a date."
     : !inRange ? "This date falls outside the current 5-week period."
-    : conflictShift ? "A shift is already logged on this date — edit or delete it first."
     : !(rIdx >= 0 || isSpare || fixedType) ? "Pick a duty, or choose Spare / another duty type."
     : (!reportTime || !signOffVal) ? "Enter a start and finish time."
     : null;
@@ -1270,11 +1269,10 @@ function LogScreen({period, editShift, lookupDuty, initialDate, initialRestDay, 
     setReportTime(""); setSignOffVal("00:00"); setNextDay(false);
   }
 
-  function handleSave() {
-    if (!canSave) return;
+  function performSave(overwriteId) {
     const duty = (isSpare || fixedType) ? null : duties[rIdx];
     onSave({
-      id: editShift?.id || uid(), date, zone, dayType: getDayType(date),
+      id: overwriteId || editShift?.id || uid(), date, zone, dayType: getDayType(date),
       roster: fixedDef ? fixedDef.roster : (isSpare ? "Spare" : duty.r),
       duty: fixedType ? fixedType : (isSpare ? "spare" : duty.d2),
       fixedType: fixedType || null,
@@ -1286,6 +1284,18 @@ function LogScreen({period, editShift, lookupDuty, initialDate, initialRestDay, 
       overtimeNote: overtimeNote.trim(),
       notes: notes.trim()
     });
+  }
+
+  function handleSave() {
+    if (!canSave) return;
+    if (!editShift && conflictShift) {
+      setPendingAction({
+        msg: `This will replace the shift already logged for ${fmtDate(date)} (${conflictShift.roster}) — continue?`,
+        run: () => performSave(conflictShift.id)
+      });
+      return;
+    }
+    performSave();
   }
 
   return (
