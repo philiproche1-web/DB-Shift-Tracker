@@ -874,8 +874,92 @@ function TodayDutyCard({shift, label, accentColor, defaultExpanded=true}) {
   );
 }
 
+// ─── UPCOMING CAROUSEL ──────────────────────────────────────────────────────
+// Fixed 29-day window (7 back, today, 21 forward) in a native scroll-snap
+// strip, defaulted scrolled so today is the first of 3 visible cards. No
+// infinite loading — if a driver ever wants to swipe further than 3 weeks
+// out, that's a follow-up, not needed for the initial ask.
+const CAROUSEL_DAYS_BACK = 7;
+const CAROUSEL_DAYS_FORWARD = 21;
+const carouselArrowStyle = {background:CARD,border:`1px solid ${BORDER}`,color:MUTED,borderRadius:10,width:32,height:32,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",padding:0,flexShrink:0};
+
+function UpcomingDayCard({date, isToday, info, onLogDate}) {
+  const dayLabel = new Date(date+"T12:00:00").toLocaleDateString("en-IE", {weekday:"short"});
+  const dateLabel = fmtShort(date);
+  let body;
+  if (info.status === "shift") {
+    body = (
+      <>
+        <p style={{color:TEXT,fontSize:13,fontWeight:700,margin:"0 0 2px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{info.shift.roster}</p>
+        <p style={{color:MUTED,fontSize:11,margin:0}}>{info.shift.reportTime}–{info.shift.signOffTime}</p>
+      </>
+    );
+  } else if (info.status === "dayoff") {
+    const isRest = info.dayOff.type === "Rest Day";
+    body = <p style={{color:isRest?DANGER:ACCENT,fontSize:12,fontWeight:700,margin:0}}>{info.dayOff.type}</p>;
+  } else {
+    body = <p style={{color:MUTED,fontSize:12,margin:0}}>Not logged</p>;
+  }
+  const clickable = info.status === "unlogged";
+  return (
+    <div
+      onClick={clickable ? () => onLogDate(date) : undefined}
+      style={{
+        background:CARD, border:`1px solid ${isToday?ACCENT:BORDER}`, borderRadius:14,
+        padding:"10px 10px", flex:"0 0 calc(33.333% - 6px)",
+        scrollSnapAlign:"start", cursor:clickable?"pointer":"default"
+      }}>
+      <p style={{color:isToday?ACCENT:MUTED,fontSize:10,textTransform:"uppercase",letterSpacing:0.5,fontWeight:700,margin:"0 0 2px"}}>{dayLabel} {dateLabel}</p>
+      {body}
+    </div>
+  );
+}
+
+function UpcomingCarousel({period, todayDate, onLogDate}) {
+  const containerRef = useRef(null);
+  const dates = useMemo(() => {
+    const arr = [];
+    for (let i = -CAROUSEL_DAYS_BACK; i <= CAROUSEL_DAYS_FORWARD; i++) arr.push(addDays(todayDate, i));
+    return arr;
+  }, [todayDate]);
+  const todayIndex = CAROUSEL_DAYS_BACK;
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el || !el.children[todayIndex]) return;
+    el.scrollLeft = el.children[todayIndex].offsetLeft;
+  }, [todayIndex]);
+
+  function scrollByCard(dir) {
+    const el = containerRef.current;
+    if (!el || !el.children[0]) return;
+    const cardEl = el.children[0];
+    const gap = parseFloat(getComputedStyle(el).columnGap || getComputedStyle(el).gap || "0");
+    el.scrollBy({ left: dir * (cardEl.offsetWidth + gap), behavior: "smooth" });
+  }
+
+  return (
+    <div style={{marginBottom:12}}>
+      <div style={{display:"flex",alignItems:"center",gap:6}}>
+        <button aria-label="Earlier days" onClick={()=>scrollByCard(-1)} style={carouselArrowStyle}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={MUTED} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <div ref={containerRef} className="upcoming-carousel-track" style={{display:"flex",gap:8,overflowX:"auto",scrollSnapType:"x mandatory",flex:1}}>
+          {dates.map((date, i) => (
+            <UpcomingDayCard key={date} date={date} isToday={i===todayIndex} info={dayInfo(period, date)} onLogDate={onLogDate}/>
+          ))}
+        </div>
+        <button aria-label="Later days" onClick={()=>scrollByCard(1)} style={carouselArrowStyle}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={MUTED} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+      </div>
+      <style>{`.upcoming-carousel-track{-webkit-overflow-scrolling:touch;scrollbar-width:none}.upcoming-carousel-track::-webkit-scrollbar{display:none}`}</style>
+    </div>
+  );
+}
+
 // ─── HOME SCREEN ──────────────────────────────────────────────────────────────
-function HomeScreen({period, onLog, onGoWeek, onHelp, onThemeChange, leaveSettings, onLeaveSettingsChange, onViewTerms}) {
+function HomeScreen({period, onLog, onLogDate, onGoWeek, onHelp, onThemeChange, leaveSettings, onLeaveSettingsChange, onViewTerms}) {
   const stats = useMemo(() => pStats(period), [period]);
   const [showSettings, setShowSettings] = useState(false);
   const [confirmFeedback, setConfirmFeedback] = useState(false);
@@ -940,6 +1024,8 @@ function HomeScreen({period, onLog, onGoWeek, onHelp, onThemeChange, leaveSettin
       </div>
 
       <div style={{padding:"0 16px"}}>
+
+        <UpcomingCarousel period={period} todayDate={todayDate} onLogDate={onLogDate}/>
 
         {showBackupNudge && <BackupNudgeBanner onDismiss={()=>setBackupBannerDismissed(true)} />}
 
@@ -2808,6 +2894,7 @@ export default function App() {
       {screen==="lookup"&&<DutyLookup onLogShift={(d,dt,date)=>{setLookupDuty({d,dt,date});setScreen("log");}}/>}
       {screen==="home"&&<HomeScreen period={activePeriod}
         onLog={()=>{setEditShift(null);setScreen("log");}}
+        onLogDate={()=>{}}
         onGoWeek={i=>{setOpenWeek(i);setScreen("period");}}
         onHelp={()=>setShowTour(true)}
         onThemeChange={handleThemeChange}
