@@ -1309,6 +1309,10 @@ function LogScreen({period, editShift, lookupDuty, initialDate, initialRestDay, 
 
   function handleSave() {
     if (!canSave) return;
+    // Overwrite-confirm intentionally also covers the extra-days case (not just a plain
+    // single date) - the primary date is never greyed out in the day-circle picker and can
+    // still conflict, so this branch has to fire regardless of extraDays.length or the
+    // primary date's own save silently gets dropped by saveShift's collision guard.
     if (!editShift && conflictShift) {
       const dutyName = (rIdx>=0 && duties[rIdx]) ? duties[rIdx].r : "";
       const msg = extraDays.length>0
