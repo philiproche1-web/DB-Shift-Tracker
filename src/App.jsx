@@ -620,18 +620,19 @@ function BackupNudgeBanner({onDismiss}) {
   );
 }
 
-const APP_VERSION = "1.5";
+const APP_VERSION = "1.6";
 const WHATS_NEW = {
-  version: "1.5",
-  title: "What's new in v1.5",
+  version: "1.6",
+  title: "What's new in v1.6",
   showToExisting: true,
   features: [
-    { icon: "theme", heading: "Light & dark mode", body: "Settings now has a working appearance toggle — System, Light, or Dark. System follows your phone's display setting automatically." },
-    { icon: "dayoff", heading: "Log days off from Leave tab", body: "The Leave screen now has a Log Day Off button at the top — log and track leave all in one place." },
-    { icon: "daterange", heading: "Annual leave date range", body: "Log two weeks of holidays in one go. Select Annual Leave, pick From and To dates, and all days are logged at once." },
-    { icon: "anydate", heading: "Any date, any time", body: "Day-off entries are no longer restricted to the current period. Log sick days or annual leave from earlier in the year to catch up your records." },
-    { icon: "backup", heading: "Data backup & restore", body: "New in Settings — export all your data to a file and restore it on a new phone. Protects against losing everything if you clear your cache." },
-    { icon: "datepicker", heading: "Date picker improved", body: "The date picker now shows a clear calendar icon and the whole box is tappable — no more hunting for the tiny icon in dark mode." },
+    { icon: "carousel", heading: "Upcoming days on Home", body: "A new strip at the top of Home shows your next few days at a glance — swipe to see more, tap any day to log it straight away." },
+    { icon: "repeat", heading: "Repeat a duty while logging", body: "Log a Shift now lets you tick off extra days in the same week when you're logging the same duty — no more separate Repeat screen." },
+    { icon: "overwrite", heading: "Fix a mistake without being blocked", body: "Logging a shift on a date that already has one no longer hard-blocks you — you can now confirm to overwrite it." },
+    { icon: "board", heading: "Running board corrections", body: "Corrected report/depart times and stops across a large number of duties — running boards should now match your real routes more closely." },
+    { icon: "period", heading: "Period screen opens on your week", body: "Opening the Period tab now takes you straight to your current week — the other four stay collapsed until you tap them." },
+    { icon: "install", heading: "Install to your home screen", body: "Add the app to your home screen like a real app, and it'll still open with no signal (garage, underground stop, etc)." },
+    { icon: "backup", heading: "Backup reminder", body: "If it's been a while since you last backed up your data, Home will now nudge you — protects against losing everything if you clear your cache or change phones." },
   ]
 };
 
@@ -646,6 +647,12 @@ function WhatsNewIcon({type}) {
   if(type==="anydate") return <div style={wrap}><svg viewBox="0 0 24 24" style={s}><rect x="3" y="4" width="18" height="17" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></svg></div>;
   if(type==="backup") return <div style={wrap}><svg viewBox="0 0 24 24" style={s}><path d="M7 18a4.5 4.5 0 0 1-1-8.9 5 5 0 0 1 9.7-1.7A4 4 0 0 1 17 15.9"/><polyline points="12 12 12 21"/><polyline points="9 18 12 21 15 18"/></svg></div>;
   if(type==="datepicker") return <div style={wrap}><svg viewBox="0 0 24 24" style={s}><rect x="3" y="4" width="18" height="17" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/><circle cx="12" cy="14" r="2.5"/></svg></div>;
+  if(type==="carousel") return <div style={wrap}><svg viewBox="0 0 24 24" style={s}><rect x="2" y="5" width="7" height="14" rx="1.5"/><rect x="14.5" y="5" width="7" height="14" rx="1.5" opacity="0.4"/></svg></div>;
+  if(type==="repeat") return <div style={wrap}><svg viewBox="0 0 24 24" style={s}><path d="M17 2l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg></div>;
+  if(type==="overwrite") return <div style={wrap}><svg viewBox="0 0 24 24" style={s}><path d="M20 6L9 17l-5-5"/></svg></div>;
+  if(type==="board") return <div style={wrap}><svg viewBox="0 0 24 24" style={s}><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></div>;
+  if(type==="period") return <div style={wrap}><svg viewBox="0 0 24 24" style={s}><rect x="3" y="4" width="18" height="17" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><rect x="6.5" y="12" width="4.5" height="4.5" rx="0.5" fill={ACCENT} stroke="none"/></svg></div>;
+  if(type==="install") return <div style={wrap}><svg viewBox="0 0 24 24" style={s}><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="11" y1="18" x2="13" y2="18"/></svg></div>;
   return null;
 }
 
@@ -1818,9 +1825,9 @@ function PeriodScreen({period, onEdit, onDelete, onEditDayOff, onDeleteDayOff, o
                       {item.notes && <p style={{color:"#60a5fa",fontSize:12,margin:"3px 0 0",fontStyle:"italic"}}>{item.notes}</p>}
                     </div>
                     <div style={{textAlign:"right",marginLeft:10,flexShrink:0}}>
-                      <p style={{color:item.isRestDay?DANGER:ACCENT,fontWeight:700,margin:"0 0 6px"}}>{fmtHrs(calcSpreadover(item.reportTime,item.signOffTime))}</p>
+                      <p style={{color:item.isRestDay?DANGER:ACCENT,fontWeight:700,margin:"0 0 6px"}}>{fmtHrs(item.workHours||0)}</p>
                       {!readOnly&&(
-                        <div style={{display:"flex",gap:6}}>
+                        <div style={{display:"flex",flexDirection:"column",gap:6}}>
                           <button onClick={()=>onEdit(item)} style={{background:"none",border:`1px solid ${ACCENT}`,color:ACCENT,borderRadius:8,padding:"8px 14px",fontSize:13,fontWeight:600,cursor:"pointer"}}>Edit</button>
                           <button onClick={()=>onDelete(item.id)} style={{background:"none",border:`1px solid ${DANGER}`,color:DANGER,borderRadius:8,padding:"8px 14px",fontSize:13,fontWeight:600,cursor:"pointer"}}>Del</button>
                         </div>
@@ -1840,7 +1847,7 @@ function PeriodScreen({period, onEdit, onDelete, onEditDayOff, onDeleteDayOff, o
                       item.fixed ? (
                         <button onClick={()=>onDeleteDayOff(item.id)} style={{background:"none",border:`1px solid ${BORDER}`,color:MUTED,borderRadius:8,padding:"8px 14px",fontSize:13,fontWeight:600,cursor:"pointer"}}>Remove</button>
                       ) : (
-                        <div style={{display:"flex",gap:6}}>
+                        <div style={{display:"flex",flexDirection:"column",gap:6}}>
                           <button onClick={()=>onEditDayOff(item)} style={{background:"none",border:`1px solid ${ACCENT}`,color:ACCENT,borderRadius:8,padding:"8px 14px",fontSize:13,fontWeight:600,cursor:"pointer"}}>Edit</button>
                           <button onClick={()=>onDeleteDayOff(item.id)} style={{background:"none",border:`1px solid ${DANGER}`,color:DANGER,borderRadius:8,padding:"8px 14px",fontSize:13,fontWeight:600,cursor:"pointer"}}>Del</button>
                         </div>
@@ -2662,7 +2669,7 @@ export default function App() {
   const [editShift, setEditShift] = useState(null);
   const [editDayOff, setEditDayOff] = useState(null);
   const [archiveViewId, setArchiveViewId] = useState(null);
-  const [openWeek, setOpenWeek] = useState(0);
+  const [openWeek, setOpenWeek] = useState(null);
   const [confirm, setConfirm] = useState(null);
   const [showTour, setShowTour] = useState(false);
   const [lookupDuty, setLookupDuty] = useState(null);
@@ -2897,7 +2904,10 @@ export default function App() {
         onStartNew={startNewPeriod} onView={id=>setArchiveViewId(id)}/>}
       <BottomNav active={screen==="log"?"log":["archive"].includes(screen)?"leave":screen} onChange={tab=>{
         if(tab==="log"){setEditShift(null);setLookupDuty(null);setLogInitDate(null);setLogInitRestDay(false);setScreen("log");}
-        else setScreen(tab);
+        else{
+          if(tab==="period")setOpenWeek(null);
+          setScreen(tab);
+        }
       }}/>
       {confirm&&<ConfirmDialog msg={confirm.msg} yesLabel={confirm.yesLabel} danger={confirm.danger!==false} onYes={confirm.onYes} onNo={()=>setConfirm(null)}/>}
       {showTour&&<TourOverlay onDone={dismissTour}/>}
