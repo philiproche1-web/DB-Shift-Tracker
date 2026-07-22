@@ -935,7 +935,7 @@ function UpcomingDayCard({date, isToday, info, onLogDate}) {
         padding:"10px 10px", flex:"0 0 calc(33.333% - 6px)",
         scrollSnapAlign:"start", cursor:clickable?"pointer":"default", position:"relative"
       }}>
-      <p style={{color:isToday?ACCENT:MUTED,fontSize:10,textTransform:"uppercase",letterSpacing:0.5,fontWeight:700,margin:"0 0 2px"}}>{dayLabel} {dateLabel}</p>
+      <p style={{color:isToday?ACCENT:MUTED,fontSize:10,textTransform:"uppercase",letterSpacing:0.5,fontWeight:700,margin:"0 0 2px",paddingRight:clickable?20:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{dayLabel} {dateLabel}</p>
       {body}
       {clickable && (
         <div aria-hidden="true" style={{position:"absolute",top:6,right:6,width:16,height:16,borderRadius:"50%",background:ACCENT,color:"#07090F",fontSize:12,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1}}>+</div>
