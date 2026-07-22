@@ -1784,8 +1784,9 @@ function PeriodScreen({period, onEdit, onDelete, onEditDayOff, onDeleteDayOff, o
           ...w.shifts.map(s=>({...s,_type:"shift"})),
           ...(w.daysOff||[]).map(d=>({...d,_type:"dayoff"}))
         ].sort((a,b)=>a.date.localeCompare(b.date));
+        const isCurrentWeek = !readOnly && i===defaultWeek;
         return (
-          <div key={i} style={{...cardStyle,marginBottom:10}}>
+          <div key={i} style={{...cardStyle,marginBottom:10,...(isCurrentWeek?{border:`1px solid ${ACCENT}`,boxShadow:`0 0 0 2px ${ACCENT}40`}:{})}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",cursor:"pointer"}} onClick={()=>setOpen(open===i?-1:i)}>
               <div>
                 <p style={{color:MUTED,fontSize:11,margin:0,textTransform:"uppercase"}}>Week {i+1}</p>
