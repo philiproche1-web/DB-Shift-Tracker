@@ -55,18 +55,38 @@ export async function syncTable(supabase, table, { load, save }, userId) {
   const winner = pickWinner(local.updatedAt, remoteRow?.updated_at);
 
   if (winner === "local" && local.dirty) {
-    const localData = await load();
+    let localData;
+    try {
+      localData = await load();
+    } catch (error) {
+      return { ok: false, error };
+    }
     const { error: pushError } = await supabase
       .from(table)
       .upsert({ user_id: userId, data: localData, updated_at: local.updatedAt });
     if (pushError) return { ok: false, error: pushError };
-    saveSyncMeta({ ...loadSyncMeta(), [table]: { dirty: false, updatedAt: local.updatedAt } });
+    // Compare-and-swap: only clear the dirty flag if no newer edit landed
+    // (via markDirty) while the push was in flight. If one did, the meta
+    // entry's updatedAt will have moved past our stale snapshot, so leave
+    // it untouched — still dirty — for the next sync pass to pick up.
+    const freshMeta = loadSyncMeta();
+    if ((freshMeta[table] || {}).updatedAt === local.updatedAt) {
+      saveSyncMeta({ ...freshMeta, [table]: { dirty: false, updatedAt: local.updatedAt } });
+    }
     return { ok: true, direction: "pushed" };
   }
 
   if (winner === "remote" && remoteRow) {
-    await save(remoteRow.data);
-    saveSyncMeta({ ...loadSyncMeta(), [table]: { dirty: false, updatedAt: remoteRow.updated_at } });
+    try {
+      await save(remoteRow.data);
+    } catch (error) {
+      return { ok: false, error };
+    }
+    // Same compare-and-swap guard as the push branch above.
+    const freshMeta = loadSyncMeta();
+    if ((freshMeta[table] || {}).updatedAt === local.updatedAt) {
+      saveSyncMeta({ ...freshMeta, [table]: { dirty: false, updatedAt: remoteRow.updated_at } });
+    }
     return { ok: true, direction: "pulled" };
   }
 

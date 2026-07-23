@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { pickWinner } from "./sync.js";
+import { pickWinner, markDirty, syncTable, syncAll } from "./sync.js";
 
 describe("pickWinner", () => {
   it("picks remote when there is no local timestamp", () => {
@@ -19,8 +19,6 @@ describe("pickWinner", () => {
     expect(pickWinner("2026-07-23T10:00:00Z", "2026-07-23T10:00:00Z")).toBe("local");
   });
 });
-
-import { markDirty, syncTable, syncAll } from "./sync.js";
 
 function makeFakeSupabase({ remoteRow = null, fetchError = null, pushError = null } = {}) {
   const calls = { upserts: [] };
@@ -88,6 +86,68 @@ describe("markDirty + syncTable", () => {
     expect(result.ok).toBe(false);
     const meta = JSON.parse(localStorage.getItem("dbus_sync_meta"));
     expect(meta.settings.dirty).toBe(true);
+  });
+
+  it("does not clear the dirty flag if a newer edit lands mid-push (CAS race)", async () => {
+    // Fake timers guarantee the two markDirty() timestamps are distinct
+    // (real timers could collide within the same millisecond and make
+    // this test flaky).
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-23T10:00:00.000Z"));
+    markDirty("settings");
+    const { supabase } = makeFakeSupabase({ remoteRow: null });
+    const load = () => {
+      // Simulate a concurrent edit landing while this push is in flight,
+      // after the network fetch but before the final meta write.
+      vi.setSystemTime(new Date("2026-07-23T10:00:00.500Z"));
+      markDirty("settings");
+      return { appearance: "dark" };
+    };
+    const result = await syncTable(supabase, "settings", { load, save: vi.fn() }, "user-1");
+    vi.useRealTimers();
+
+    expect(result).toEqual({ ok: true, direction: "pushed" });
+    const meta = JSON.parse(localStorage.getItem("dbus_sync_meta"));
+    expect(meta.settings.dirty).toBe(true);
+  });
+
+  it("does not clear the dirty flag if a newer edit lands mid-pull (CAS race)", async () => {
+    const remoteRow = { data: { appearance: "light" }, updated_at: "2026-07-23T12:00:00Z" };
+    const { supabase } = makeFakeSupabase({ remoteRow });
+    const save = () => {
+      // Simulate a concurrent edit landing while this pull is in flight,
+      // after the network fetch but before the final meta write.
+      markDirty("settings");
+    };
+    const result = await syncTable(supabase, "settings", { load: () => ({ appearance: "dark" }), save }, "user-1");
+
+    expect(result).toEqual({ ok: true, direction: "pulled" });
+    const meta = JSON.parse(localStorage.getItem("dbus_sync_meta"));
+    expect(meta.settings.dirty).toBe(true);
+  });
+
+  it("returns { ok: false, error } instead of throwing when load() fails during a push", async () => {
+    markDirty("settings");
+    const { supabase } = makeFakeSupabase({ remoteRow: null });
+    const load = () => {
+      throw new Error("disk read failed");
+    };
+    const result = await syncTable(supabase, "settings", { load, save: vi.fn() }, "user-1");
+
+    expect(result.ok).toBe(false);
+    expect(result.error).toBeInstanceOf(Error);
+  });
+
+  it("returns { ok: false, error } instead of throwing when save() fails during a pull", async () => {
+    const remoteRow = { data: { appearance: "light" }, updated_at: "2026-07-23T12:00:00Z" };
+    const { supabase } = makeFakeSupabase({ remoteRow });
+    const save = () => {
+      throw new Error("disk write failed");
+    };
+    const result = await syncTable(supabase, "settings", { load: () => ({ appearance: "dark" }), save }, "user-1");
+
+    expect(result.ok).toBe(false);
+    expect(result.error).toBeInstanceOf(Error);
   });
 });
 
