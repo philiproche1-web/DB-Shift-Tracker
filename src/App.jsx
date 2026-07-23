@@ -958,7 +958,7 @@ function UpcomingDayCard({date, isToday, info, onLogDate}) {
     const isRest = info.dayOff.type === "Rest Day";
     body = <p style={{color:isRest?DANGER:ACCENT,fontSize:12,fontWeight:700,margin:0}}>{info.dayOff.type}</p>;
   } else {
-    body = <p style={{color:MUTED,fontSize:12,margin:0}}>Not logged</p>;
+    body = <p style={{color:MUTED,fontSize:12,margin:0}}>Not logged yet</p>;
   }
   const isRestDayCard = info.status === "dayoff" && info.dayOff.type === "Rest Day";
   const clickable = info.status === "unlogged" || isRestDayCard;
@@ -1004,6 +1004,7 @@ function UpcomingCarousel({periods, activePeriodId, todayDate, onLogDate}) {
 
   return (
     <div style={{marginBottom:12}}>
+      <p style={{color:MUTED,fontSize:10,textTransform:"uppercase",letterSpacing:1.5,fontWeight:700,margin:"0 0 6px"}}>Upcoming</p>
       <div style={{display:"flex",alignItems:"center",gap:6}}>
         <button aria-label="Earlier days" onClick={()=>scrollByCard(-1)} style={carouselArrowStyle}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={MUTED} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
