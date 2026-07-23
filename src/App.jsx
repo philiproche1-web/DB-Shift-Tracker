@@ -817,6 +817,10 @@ function SetupScreen({onCreate}) {
       <div style={{width:"100%",maxWidth:380}}>
         <div style={{...cardStyle,marginBottom:14}}>
           <FieldLabel>Period start date</FieldLabel>
+          <div style={{display:"flex",alignItems:"flex-start",gap:8,background:"#F59E0B14",border:"1px solid #F59E0B44",borderRadius:10,padding:"10px 12px",margin:"0 0 12px"}}>
+            <span style={{width:6,height:6,borderRadius:"50%",background:"#F59E0B",flexShrink:0,marginTop:6}}/>
+            <p style={{color:"#F59E0B",fontSize:13,margin:0,lineHeight:1.4}}>The Sunday of your long week is your start date.</p>
+          </div>
           <DateInput value={date} onChange={e => setDate(e.target.value)}/>
           {!isSun && (
             <div style={{display:"flex",alignItems:"center",gap:8,margin:"12px 0 0"}}>
@@ -2238,6 +2242,10 @@ function SettingsPanel({period, onClose, onThemeChange, leaveSettings, onLeaveSe
               </div>
             ) : (
               <div style={{...cardStyle,marginBottom:20,padding:"14px 16px"}}>
+                <div style={{display:"flex",alignItems:"flex-start",gap:8,background:"#F59E0B14",border:"1px solid #F59E0B44",borderRadius:10,padding:"10px 12px",margin:"0 0 12px"}}>
+                  <span style={{width:6,height:6,borderRadius:"50%",background:"#F59E0B",flexShrink:0,marginTop:6}}/>
+                  <p style={{color:"#F59E0B",fontSize:13,margin:0,lineHeight:1.4}}>The Sunday of your long week is your start date.</p>
+                </div>
                 <DateInput value={startDateInput} onChange={e=>setStartDateInput(e.target.value)}/>
                 {!startDateIsSunday && (
                   <div style={{display:"flex",alignItems:"center",gap:8,margin:"10px 0 0"}}>
