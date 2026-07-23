@@ -193,5 +193,6 @@ describe("migrateLocalDataIfNeeded", () => {
     ]);
 
     expect(results.app_data).toEqual({ ok: true, migrated: false });
+    expect(localStorage.getItem("dbus_sync_meta")).toBeNull();
   });
 });

@@ -58,7 +58,7 @@ export default function AuthScreen({ supabase }) {
         // new session and swaps this screen out — nothing further to do here.
       }
     } catch (err) {
-      setError(err.message || "Something went wrong. Please try again.");
+      setError(err?.message || "Something went wrong. Please try again.");
     } finally {
       setSubmitting(false);
     }

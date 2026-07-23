@@ -14,7 +14,8 @@ create policy "Drivers can view their own profile"
 
 create policy "Drivers can update their own profile"
   on public.profiles for update
-  using (auth.uid() = id);
+  using (auth.uid() = id)
+  with check (auth.uid() = id);
 
 -- Auto-create a profile row when a driver signs up, reading driver_number
 -- and garage out of the signup call's user metadata.

@@ -204,9 +204,14 @@ async function loadData() {
   try { return {data:JSON.parse(r), corrupted:false}; }
   catch { return {data:null, corrupted:true}; }
 }
-async function saveData(data) {
-  try { localStorage.setItem("dbus_v3", JSON.stringify(data)); markDirty("app_data"); return true; }
+function writeDataLocally(data) {
+  try { localStorage.setItem("dbus_v3", JSON.stringify(data)); return true; }
   catch(e) { console.error(e); return false; }
+}
+async function saveData(data) {
+  const ok = writeDataLocally(data);
+  if (ok) markDirty("app_data");
+  return ok;
 }
 
 // ─── ROSTER DATA (duties, running boards, fixed rest pattern) ─────────────────
@@ -2112,7 +2117,8 @@ const LEAVE_KEY = "dbus_leave";
 function loadLeaveSettings() {
   try { const s=localStorage.getItem(LEAVE_KEY); return s?JSON.parse(s):{annualTotal:20}; } catch{return{annualTotal:20};}
 }
-function saveLeaveSettings(s) { try{localStorage.setItem(LEAVE_KEY,JSON.stringify(s));markDirty("leave_settings");}catch{} }
+function writeLeaveSettingsLocally(s) { try{localStorage.setItem(LEAVE_KEY,JSON.stringify(s));}catch{} }
+function saveLeaveSettings(s) { writeLeaveSettingsLocally(s); markDirty("leave_settings"); }
 
 function LeaveScreen({periods, leaveSettings, onLogDayOff}) {
   const year = new Date().getFullYear();
@@ -2181,7 +2187,8 @@ function loadSettings() {
   try { const s=localStorage.getItem(SETTINGS_KEY); return s?{...defaults,...JSON.parse(s)}:defaults; }
   catch { return defaults; }
 }
-function saveSettings(s) { try{localStorage.setItem(SETTINGS_KEY,JSON.stringify(s));markDirty("settings");}catch{} }
+function writeSettingsLocally(s) { try{localStorage.setItem(SETTINGS_KEY,JSON.stringify(s));}catch{} }
+function saveSettings(s) { writeSettingsLocally(s); markDirty("settings"); }
 
 function SettingsPanel({period, onClose, onThemeChange, leaveSettings, onLeaveSettingsChange, onReplayTour, onViewTerms, onEditStartDate}) {
   const [settings, setSettings] = useState(loadSettings);
@@ -2874,17 +2881,17 @@ export default function App() {
     {
       table: "app_data",
       load: async () => { const { data } = await loadData(); return data || { periods: [], activePeriodId: null }; },
-      save: async (remote) => { await saveData(remote); setPeriods(remote.periods || []); setActivePeriodId(remote.activePeriodId || null); },
+      save: async (remote) => { writeDataLocally(remote); setPeriods(remote.periods || []); setActivePeriodId(remote.activePeriodId || null); },
     },
     {
       table: "leave_settings",
       load: () => loadLeaveSettings(),
-      save: (remote) => { saveLeaveSettings(remote); setLeaveSettings(remote); },
+      save: (remote) => { writeLeaveSettingsLocally(remote); setLeaveSettings(remote); },
     },
     {
       table: "settings",
       load: () => loadSettings(),
-      save: (remote) => { saveSettings(remote); setThemeKey((k) => k + 1); },
+      save: (remote) => { writeSettingsLocally(remote); applyTheme(remote.appearance, () => setThemeKey((k) => k + 1)); },
     },
   ];
 
