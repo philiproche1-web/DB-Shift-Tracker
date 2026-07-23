@@ -342,7 +342,7 @@ function BusLogo({size=40}) {
 // Page header with gradient — used on every screen for consistency
 function PageHeader({eyebrow, title, subtitle, right, onBack}) {
   return (
-    <div style={{padding:"24px 20px 18px",background:`linear-gradient(180deg,${CARD2} 0%,${BG} 100%)`}}>
+    <div style={{padding:"calc(24px + env(safe-area-inset-top,0px)) 20px 18px",background:`linear-gradient(180deg,${CARD2} 0%,${BG} 100%)`}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:12}}>
         <div style={{display:"flex",alignItems:"flex-start",gap:12,minWidth:0}}>
           {onBack && (
@@ -1110,7 +1110,7 @@ function HomeScreen({period, periods, onLog, onLogDate, onGoWeek, onHelp, onThem
       {confirmFeedback && <ConfirmDialog msg="This opens a feedback form in a new tab, outside the app. Continue?" yesLabel="Continue" onYes={()=>{setConfirmFeedback(false);window.open("https://docs.google.com/forms/d/e/1FAIpQLScgZEIoRM7xqkOpSyVcDQl23fbDJ_UTq99sF0c4mgta5bwrUQ/viewform?usp=header","_blank");}} onNo={()=>setConfirmFeedback(false)}/>}
 
       {/* Header gradient */}
-      <div style={{padding:"28px 20px 20px",background:`linear-gradient(180deg,${CARD2} 0%,${BG} 100%)`}}>
+      <div style={{padding:"calc(28px + env(safe-area-inset-top,0px)) 20px 20px",background:`linear-gradient(180deg,${CARD2} 0%,${BG} 100%)`}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
           <div>
             <p style={{color:MUTED,fontSize:11,margin:"0 0 4px",textTransform:"uppercase",letterSpacing:2,fontWeight:600}}>Shift Tracker</p>
