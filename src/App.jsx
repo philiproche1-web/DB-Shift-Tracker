@@ -2904,12 +2904,14 @@ export default function App() {
     runInitialSync();
 
     function handleReconnect() { syncAll(supabase, session.user.id, tableConfigs); }
+    function handleVisibilityChange() { if (document.visibilityState === "visible") handleReconnect(); }
     window.addEventListener("online", handleReconnect);
-    document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") handleReconnect(); });
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
       cancelled = true;
       window.removeEventListener("online", handleReconnect);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [session?.user?.id]);
 
@@ -3083,7 +3085,7 @@ export default function App() {
   }
 
   if (session === undefined) {
-    return <div style={{ background: "#07090F", minHeight: "100vh" }} />; // brief blank frame while session check resolves
+    return <div style={{ background: BG, minHeight: "100vh" }} />; // brief blank frame while session check resolves
   }
   if (session === null) {
     return <AuthScreen supabase={supabase} />;
