@@ -102,3 +102,44 @@ export async function syncAll(supabase, userId, tableConfigs) {
   }
   return results;
 }
+
+// On a driver's first successful login, pushes whatever already exists in
+// local storage up as each table's initial row — but only if that table has
+// no remote row yet, so a second device logging in later never clobbers
+// history the first device already migrated.
+export async function migrateLocalDataIfNeeded(supabase, userId, tableConfigs) {
+  const results = {};
+  for (const { table, load } of tableConfigs) {
+    const { data: remoteRow, error: fetchError } = await supabase
+      .from(table)
+      .select("user_id")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (fetchError) {
+      results[table] = { ok: false, error: fetchError };
+      continue;
+    }
+    if (remoteRow) {
+      results[table] = { ok: true, migrated: false };
+      continue;
+    }
+
+    const localData = await load();
+    const updatedAt = new Date().toISOString();
+    const { error: insertError } = await supabase
+      .from(table)
+      .insert({ user_id: userId, data: localData, updated_at: updatedAt });
+
+    if (insertError) {
+      results[table] = { ok: false, error: insertError };
+      continue;
+    }
+
+    const meta = loadSyncMeta();
+    meta[table] = { dirty: false, updatedAt };
+    saveSyncMeta(meta);
+    results[table] = { ok: true, migrated: true };
+  }
+  return results;
+}

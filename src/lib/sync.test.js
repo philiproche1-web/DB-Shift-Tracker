@@ -20,8 +20,8 @@ describe("pickWinner", () => {
   });
 });
 
-function makeFakeSupabase({ remoteRow = null, fetchError = null, pushError = null } = {}) {
-  const calls = { upserts: [] };
+function makeFakeSupabase({ remoteRow = null, fetchError = null, pushError = null, insertError = null } = {}) {
+  const calls = { upserts: [], inserts: [] };
   const supabase = {
     from() {
       return {
@@ -34,6 +34,11 @@ function makeFakeSupabase({ remoteRow = null, fetchError = null, pushError = nul
         async upsert(row) {
           calls.upserts.push(row);
           if (pushError) return { error: pushError };
+          return { error: null };
+        },
+        async insert(row) {
+          calls.inserts.push(row);
+          if (insertError) return { error: insertError };
           return { error: null };
         },
       };
@@ -162,5 +167,31 @@ describe("syncAll", () => {
     ]);
 
     expect(Object.keys(results)).toEqual(["settings", "leave_settings"]);
+  });
+});
+
+describe("migrateLocalDataIfNeeded", () => {
+  beforeEach(() => localStorage.clear());
+
+  it("pushes local data as the initial row when no remote row exists", async () => {
+    const { migrateLocalDataIfNeeded } = await import("./sync.js");
+    const { supabase, calls } = makeFakeSupabase({ remoteRow: null });
+    const results = await migrateLocalDataIfNeeded(supabase, "user-1", [
+      { table: "app_data", load: () => ({ periods: [{ id: "p1" }], activePeriodId: "p1" }) },
+    ]);
+
+    expect(results.app_data).toEqual({ ok: true, migrated: true });
+    expect(calls.upserts).toHaveLength(0); // migration inserts, it doesn't upsert
+  });
+
+  it("does not overwrite an existing remote row", async () => {
+    const { migrateLocalDataIfNeeded } = await import("./sync.js");
+    const remoteRow = { data: { periods: [] }, updated_at: "2026-07-23T10:00:00Z" };
+    const { supabase } = makeFakeSupabase({ remoteRow });
+    const results = await migrateLocalDataIfNeeded(supabase, "user-1", [
+      { table: "app_data", load: () => ({ periods: [{ id: "should-not-upload" }] }) },
+    ]);
+
+    expect(results.app_data).toEqual({ ok: true, migrated: false });
   });
 });
