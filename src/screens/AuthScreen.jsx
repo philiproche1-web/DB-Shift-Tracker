@@ -57,6 +57,8 @@ export default function AuthScreen({ supabase }) {
         // On success, App.jsx's onAuthStateChange subscription picks up the
         // new session and swaps this screen out — nothing further to do here.
       }
+    } catch (err) {
+      setError(err.message || "Something went wrong. Please try again.");
     } finally {
       setSubmitting(false);
     }
