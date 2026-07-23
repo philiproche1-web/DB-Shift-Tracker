@@ -401,15 +401,37 @@ function SegGroup({options, value, onChange, cols}) {
 
 
 // Searchable duty picker — replaces a plain <select> with 90+ options.
-// Type a duty number to filter instead of scrolling the whole list.
+// Collapsed by default (shows the current pick as one row) so long zone
+// lists (e.g. Zone 1's 20+ duties) don't push the rest of the screen
+// (Spare / CPC-Training) down — tap the row to expand and search.
 function DutyPicker({duties, value, onChange}) {
   const [query, setQuery] = useState("");
+  const [open, setOpen] = useState(false);
+  const inputRef = useRef(null);
   const q = query.trim().toLowerCase();
   const filtered = q ? duties.filter(d => d.r.toLowerCase().includes(q)) : duties;
+  const selected = value >= 0 ? duties[value] : null;
+
+  if (!open) {
+    return (
+      <button type="button" onClick={()=>{setOpen(true); setTimeout(()=>inputRef.current?.focus(),0);}} style={{
+        display:"flex",justifyContent:"space-between",alignItems:"center",gap:10,
+        width:"100%",textAlign:"left",padding:"12px 14px",
+        background:CARD,border:`1px solid ${BORDER}`,borderRadius:10,cursor:"pointer"
+      }}>
+        <span style={{fontSize:14,fontWeight:selected?700:500,color:selected?TEXT:MUTED}}>
+          {selected ? dutyLabel(selected) : `Tap to choose a duty (${duties.length})`}
+        </span>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={MUTED} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink:0}}><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+    );
+  }
+
   return (
     <div>
-      <input type="text" inputMode="search" value={query} onChange={e=>setQuery(e.target.value)}
+      <input ref={inputRef} type="text" inputMode="search" value={query} onChange={e=>setQuery(e.target.value)}
         placeholder="Type a duty number to search…"
+        onKeyDown={e=>{if(e.key==="Escape"){setOpen(false);setQuery("");}}}
         style={{...inputStyle, marginBottom:8}}/>
       <div style={{maxHeight:280,overflowY:"auto",border:`1px solid ${BORDER}`,borderRadius:10,background:CARD}}>
         {filtered.length===0 ? (
@@ -418,7 +440,7 @@ function DutyPicker({duties, value, onChange}) {
           const i = duties.indexOf(d);
           const sel = i===value;
           return (
-            <button key={d.r} onClick={()=>onChange(i)} style={{
+            <button key={d.r} onClick={()=>{onChange(i); setQuery(""); setOpen(false);}} style={{
               display:"block",width:"100%",textAlign:"left",padding:"12px 14px",
               background:sel?`${ACCENT}18`:"transparent",border:"none",
               borderBottom:`1px solid ${BORDER}`,
