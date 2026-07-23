@@ -1019,7 +1019,7 @@ function UpcomingCarousel({periods, activePeriodId, todayDate, onLogDate}) {
 }
 
 // ─── HOME SCREEN ──────────────────────────────────────────────────────────────
-function HomeScreen({period, periods, onLog, onLogDate, onGoWeek, onHelp, onThemeChange, leaveSettings, onLeaveSettingsChange, onViewTerms}) {
+function HomeScreen({period, periods, onLog, onLogDate, onGoWeek, onHelp, onThemeChange, leaveSettings, onLeaveSettingsChange, onViewTerms, onEditStartDate}) {
   const stats = useMemo(() => pStats(period), [period]);
   const [showSettings, setShowSettings] = useState(false);
   const [confirmFeedback, setConfirmFeedback] = useState(false);
@@ -1058,7 +1058,7 @@ function HomeScreen({period, periods, onLog, onLogDate, onGoWeek, onHelp, onThem
 
   return (
     <div style={{background:BG,minHeight:"100vh",paddingBottom:100}}>
-      {showSettings && <SettingsPanel onClose={()=>setShowSettings(false)} onThemeChange={onThemeChange} leaveSettings={leaveSettings} onLeaveSettingsChange={onLeaveSettingsChange} onReplayTour={()=>{setShowSettings(false);onHelp();}} onViewTerms={()=>{setShowSettings(false);onViewTerms();}}/>}
+      {showSettings && <SettingsPanel period={period} onClose={()=>setShowSettings(false)} onThemeChange={onThemeChange} leaveSettings={leaveSettings} onLeaveSettingsChange={onLeaveSettingsChange} onReplayTour={()=>{setShowSettings(false);onHelp();}} onViewTerms={()=>{setShowSettings(false);onViewTerms();}} onEditStartDate={onEditStartDate}/>}
       {confirmFeedback && <ConfirmDialog msg="This opens a feedback form in a new tab, outside the app. Continue?" yesLabel="Continue" onYes={()=>{setConfirmFeedback(false);window.open("https://docs.google.com/forms/d/e/1FAIpQLScgZEIoRM7xqkOpSyVcDQl23fbDJ_UTq99sF0c4mgta5bwrUQ/viewform?usp=header","_blank");}} onNo={()=>setConfirmFeedback(false)}/>}
 
       {/* Header gradient */}
@@ -2130,7 +2130,7 @@ function loadSettings() {
 }
 function saveSettings(s) { try{localStorage.setItem(SETTINGS_KEY,JSON.stringify(s));}catch{} }
 
-function SettingsPanel({onClose, onThemeChange, leaveSettings, onLeaveSettingsChange, onReplayTour, onViewTerms}) {
+function SettingsPanel({period, onClose, onThemeChange, leaveSettings, onLeaveSettingsChange, onReplayTour, onViewTerms, onEditStartDate}) {
   const [settings, setSettings] = useState(loadSettings);
   const [annualInput, setAnnualInput] = useState(String(leaveSettings?.annualTotal||20));
   const [annualError, setAnnualError] = useState(null);
@@ -2138,6 +2138,9 @@ function SettingsPanel({onClose, onThemeChange, leaveSettings, onLeaveSettingsCh
   const [confirmDialog, setConfirmDialog] = useState(null);
   const [showReload, setShowReload] = useState(false);
   const [scrolledToEnd, setScrolledToEnd] = useState(false);
+  const [editingStartDate, setEditingStartDate] = useState(false);
+  const [startDateInput, setStartDateInput] = useState(period?.startDate||"");
+  const startDateIsSunday = startDateInput && getDayType(startDateInput)==="sunday";
   const appearances = [{v:"system",l:"📱 System"},{v:"light",l:"☀️ Light"},{v:"dark",l:"🌙 Dark"}];
 
   useEffect(()=>{
@@ -2218,6 +2221,60 @@ function SettingsPanel({onClose, onThemeChange, leaveSettings, onLeaveSettingsCh
           <SegGroup options={ZONES} value={settings.defaultZone} cols={4} onChange={setZone}/>
         </div>
 
+        {/* Period start date */}
+        {period && (
+          <>
+            <p style={{color:MUTED,fontSize:11,textTransform:"uppercase",letterSpacing:1.5,fontWeight:700,margin:"0 0 10px"}}>Period start date</p>
+            {!editingStartDate ? (
+              <div style={{...cardStyle,marginBottom:20,padding:"14px 16px",display:"flex",justifyContent:"space-between",alignItems:"center",gap:10}}>
+                <div>
+                  <p style={{color:TEXT,fontSize:14,fontWeight:600,margin:0}}>{fmtShort(period.startDate)} – {fmtShort(addDays(period.startDate,34))}</p>
+                  <p style={{color:MUTED,fontSize:12,margin:"2px 0 0"}}>Entered the wrong Sunday? Fix it here.</p>
+                </div>
+                <button onClick={()=>{setStartDateInput(period.startDate);setEditingStartDate(true);}}
+                  style={{background:CARD2,color:TEXT,border:`1px solid ${BORDER}`,borderRadius:10,padding:"8px 14px",fontSize:13,fontWeight:600,cursor:"pointer",flexShrink:0}}>
+                  Change
+                </button>
+              </div>
+            ) : (
+              <div style={{...cardStyle,marginBottom:20,padding:"14px 16px"}}>
+                <DateInput value={startDateInput} onChange={e=>setStartDateInput(e.target.value)}/>
+                {!startDateIsSunday && (
+                  <div style={{display:"flex",alignItems:"center",gap:8,margin:"10px 0 0"}}>
+                    <span style={{width:6,height:6,borderRadius:"50%",background:DANGER,flexShrink:0}}/>
+                    <p style={{color:DANGER,fontSize:13,margin:0}}>That's not a Sunday — periods must start on a Sunday.</p>
+                  </div>
+                )}
+                {startDateIsSunday && startDateInput!==period.startDate && (
+                  <div style={{display:"flex",alignItems:"center",gap:8,margin:"10px 0 0"}}>
+                    <span style={{width:6,height:6,borderRadius:"50%",background:SUCCESS,flexShrink:0}}/>
+                    <p style={{color:SUCCESS,fontSize:13,margin:0}}>{fmtShort(startDateInput)} – {fmtShort(addDays(startDateInput,34))} · 5 weeks</p>
+                  </div>
+                )}
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginTop:14}}>
+                  <button onClick={()=>setEditingStartDate(false)} style={{background:"transparent",color:MUTED,border:`1px solid ${BORDER}`,borderRadius:10,padding:"10px 8px",fontSize:13,fontWeight:600,cursor:"pointer"}}>
+                    Cancel
+                  </button>
+                  <button
+                    disabled={!startDateIsSunday || startDateInput===period.startDate}
+                    onClick={()=>setConfirmDialog({
+                      msg:`Change this period to start ${fmtShort(startDateInput)}? Your logged shifts and leave stay as they are, but which week they fall under may change.`,
+                      yesLabel:"Save",
+                      onYes:()=>{
+                        onEditStartDate(startDateInput);
+                        setConfirmDialog(null); setEditingStartDate(false);
+                        setToast("Period start date updated.");
+                      }
+                    })}
+                    style={{...btnStyle,padding:"10px 8px",fontSize:13,borderRadius:10,opacity:(!startDateIsSunday||startDateInput===period.startDate)?0.4:1}}>
+                    Save
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
         {/* Shift reminders */}
         <p style={{color:MUTED,fontSize:11,textTransform:"uppercase",letterSpacing:1.5,fontWeight:700,margin:"0 0 10px"}}>Shift reminders</p>
         <div style={{...cardStyle,marginBottom:20,padding:"14px 16px"}}>
@@ -2265,6 +2322,7 @@ function SettingsPanel({onClose, onThemeChange, leaveSettings, onLeaveSettingsCh
                   if(!parsed.periods||!parsed.activePeriodId) throw new Error("Invalid");
                   setConfirmDialog({
                     msg:"This will replace all your current data with the backup. Continue?",
+                    yesLabel:"Restore",
                     onYes:()=>{
                       try {
                         localStorage.setItem("dbus_v3",JSON.stringify(parsed));
@@ -2315,7 +2373,7 @@ function SettingsPanel({onClose, onThemeChange, leaveSettings, onLeaveSettingsCh
       {!scrolledToEnd && (
         <div style={{position:"absolute",left:0,right:0,bottom:0,height:28,background:`linear-gradient(180deg,transparent,${CARD})`,pointerEvents:"none"}}/>
       )}
-      {confirmDialog && <ConfirmDialog msg={confirmDialog.msg} yesLabel="Restore" onYes={confirmDialog.onYes} onNo={confirmDialog.onNo}/>}
+      {confirmDialog && <ConfirmDialog msg={confirmDialog.msg} yesLabel={confirmDialog.yesLabel||"Confirm"} onYes={confirmDialog.onYes} onNo={confirmDialog.onNo||(()=>setConfirmDialog(null))}/>}
     </div>
   );
 }
@@ -2800,6 +2858,12 @@ export default function App() {
     persist([...periods,p],p.id); setScreen("home");
   }
 
+  function editActivePeriodStartDate(newDate) {
+    if(getDayType(newDate)!=="sunday") return;
+    const updated=periods.map(p=>p.id!==activePeriodId?p:{...p,startDate:newDate});
+    persist(updated,activePeriodId);
+  }
+
   function saveShift(shiftOrArray) {
     const items = Array.isArray(shiftOrArray) ? shiftOrArray : [shiftOrArray];
     const updated=periods.map(p=>{
@@ -2923,7 +2987,8 @@ export default function App() {
         onThemeChange={handleThemeChange}
         leaveSettings={leaveSettings}
         onLeaveSettingsChange={handleLeaveSettingsChange}
-        onViewTerms={()=>setViewingTerms(true)}/>}
+        onViewTerms={()=>setViewingTerms(true)}
+        onEditStartDate={editActivePeriodStartDate}/>}
       {screen==="period"&&<PeriodScreen period={activePeriod} initWeek={openWeek}
         onEdit={s=>{setEditShift(s);setScreen("log");}}
         onDelete={deleteShift}
