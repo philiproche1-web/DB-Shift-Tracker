@@ -1050,6 +1050,15 @@ function HomeScreen({period, periods, onLog, onLogDate, onGoWeek, onHelp, onThem
 
   useEffect(() => {
     if (!loadSettings().notificationsEnabled) return;
+    // Reminders default to on, so a driver who never touched the toggle still
+    // needs the OS permission requested at least once — do it here rather
+    // than only from the Settings toggle, which they may never open.
+    if (typeof Notification !== "undefined" && Notification.permission === "default") {
+      Notification.requestPermission().then(perm => {
+        if (perm !== "granted") saveSettings({...loadSettings(), notificationsEnabled:false});
+      });
+      return;
+    }
     if (!todayShift && !todayRestEntry) {
       notifyOnce(`dbus_notified_log_${todayDate}`, "Log today's shift", "Nothing logged yet for today in Shift Tracker.");
     }
@@ -2130,8 +2139,9 @@ function LeaveScreen({periods, leaveSettings, onLogDayOff}) {
 // ─── SETTINGS PANEL ───────────────────────────────────────────────────────────
 const SETTINGS_KEY = "dbus_settings";
 function loadSettings() {
-  try { const s=localStorage.getItem(SETTINGS_KEY); return s?JSON.parse(s):{appearance:"system",defaultZone:"Zone 1"}; }
-  catch { return {appearance:"system",defaultZone:"Zone 1"}; }
+  const defaults = {appearance:"system",defaultZone:"Zone 1",notificationsEnabled:true};
+  try { const s=localStorage.getItem(SETTINGS_KEY); return s?{...defaults,...JSON.parse(s)}:defaults; }
+  catch { return defaults; }
 }
 function saveSettings(s) { try{localStorage.setItem(SETTINGS_KEY,JSON.stringify(s));}catch{} }
 
