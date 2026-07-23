@@ -59,6 +59,19 @@ function shiftDepartLocation(shift) {
   const duty = DUTIES.find(d => d.z === shift.zone && d.t === shift.dayType && d.r === shift.roster);
   return duty ? duty.rl : null;
 }
+// Real Date/time the shift's break ends, for the break-end reminder — null if
+// the shift has no roster duty or that duty has no break. duty.be can exceed
+// "24:00" for a break ending after midnight; setMinutes rolls the Date over
+// to the next day correctly, so no manual day-math is needed here.
+function shiftBreakEnd(shift) {
+  if (!shift || shift.isSpare || shift.fixedType) return null;
+  const duty = DUTIES.find(d => d.z === shift.zone && d.t === shift.dayType && d.r === shift.roster);
+  if (!duty || !duty.be) return null;
+  const [h, m] = duty.be.split(":").map(Number);
+  const dt = new Date(shift.date + "T00:00:00");
+  dt.setMinutes(h * 60 + m);
+  return dt;
+}
 function dutyLabel(d) { return `${d.r} · ${d.s}–${d.e} (${fmtHrs(d.w)})`; }
 function parseTimeToMins(t) {
   if (!t) return 0;
@@ -1069,6 +1082,27 @@ function HomeScreen({period, periods, onLog, onLogDate, onGoWeek, onHelp, onThem
       notifyOnce(`dbus_notified_sun90_${period.id}`, "Approaching your Sunday hours limit", `You're at ${fmtHrs(stats.sunday)} of your 14h 30m Sunday limit.`);
     }
   }, [period.id, stats.total, stats.sunday, todayShift, todayRestEntry, todayDate]);
+
+  // Break-end reminder — unlike the checks above (which fire once whenever
+  // their state changes), this needs to fire at a specific real-world
+  // moment, so it's checked on a 60s tick rather than only on render.
+  useEffect(() => {
+    function check() {
+      const s = loadSettings();
+      if (!s.notificationsEnabled || !s.breakReminderEnabled) return;
+      const breakEnd = shiftBreakEnd(todayShift);
+      if (!breakEnd) return;
+      const leadMins = s.breakReminderMinutes || 10;
+      const fireAt = new Date(breakEnd.getTime() - leadMins*60000);
+      const now = new Date();
+      if (now >= fireAt && now < breakEnd) {
+        notifyOnce(`dbus_notified_breakend_${todayShift.id}`, "Break ending soon", `Your break ends in about ${leadMins} minutes.`);
+      }
+    }
+    check();
+    const id = setInterval(check, 60000);
+    return () => clearInterval(id);
+  }, [todayShift]);
 
   return (
     <div style={{background:BG,minHeight:"100vh",paddingBottom:100}}>
@@ -2139,7 +2173,7 @@ function LeaveScreen({periods, leaveSettings, onLogDayOff}) {
 // ─── SETTINGS PANEL ───────────────────────────────────────────────────────────
 const SETTINGS_KEY = "dbus_settings";
 function loadSettings() {
-  const defaults = {appearance:"system",defaultZone:"Zone 1",notificationsEnabled:true};
+  const defaults = {appearance:"system",defaultZone:"Zone 1",notificationsEnabled:true,breakReminderEnabled:true,breakReminderMinutes:10};
   try { const s=localStorage.getItem(SETTINGS_KEY); return s?{...defaults,...JSON.parse(s)}:defaults; }
   catch { return defaults; }
 }
@@ -2156,6 +2190,8 @@ function SettingsPanel({period, onClose, onThemeChange, leaveSettings, onLeaveSe
   const [editingStartDate, setEditingStartDate] = useState(false);
   const [startDateInput, setStartDateInput] = useState(period?.startDate||"");
   const startDateIsSunday = startDateInput && getDayType(startDateInput)==="sunday";
+  const [breakMinInput, setBreakMinInput] = useState(String(settings.breakReminderMinutes ?? 10));
+  const [breakMinError, setBreakMinError] = useState(null);
   const appearances = [{v:"system",l:"📱 System"},{v:"light",l:"☀️ Light"},{v:"dark",l:"🌙 Dark"}];
 
   useEffect(()=>{
@@ -2195,6 +2231,18 @@ function SettingsPanel({period, onClose, onThemeChange, leaveSettings, onLeaveSe
         setToast("Notifications blocked — allow them for this site in your phone's settings to use reminders.");
       }
     });
+  }
+  function toggleBreakReminder() {
+    const next = {...settings, breakReminderEnabled: !settings.breakReminderEnabled};
+    setSettings(next); saveSettings(next);
+  }
+  function saveBreakMinutes() {
+    const n = parseInt(breakMinInput,10);
+    if(isNaN(n) || n<1 || n>60) { setBreakMinError("Enter a number between 1 and 60."); return; }
+    setBreakMinError(null);
+    const next = {...settings, breakReminderMinutes:n};
+    setSettings(next); saveSettings(next);
+    setToast("Break reminder time saved.");
   }
   function saveAnnual() {
     const n = parseInt(annualInput,10);
@@ -2306,6 +2354,27 @@ function SettingsPanel({period, onClose, onThemeChange, leaveSettings, onLeaveSe
               <div style={{width:20,height:20,borderRadius:"50%",background:"#fff",position:"absolute",top:3,left:settings.notificationsEnabled?21:3,transition:"left 0.2s"}}/>
             </div>
           </div>
+
+          <div style={{borderTop:`1px solid ${BORDER}`,margin:"14px 0"}}/>
+
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",cursor:"pointer"}} onClick={toggleBreakReminder}>
+            <div>
+              <p style={{color:TEXT,fontSize:14,fontWeight:600,margin:0}}>Remind me before break ends</p>
+              <p style={{color:MUTED,fontSize:12,margin:"2px 0 0"}}>{settings.breakReminderMinutes} minutes before your break finishes.</p>
+            </div>
+            <div style={{width:44,height:26,borderRadius:13,background:settings.breakReminderEnabled?SUCCESS:BORDER,position:"relative",transition:"background 0.2s",flexShrink:0}}>
+              <div style={{width:20,height:20,borderRadius:"50%",background:"#fff",position:"absolute",top:3,left:settings.breakReminderEnabled?21:3,transition:"left 0.2s"}}/>
+            </div>
+          </div>
+          {settings.breakReminderEnabled && (
+            <div style={{display:"flex",gap:8,alignItems:"center",marginTop:12}}>
+              <input type="number" min="1" max="60" value={breakMinInput} onChange={e=>{setBreakMinInput(e.target.value);setBreakMinError(null);}}
+                style={{...inputStyle,width:70,textAlign:"center",fontSize:16,fontWeight:700,padding:"8px",...(breakMinError?{borderColor:DANGER}:{})}}/>
+              <span style={{color:MUTED,fontSize:13}}>minutes before</span>
+              <button onClick={saveBreakMinutes} style={{...btnStyle,width:"auto",padding:"8px 16px",fontSize:13,borderRadius:10,marginLeft:"auto"}}>Save</button>
+            </div>
+          )}
+          {breakMinError && <p style={{color:DANGER,fontSize:12,margin:"6px 0 0"}}>{breakMinError}</p>}
         </div>
 
         {/* Annual Leave Entitlement */}
