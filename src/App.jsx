@@ -951,7 +951,7 @@ function UpcomingDayCard({date, isToday, info, onLogDate}) {
       <>
         <p style={{color:TEXT,fontSize:13,fontWeight:700,margin:"0 0 2px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{info.shift.roster}</p>
         <p style={{color:MUTED,fontSize:11,margin:0}}>{info.shift.reportTime}–{info.shift.signOffTime}</p>
-        {departLocation && <p style={{color:MUTED,fontSize:11,margin:"1px 0 0",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{departLocation}</p>}
+        {departLocation && <p style={{color:ACCENT,fontSize:11,fontWeight:700,margin:"2px 0 0",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{departLocation}</p>}
       </>
     );
   } else if (info.status === "dayoff") {
@@ -967,7 +967,7 @@ function UpcomingDayCard({date, isToday, info, onLogDate}) {
       onClick={clickable ? () => onLogDate(date, isRestDayCard ? {isRestDay:true} : undefined) : undefined}
       style={{
         background:CARD, border:`1px solid ${isToday?ACCENT:BORDER}`, borderRadius:14,
-        padding:"10px 10px", flex:"0 0 calc(33.333% - 6px)",
+        padding:"10px 10px", flex:"0 0 calc(33.333% - 6px)", textAlign:"center",
         scrollSnapAlign:"start", cursor:clickable?"pointer":"default", position:"relative"
       }}>
       <p style={{color:isToday?ACCENT:MUTED,fontSize:10,textTransform:"uppercase",letterSpacing:0.5,fontWeight:700,margin:"0 0 2px",paddingRight:clickable?20:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{dayLabel} {dateLabel}</p>
