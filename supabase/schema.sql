@@ -10,10 +10,12 @@ alter table public.profiles enable row level security;
 
 create policy "Drivers can view their own profile"
   on public.profiles for select
+  to authenticated
   using (auth.uid() = id);
 
 create policy "Drivers can update their own profile"
   on public.profiles for update
+  to authenticated
   using (auth.uid() = id)
   with check (auth.uid() = id);
 
@@ -65,15 +67,18 @@ alter table public.settings enable row level security;
 
 create policy "Drivers manage their own app_data"
   on public.app_data for all
+  to authenticated
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
 
 create policy "Drivers manage their own leave_settings"
   on public.leave_settings for all
+  to authenticated
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
 
 create policy "Drivers manage their own settings"
   on public.settings for all
+  to authenticated
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
