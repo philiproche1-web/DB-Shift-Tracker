@@ -61,17 +61,24 @@ export async function syncTable(supabase, table, { load, save }, userId) {
     } catch (error) {
       return { ok: false, error };
     }
-    const { error: pushError } = await supabase
+    const { data: pushedRow, error: pushError } = await supabase
       .from(table)
-      .upsert({ user_id: userId, data: localData, updated_at: local.updatedAt });
+      .upsert({ user_id: userId, data: localData, updated_at: local.updatedAt })
+      .select("updated_at")
+      .single();
     if (pushError) return { ok: false, error: pushError };
+    // The server (via a trigger) overwrites whatever updated_at we sent with
+    // its own clock, so every device's future comparisons key off one clock
+    // instead of each device's own — this is what pickWinner compares next
+    // time, not the client-supplied value above.
+    const syncedAt = pushedRow?.updated_at ?? local.updatedAt;
     // Compare-and-swap: only clear the dirty flag if no newer edit landed
     // (via markDirty) while the push was in flight. If one did, the meta
     // entry's updatedAt will have moved past our stale snapshot, so leave
     // it untouched — still dirty — for the next sync pass to pick up.
     const freshMeta = loadSyncMeta();
     if ((freshMeta[table] || {}).updatedAt === local.updatedAt) {
-      saveSyncMeta({ ...freshMeta, [table]: { dirty: false, updatedAt: local.updatedAt } });
+      saveSyncMeta({ ...freshMeta, [table]: { dirty: false, updatedAt: syncedAt } });
     }
     return { ok: true, direction: "pushed" };
   }
@@ -127,9 +134,11 @@ export async function migrateLocalDataIfNeeded(supabase, userId, tableConfigs) {
 
     const localData = await load();
     const updatedAt = new Date().toISOString();
-    const { error: insertError } = await supabase
+    const { data: insertedRow, error: insertError } = await supabase
       .from(table)
-      .insert({ user_id: userId, data: localData, updated_at: updatedAt });
+      .insert({ user_id: userId, data: localData, updated_at: updatedAt })
+      .select("updated_at")
+      .single();
 
     if (insertError) {
       results[table] = { ok: false, error: insertError };
@@ -137,7 +146,7 @@ export async function migrateLocalDataIfNeeded(supabase, userId, tableConfigs) {
     }
 
     const meta = loadSyncMeta();
-    meta[table] = { dirty: false, updatedAt };
+    meta[table] = { dirty: false, updatedAt: insertedRow?.updated_at ?? updatedAt };
     saveSyncMeta(meta);
     results[table] = { ok: true, migrated: true };
   }

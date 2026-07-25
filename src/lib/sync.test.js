@@ -20,7 +20,13 @@ describe("pickWinner", () => {
   });
 });
 
-function makeFakeSupabase({ remoteRow = null, fetchError = null, pushError = null, insertError = null } = {}) {
+function makeFakeSupabase({
+  remoteRow = null,
+  fetchError = null,
+  pushError = null,
+  insertError = null,
+  serverUpdatedAt = "2026-07-23T13:00:00Z",
+} = {}) {
   const calls = { upserts: [], inserts: [] };
   const supabase = {
     from() {
@@ -31,15 +37,21 @@ function makeFakeSupabase({ remoteRow = null, fetchError = null, pushError = nul
           if (fetchError) return { data: null, error: fetchError };
           return { data: remoteRow, error: null };
         },
-        async upsert(row) {
+        // Real supabase-js: .upsert(row).select('updated_at').single() —
+        // the trigger-assigned server timestamp comes back via that chain,
+        // not the value the client sent in `row`.
+        upsert(row) {
           calls.upserts.push(row);
-          if (pushError) return { error: pushError };
-          return { error: null };
+          return this;
         },
-        async insert(row) {
+        insert(row) {
           calls.inserts.push(row);
-          if (insertError) return { error: insertError };
-          return { error: null };
+          return this;
+        },
+        async single() {
+          if (pushError) return { data: null, error: pushError };
+          if (insertError) return { data: null, error: insertError };
+          return { data: { updated_at: serverUpdatedAt }, error: null };
         },
       };
     },
@@ -60,6 +72,22 @@ describe("markDirty + syncTable", () => {
     expect(calls.upserts).toHaveLength(1);
     expect(calls.upserts[0].data).toEqual({ appearance: "dark" });
     expect(save).not.toHaveBeenCalled();
+  });
+
+  it("stores the server-assigned updated_at after a push, not the client's own clock value", async () => {
+    // Simulates clock drift: this device's clock thinks it's 2026-07-23T09:00:00Z,
+    // but the server (via its trigger) actually stamps the row at 13:00:00Z.
+    // Future conflict checks must key off the server's clock, not this device's.
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-23T09:00:00.000Z"));
+    markDirty("settings");
+    vi.useRealTimers();
+
+    const { supabase } = makeFakeSupabase({ remoteRow: null, serverUpdatedAt: "2026-07-23T13:00:00Z" });
+    await syncTable(supabase, "settings", { load: () => ({ appearance: "dark" }), save: vi.fn() }, "user-1");
+
+    const meta = JSON.parse(localStorage.getItem("dbus_sync_meta"));
+    expect(meta.settings.updatedAt).toBe("2026-07-23T13:00:00Z");
   });
 
   it("pulls remote data when remote is newer than local", async () => {
