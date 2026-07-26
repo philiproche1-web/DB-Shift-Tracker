@@ -105,6 +105,37 @@ export function dayInfo(period, date) {
   return { status: "unlogged", date };
 }
 
+// Builds the Home-screen greeting's duty/day-context clause from the same
+// resolution `dayInfo` already does for the Upcoming carousel - no separate
+// rest-day/day-off logic to keep in sync.
+export function greetingDutyContext(period, date) {
+  const info = dayInfo(period, date);
+  if (info.status === "shift") return `you're on ${info.shift.roster} today`;
+  if (info.status === "dayoff") {
+    return info.dayOff.type === "Rest Day" ? "enjoy your rest day" : `you're on ${info.dayOff.type} today`;
+  }
+  return "nothing logged for today yet";
+}
+
+// Consecutive-shift streak for the Home greeting, positive-only framing.
+// Deliberately excludes todayDate itself (see plan's Global Constraints) -
+// starts the walk at the day before today and goes backward. A rest day or
+// any other day-off is skipped through (doesn't break the streak, doesn't
+// add to it); the first truly unlogged day stops the walk. Capped at 60
+// days so a period with nothing logged before it can't loop indefinitely.
+export function computeShiftStreak(periods, activePeriodId, todayDate) {
+  let count = 0;
+  let cursor = addDays(todayDate, -1);
+  for (let i = 0; i < 60; i++) {
+    const period = periodForDate(periods, cursor, activePeriodId);
+    const info = dayInfo(period, cursor);
+    if (info.status === "shift") { count++; cursor = addDays(cursor, -1); continue; }
+    if (info.status === "dayoff") { cursor = addDays(cursor, -1); continue; }
+    break;
+  }
+  return count;
+}
+
 // ─── ROSTER DATA (duties, running boards, fixed rest pattern) ─────────────────
 // DUTIES/SEQ/FIXED_REST_PATTERN above are the bundled fallback — always
 // available offline, from the moment the app first loads. On boot we also try
