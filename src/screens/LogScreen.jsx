@@ -47,10 +47,11 @@ export function LogScreen({period, editShift, lookupDuty, initialDate, initialRe
   const [pendingAction, setPendingAction] = useState(null); // {msg, run} — confirm before wiping entered times
   const [extraDays, setExtraDays] = useState([]); // additional dates (same week as `date`) to also log this duty on
   // "More options" (Rest day + Overtime) — closed by default on a new entry,
-  // auto-expanded when editing a shift that already has either set, so
-  // nothing already-saved is ever hidden behind an extra tap.
+  // auto-expanded when editing a shift that already has either set, or when
+  // a rest-day carousel card launch pre-sets isRestDay, so nothing already-saved
+  // or pre-set is ever hidden behind an extra tap.
   const [moreOptionsOpen, setMoreOptionsOpen] = useState(
-    !!editShift && (editShift.isRestDay || (editShift.overtimeHours || 0) > 0)
+    isRestDay || overtimeH > 0 || overtimeM > 0
   );
 
   function hasEnteredTimes() {
