@@ -36,7 +36,7 @@ describe("greetingDutyContext", () => {
 describe("computeShiftStreak", () => {
   it("counts consecutive shifts backward from yesterday, skipping over day-offs", () => {
     // today=2026-07-25 (unlogged) -> streak looks at 24 (Annual Leave, skip),
-    // 23 (shift, +1), 22 (Rest Day, skip), 21 (shift, +1), 20 (shift, +1), 19 (period start, unlogged -> stop)
+    // 23 (shift, +1), 22 (Rest Day, skip), 21 (shift, +1), 20 (shift, +1), 19 (virtual Rest Day, skip), 18 (outside period, unlogged -> stop)
     expect(computeShiftStreak([PERIOD], "p1", "2026-07-25")).toBe(3);
   });
   it("today's own status never affects the count", () => {
@@ -50,8 +50,8 @@ describe("computeShiftStreak", () => {
     expect(computeShiftStreak([PERIOD], "p1", "2026-07-25")).toBe(computeShiftStreak([withTodayLogged], "p1", "2026-07-25"));
   });
   it("stops at the first unlogged day and returns 0 if yesterday itself is unlogged", () => {
-    expect(computeShiftStreak([PERIOD], "p1", "2026-07-21")).toBe(1); // yesterday=20 (shift,+1), day before=19 (period start, unlogged -> stop)
-    expect(computeShiftStreak([PERIOD], "p1", "2026-07-20")).toBe(0); // yesterday=19, period start date itself has nothing before it logged -> unlogged -> stop immediately
+    expect(computeShiftStreak([PERIOD], "p1", "2026-07-21")).toBe(1); // yesterday=20 (shift,+1), 19 (virtual Rest Day, skip), 18 (outside period, unlogged -> stop)
+    expect(computeShiftStreak([PERIOD], "p1", "2026-07-20")).toBe(0); // yesterday=19 (virtual Rest Day, skip), 18 (outside period, unlogged -> stop)
   });
   it("returns 0 when periods is empty or the date is far outside any period", () => {
     expect(computeShiftStreak([], "p1", "2026-07-25")).toBe(0);
