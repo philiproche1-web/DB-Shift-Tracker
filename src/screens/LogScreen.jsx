@@ -46,6 +46,12 @@ export function LogScreen({period, editShift, lookupDuty, initialDate, initialRe
   const [overtimeNote, setOvertimeNote] = useState(editShift?.overtimeNote || "");
   const [pendingAction, setPendingAction] = useState(null); // {msg, run} — confirm before wiping entered times
   const [extraDays, setExtraDays] = useState([]); // additional dates (same week as `date`) to also log this duty on
+  // "More options" (Rest day + Overtime) — closed by default on a new entry,
+  // auto-expanded when editing a shift that already has either set, so
+  // nothing already-saved is ever hidden behind an extra tap.
+  const [moreOptionsOpen, setMoreOptionsOpen] = useState(
+    !!editShift && (editShift.isRestDay || (editShift.overtimeHours || 0) > 0)
+  );
 
   function hasEnteredTimes() {
     return !!reportTime || signOffVal!=="00:00" || workH>0 || workM>0 || reliefH>0 || reliefM>0;
@@ -382,42 +388,62 @@ export function LogScreen({period, editShift, lookupDuty, initialDate, initialRe
           </div>
         )}
 
-        {/* Rest day working toggle */}
-        {(rIdx>=0 || isSpare || fixedType) && (
-          <div style={{...cardStyle,marginBottom:16,padding:"14px 16px",border:isRestDay?`1px solid ${DANGER}44`:`1px solid ${BORDER}`}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",cursor:"pointer"}} onClick={()=>setIsRestDay(!isRestDay)}>
-              <div>
-                <p style={{color:isRestDay?DANGER:TEXT,fontSize:14,fontWeight:600,margin:0}}>Working on a rest day</p>
-                <p style={{color:MUTED,fontSize:12,margin:"2px 0 0"}}>All hours count as overtime — excluded from 190h limit</p>
+        {/* More options — Rest day + Overtime, collapsed by default */}
+        {(rIdx>=0 || isSpare || fixedType) && (() => {
+          const summaryParts = [];
+          if (isRestDay) summaryParts.push("Rest day");
+          if (!isRestDay && (overtimeH > 0 || overtimeM > 0)) summaryParts.push(`+${fmtHrs(overtimeH + overtimeM/60)} overtime`);
+          const summary = summaryParts.join(" · ");
+          return (
+            <div style={{...cardStyle,marginBottom:16,padding:0,overflow:"hidden"}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"14px 16px",cursor:"pointer"}} onClick={()=>setMoreOptionsOpen(!moreOptionsOpen)}>
+                <div>
+                  <p style={{color:TEXT,fontSize:14,fontWeight:600,margin:0}}>More options</p>
+                  {summary && <p style={{color:isRestDay?DANGER:ACCENT,fontSize:12,margin:"2px 0 0",fontWeight:600}}>{summary}</p>}
+                </div>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={MUTED} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink:0,transform:moreOptionsOpen?"rotate(180deg)":"none",transition:"transform 0.2s"}}><polyline points="6 9 12 15 18 9"/></svg>
               </div>
-              <div style={{width:44,height:26,borderRadius:13,background:isRestDay?DANGER:BORDER,position:"relative",transition:"background 0.2s",flexShrink:0}}>
-                <div style={{width:20,height:20,borderRadius:"50%",background:"#fff",position:"absolute",top:3,left:isRestDay?21:3,transition:"left 0.2s"}}/>
-              </div>
-            </div>
-          </div>
-        )}
+              {moreOptionsOpen && (
+                <div style={{padding:"0 16px 16px"}}>
+                  {/* Rest day working toggle */}
+                  <div style={{...cardStyle,marginBottom:14,padding:"14px 16px",border:isRestDay?`1px solid ${DANGER}44`:`1px solid ${BORDER}`}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",cursor:"pointer"}} onClick={()=>setIsRestDay(!isRestDay)}>
+                      <div>
+                        <p style={{color:isRestDay?DANGER:TEXT,fontSize:14,fontWeight:600,margin:0}}>Working on a rest day</p>
+                        <p style={{color:MUTED,fontSize:12,margin:"2px 0 0"}}>All hours count as overtime — excluded from 190h limit</p>
+                      </div>
+                      <div style={{width:44,height:26,borderRadius:13,background:isRestDay?DANGER:BORDER,position:"relative",transition:"background 0.2s",flexShrink:0}}>
+                        <div style={{width:20,height:20,borderRadius:"50%",background:"#fff",position:"absolute",top:3,left:isRestDay?21:3,transition:"left 0.2s"}}/>
+                      </div>
+                    </div>
+                  </div>
 
-        {/* Overtime section */}
-        {(rIdx>=0 || isSpare || fixedType) && !isRestDay && (
-          <div style={{...cardStyle,marginBottom:16}}>
-            <FieldLabel htmlFor="log-ot-h" hint="optional">Overtime hours</FieldLabel>
-            <p style={{color:MUTED,fontSize:12,margin:"0 0 10px"}}>Extra time worked on top of this duty — tracked separately, doesn't count toward 190h</p>
-            <div style={{display:"flex",gap:6,alignItems:"center",marginBottom:12}}>
-              <input id="log-ot-h" type="number" min="0" max="12" value={overtimeH} onChange={e=>setOvertimeH(Math.min(12,Math.max(0,parseInt(e.target.value)||0)))} style={{...inputStyle,padding:"12px 8px",textAlign:"center",minWidth:58}} />
-              <span style={{color:MUTED,fontSize:13}}>h</span>
-              <input type="number" min="0" max="59" value={overtimeM} onChange={e=>setOvertimeM(Math.min(59,Math.max(0,parseInt(e.target.value)||0)))} style={{...inputStyle,padding:"12px 8px",textAlign:"center",minWidth:58}} />
-              <span style={{color:MUTED,fontSize:13}}>m</span>
+                  {/* Overtime section */}
+                  {!isRestDay && (
+                    <div style={{...cardStyle}}>
+                      <FieldLabel htmlFor="log-ot-h" hint="optional">Overtime hours</FieldLabel>
+                      <p style={{color:MUTED,fontSize:12,margin:"0 0 10px"}}>Extra time worked on top of this duty — tracked separately, doesn't count toward 190h</p>
+                      <div style={{display:"flex",gap:6,alignItems:"center",marginBottom:12}}>
+                        <input id="log-ot-h" type="number" min="0" max="12" value={overtimeH} onChange={e=>setOvertimeH(Math.min(12,Math.max(0,parseInt(e.target.value)||0)))} style={{...inputStyle,padding:"12px 8px",textAlign:"center",minWidth:58}} />
+                        <span style={{color:MUTED,fontSize:13}}>h</span>
+                        <input type="number" min="0" max="59" value={overtimeM} onChange={e=>setOvertimeM(Math.min(59,Math.max(0,parseInt(e.target.value)||0)))} style={{...inputStyle,padding:"12px 8px",textAlign:"center",minWidth:58}} />
+                        <span style={{color:MUTED,fontSize:13}}>m</span>
+                      </div>
+                      {(overtimeH > 0 || overtimeM > 0) && (
+                        <div>
+                          <FieldLabel htmlFor="log-ot-note" hint="optional">What was this overtime for?</FieldLabel>
+                          <textarea id="log-ot-note" value={overtimeNote} onChange={e=>setOvertimeNote(e.target.value)}
+                            placeholder="e.g. covered part of duty, late relief, traffic delay"
+                            style={{...inputStyle,minHeight:64,resize:"vertical",fontFamily:"inherit",lineHeight:1.5}} />
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
-            {(overtimeH > 0 || overtimeM > 0) && (
-              <div>
-                <FieldLabel htmlFor="log-ot-note" hint="optional">What was this overtime for?</FieldLabel>
-                <textarea id="log-ot-note" value={overtimeNote} onChange={e=>setOvertimeNote(e.target.value)}
-                  placeholder="e.g. covered part of duty, late relief, traffic delay"
-                  style={{...inputStyle,minHeight:64,resize:"vertical",fontFamily:"inherit",lineHeight:1.5}} />
-              </div>
-            )}
-          </div>
-        )}
+          );
+        })()}
 
         {/* Notes — only show once a duty is selected */}
         {(rIdx>=0 || isSpare || fixedType) && (
