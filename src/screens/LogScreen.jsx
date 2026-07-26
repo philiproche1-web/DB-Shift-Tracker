@@ -115,12 +115,24 @@ export function LogScreen({period, editShift, lookupDuty, initialDate, initialRe
     }
   }
 
-  function selectFixedType(key) {
-    const active = fixedType === key;
-    setFixedType(active ? null : key);
-    setIsSpare(false); setRIdx(-1);
-    setReportTime(""); setSignOffVal("00:00"); setNextDay(false);
-    setExtraDays([]);
+  // Unified handler for the Duty/Spare/CPC-Training/etc. selector — every
+  // transition goes through guardedRun so switching type after entering
+  // times always warns, unlike the old selectFixedType() which wiped silently.
+  function selectDutyType(choice) {
+    const current = isSpare ? "spare" : fixedType ? fixedType : "duty";
+    if (choice === current) return;
+    guardedRun("Changing duty type will clear the times you've already entered. Continue?", () => {
+      if (choice === "duty") {
+        setIsSpare(false); setFixedType(null);
+      } else if (choice === "spare") {
+        setIsSpare(true); setFixedType(null); setRIdx(-1);
+      } else {
+        setIsSpare(false); setFixedType(choice); setRIdx(-1);
+      }
+      setReportTime(""); setSignOffVal("00:00"); setNextDay(false);
+      setWorkH(0); setWorkM(0); setReliefH(0); setReliefM(0);
+      setExtraDays([]);
+    });
   }
 
   function shiftFields() {
@@ -274,34 +286,29 @@ export function LogScreen({period, editShift, lookupDuty, initialDate, initialRe
           </div>
         )}
 
-        {/* Spare driver toggle — compact, sits between duty and shift details */}
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16,padding:"10px 14px",background:CARD,border:`1px solid ${isSpare?ACCENT:BORDER}`,borderRadius:12,cursor:"pointer"}} onClick={()=>{
-          guardedRun("Toggling Spare will clear the times you've already entered. Continue?", ()=>{
-            const ns=!isSpare;setIsSpare(ns);if(ns)setFixedType(null);setRIdx(-1);setReportTime("");setSignOffVal("00:00");setNextDay(false);setWorkH(0);setWorkM(0);setExtraDays([]);
-          });
-        }}>
-          <span style={{color:isSpare?ACCENT:MUTED,fontSize:13,fontWeight:600}}>Spare driver shift</span>
-          <div style={{width:40,height:24,borderRadius:12,background:isSpare?ACCENT:BORDER,position:"relative",transition:"background 0.2s",flexShrink:0}}>
-            <div style={{width:18,height:18,borderRadius:"50%",background:"#fff",position:"absolute",top:3,left:isSpare?19:3,transition:"left 0.2s"}}/>
-          </div>
-        </div>
-
-        {/* Other duty types — CPC/Training & fixed-duration spares */}
+        {/* Duty type — Duty/Spare/CPC-Training/etc. as one selector, replacing
+            the old separate Spare toggle + "Other duty types" grid */}
         <div style={{marginBottom:16}}>
-          <FieldLabel>Other duty types</FieldLabel>
+          <FieldLabel>Duty type</FieldLabel>
           <p style={{color:MUTED,fontSize:11,margin:"-6px 0 10px"}}>CPC/Training = Certificate of Professional Competence</p>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
-            {FIXED_DUTY_TYPES.map(f => {
-              const active = fixedType === f.key;
+            {[
+              {key:"duty", label:"Duty", hours:null},
+              {key:"spare", label:"Spare", hours:null},
+              ...FIXED_DUTY_TYPES.map(f=>({key:f.key, label:f.label, hours:f.hours})),
+            ].map(opt => {
+              const active = opt.key==="duty" ? (!isSpare && !fixedType)
+                : opt.key==="spare" ? isSpare
+                : fixedType===opt.key;
               return (
-                <button key={f.key} onClick={()=>selectFixedType(f.key)} style={{
+                <button key={opt.key} onClick={()=>selectDutyType(opt.key)} style={{
                   background:active?ACCENT:CARD, color:active?"#07090F":MUTED,
                   border:`1px solid ${active?ACCENT:BORDER}`, borderRadius:10,
                   padding:"10px 6px", fontSize:12, fontWeight:600, cursor:"pointer",
                   textAlign:"center", lineHeight:1.3
                 }}>
-                  {f.label}
-                  <div style={{fontSize:10,fontWeight:400,opacity:0.85,marginTop:2}}>{fmtHrs(f.hours)}</div>
+                  {opt.label}
+                  {opt.hours!=null && <div style={{fontSize:10,fontWeight:400,opacity:0.85,marginTop:2}}>{fmtHrs(opt.hours)}</div>}
                 </button>
               );
             })}
