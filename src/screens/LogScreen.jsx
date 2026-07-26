@@ -107,7 +107,7 @@ export function LogScreen({period, editShift, lookupDuty, initialDate, initialRe
   const canSave = (rIdx >= 0 || isSpare || fixedType) && date && reportTime && signOffVal && inRange;
   const saveBlockReason = !date ? "Pick a date."
     : !inRange ? "This date falls outside the current 5-week period."
-    : !(rIdx >= 0 || isSpare || fixedType) ? "Pick a duty, or choose Spare / another duty type."
+    : !(rIdx >= 0 || isSpare || fixedType) ? "Pick a duty, or choose another duty type."
     : (!reportTime || !signOffVal) ? "Enter a start and finish time."
     : null;
   const spreadover = reportTime && signOffVal ? calcSpreadover(reportTime, signOffStr) : null;
@@ -254,12 +254,9 @@ export function LogScreen({period, editShift, lookupDuty, initialDate, initialRe
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
             {[
               {key:"duty", label:"Duty", hours:null},
-              {key:"spare", label:"Spare", hours:null},
               ...FIXED_DUTY_TYPES.map(f=>({key:f.key, label:f.label, hours:f.hours})),
             ].map(opt => {
-              const active = opt.key==="duty" ? (!isSpare && !fixedType)
-                : opt.key==="spare" ? isSpare
-                : fixedType===opt.key;
+              const active = opt.key==="duty" ? (!isSpare && !fixedType) : fixedType===opt.key;
               return (
                 <button key={opt.key} onClick={()=>selectDutyType(opt.key)} style={{
                   background:active?ACCENT:CARD, color:active?"#07090F":MUTED,

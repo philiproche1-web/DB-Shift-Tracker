@@ -36,7 +36,7 @@ export const TOUR_SLIDES = [
   {
     icon: "rest",
     title: "Spare & Rest Day",
-    body: "Covering a duty as a spare? Pick 'Spare' from the Duty type buttons and enter your times manually. Working on a rest day? Open 'More options' and toggle 'Working on a rest day' — those hours won't count toward your 190h limit."
+    body: "Covering a duty as a spare? Pick 'Standard Spare' or 'Workout Spare' from the Duty type buttons — just enter your start time and the finish is worked out for you. Working on a rest day? Open 'More options' and toggle 'Working on a rest day' — those hours won't count toward your 190h limit."
   },
   {
     icon: "limits",
