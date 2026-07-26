@@ -29,6 +29,12 @@ export function fmtHrs(h) {
   return mins ? `${hrs}h ${mins}m` : `${hrs}h`;
 }
 export function today() { return new Date().toISOString().slice(0, 10); }
+export function greetingTimeBand(date = new Date()) {
+  const h = date.getHours();
+  if (h >= 5 && h < 12) return "Good morning";
+  if (h >= 12 && h < 17) return "Good afternoon";
+  return "Good evening";
+}
 export function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 export function thisSunday() {
   const d = new Date(), day = d.getDay(); d.setDate(d.getDate() - day);

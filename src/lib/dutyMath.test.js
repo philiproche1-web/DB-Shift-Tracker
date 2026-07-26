@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   MAX_HOURS, MAX_SUNDAY, getDayType, addDays, fmtHrs, calcSpreadover,
-  parseTimeToMins, addDuration, maxConsec, dayOffTally, inPeriod, wkStats,
+  parseTimeToMins, addDuration, maxConsec, dayOffTally, inPeriod, wkStats, greetingTimeBand,
 } from "./dutyMath.js";
 
 describe("MAX_HOURS / MAX_SUNDAY", () => {
@@ -120,5 +120,22 @@ describe("wkStats", () => {
     const shifts = [{date:"2026-07-19", workHours:5, isRestDay:false}, {date:"2026-07-27", workHours:5, isRestDay:false}];
     const stats = wkStats(shifts, [], "2026-07-19");
     expect(stats.shifts).toHaveLength(1);
+  });
+});
+
+describe("greetingTimeBand", () => {
+  it("returns Good morning for 05:00-11:59", () => {
+    expect(greetingTimeBand(new Date(2026, 6, 26, 5, 0))).toBe("Good morning");
+    expect(greetingTimeBand(new Date(2026, 6, 26, 11, 59))).toBe("Good morning");
+  });
+  it("returns Good afternoon for 12:00-16:59", () => {
+    expect(greetingTimeBand(new Date(2026, 6, 26, 12, 0))).toBe("Good afternoon");
+    expect(greetingTimeBand(new Date(2026, 6, 26, 16, 59))).toBe("Good afternoon");
+  });
+  it("returns Good evening for 17:00-23:59 and 00:00-04:59 (wraps past midnight)", () => {
+    expect(greetingTimeBand(new Date(2026, 6, 26, 17, 0))).toBe("Good evening");
+    expect(greetingTimeBand(new Date(2026, 6, 26, 23, 59))).toBe("Good evening");
+    expect(greetingTimeBand(new Date(2026, 6, 26, 0, 0))).toBe("Good evening");
+    expect(greetingTimeBand(new Date(2026, 6, 26, 4, 59))).toBe("Good evening");
   });
 });
