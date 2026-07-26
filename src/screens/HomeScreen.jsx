@@ -1,10 +1,11 @@
 import { useState, useEffect, useMemo, useRef, useLayoutEffect } from "react";
-import { MAX_HOURS, MAX_SUNDAY, getDayType, addDays, fmtShort, fmtHrs, today, calcSpreadover } from "../lib/dutyMath.js";
+import { MAX_HOURS, MAX_SUNDAY, getDayType, addDays, fmtShort, fmtHrs, today, calcSpreadover, greetingTimeBand } from "../lib/dutyMath.js";
 import { isActiveOn } from "../lib/routeAlerts.js";
-import { DUTIES, shiftDepartLocation, shiftBreakEnd, pStats, periodForDate, dayInfo, getSeq } from "../lib/roster.js";
+import { DUTIES, shiftDepartLocation, shiftBreakEnd, pStats, periodForDate, dayInfo, getSeq, greetingDutyContext, computeShiftStreak } from "../lib/roster.js";
 import { BG, CARD, BORDER, CARD2, TEXT, MUTED, ACCENT, SUCCESS, DANGER, btnStyle, tag } from "../lib/theme.js";
 import { daysSinceLastBackup, isBackupNudgeSnoozed, notifyOnce, loadSettings, saveSettings } from "../lib/persistence.js";
-import { BackupNudgeBanner, RouteAlertBanner, ConfirmDialog } from "../components/shared.jsx";
+import { fetchWeather, weatherIconKind } from "../lib/weather.js";
+import { BackupNudgeBanner, RouteAlertBanner, ConfirmDialog, WeatherChip } from "../components/shared.jsx";
 import { SettingsPanel } from "./SettingsPanel.jsx";
 
 // ─── TODAY DUTY CARD ──────────────────────────────────────────────────────────
@@ -193,6 +194,8 @@ export function HomeScreen({period, periods, alerts, onViewAlerts, driverGarage,
   const [showSettings, setShowSettings] = useState(false);
   const [confirmFeedback, setConfirmFeedback] = useState(false);
   const [backupBannerDismissed, setBackupBannerDismissed] = useState(false);
+  const [weather, setWeather] = useState(null);
+  useEffect(() => { fetchWeather().then(setWeather); }, []);
   const todayDate = today();
   const cwIdx = stats.weeks.findIndex(w => todayDate >= w.start && todayDate <= w.end);
   const wi = cwIdx >= 0 ? cwIdx : 0;
@@ -207,6 +210,9 @@ export function HomeScreen({period, periods, alerts, onViewAlerts, driverGarage,
   const tomorrowShift = (period.shifts||[]).find(s => s.date === addDays(todayDate,1));
   // Fixed rest day — comes from the merged (real + auto) daysOff on the current week
   const todayRestEntry = (cw.daysOff||[]).find(d => d.date === todayDate && d.type === "Rest Day");
+
+  const dutyContext = greetingDutyContext(period, todayDate);
+  const shiftStreak = computeShiftStreak(periods, period.id, todayDate);
 
   const activeAlerts = useMemo(() => (alerts||[]).filter(a => isActiveOn(a, todayDate)), [alerts, todayDate]);
 
@@ -266,7 +272,19 @@ export function HomeScreen({period, periods, alerts, onViewAlerts, driverGarage,
       <div style={{padding:"calc(28px + env(safe-area-inset-top,0px)) 20px 20px",background:`linear-gradient(180deg,${CARD2} 0%,${BG} 100%)`}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
           <div>
-            <p style={{color:MUTED,fontSize:11,margin:"0 0 4px",textTransform:"uppercase",letterSpacing:2,fontWeight:600}}>{driverFirstName?`Hi ${driverFirstName}`:"Shift Tracker"}</p>
+            {driverFirstName ? (
+              <>
+                <p style={{color:TEXT,fontSize:15,fontWeight:700,margin:"0 0 4px",display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+                  <span>{greetingTimeBand()}, {driverFirstName} — {dutyContext}.</span>
+                  {weather && <WeatherChip tempC={weather.tempC} iconKind={weatherIconKind(weather.code)}/>}
+                </p>
+                {shiftStreak >= 2 && (
+                  <p style={{color:ACCENT,fontSize:12,fontWeight:600,margin:"0 0 4px"}}>{shiftStreak} shifts logged in a row — nice work.</p>
+                )}
+              </>
+            ) : (
+              <p style={{color:MUTED,fontSize:11,margin:"0 0 4px",textTransform:"uppercase",letterSpacing:2,fontWeight:600}}>Shift Tracker</p>
+            )}
             <p style={{color:TEXT,fontSize:22,fontWeight:800,margin:0,letterSpacing:"-0.5px"}}>
               {fmtShort(period.startDate)} <span style={{color:MUTED,fontWeight:400}}>—</span> {fmtShort(addDays(period.startDate,34))}
             </p>

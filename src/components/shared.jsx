@@ -265,6 +265,60 @@ export function NavIcon({id, active}) {
   return null;
 }
 
+// Small inline weather icon set for the Home greeting's weather chip -
+// matches this app's existing SVG-only convention (see BusLogo/NavIcon) -
+// no emoji, since low-end Android renders emoji as blank boxes.
+export function WeatherIcon({kind, size=16}) {
+  const s = {width:size, height:size, fill:"none", stroke:"currentColor", strokeWidth:1.8, strokeLinecap:"round", strokeLinejoin:"round"};
+  if (kind==="clear") return (
+    <svg viewBox="0 0 24 24" style={s}>
+      <circle cx="12" cy="12" r="4"/>
+      <line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/>
+      <line x1="4.2" y1="4.2" x2="5.6" y2="5.6"/><line x1="18.4" y1="18.4" x2="19.8" y2="19.8"/>
+      <line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/>
+      <line x1="4.2" y1="19.8" x2="5.6" y2="18.4"/><line x1="18.4" y1="5.6" x2="19.8" y2="4.2"/>
+    </svg>
+  );
+  if (kind==="fog") return (
+    <svg viewBox="0 0 24 24" style={s}>
+      <path d="M17 12a4 4 0 0 0-3.7-4A5 5 0 0 0 4 9.5"/>
+      <line x1="3" y1="16" x2="21" y2="16"/><line x1="5" y1="20" x2="19" y2="20"/>
+    </svg>
+  );
+  if (kind==="rain") return (
+    <svg viewBox="0 0 24 24" style={s}>
+      <path d="M17 13a4 4 0 0 0-3.7-6A5 5 0 0 0 4 8.5 3.5 3.5 0 0 0 4.5 15h11.8"/>
+      <line x1="8" y1="18" x2="8" y2="21"/><line x1="12" y1="18" x2="12" y2="21"/><line x1="16" y1="18" x2="16" y2="21"/>
+    </svg>
+  );
+  if (kind==="snow") return (
+    <svg viewBox="0 0 24 24" style={s}>
+      <path d="M17 13a4 4 0 0 0-3.7-6A5 5 0 0 0 4 8.5 3.5 3.5 0 0 0 4.5 15h11.8"/>
+      <line x1="8" y1="18" x2="8" y2="18.5"/><line x1="12" y1="19" x2="12" y2="19.5"/><line x1="16" y1="18" x2="16" y2="18.5"/>
+    </svg>
+  );
+  if (kind==="storm") return (
+    <svg viewBox="0 0 24 24" style={s}>
+      <path d="M17 13a4 4 0 0 0-3.7-6A5 5 0 0 0 4 8.5 3.5 3.5 0 0 0 4.5 15h6.5"/>
+      <polyline points="13 14 10 19 13 19 11 23"/>
+    </svg>
+  );
+  return ( // "cloudy" and any unrecognized kind
+    <svg viewBox="0 0 24 24" style={s}>
+      <path d="M17 13a4 4 0 0 0-3.7-6A5 5 0 0 0 4 8.5 3.5 3.5 0 0 0 4.5 15h11.8"/>
+    </svg>
+  );
+}
+
+export function WeatherChip({tempC, iconKind}) {
+  return (
+    <span style={{display:"inline-flex",alignItems:"center",gap:4,background:CARD,border:`1px solid ${BORDER}`,borderRadius:999,padding:"3px 9px",fontSize:12,fontWeight:700,color:MUTED,flexShrink:0}}>
+      <WeatherIcon kind={iconKind} size={14}/>
+      {tempC}°C
+    </span>
+  );
+}
+
 export function BottomNav({active, onChange}) {
   const tabs=[
     {id:"home",label:"Home"},
