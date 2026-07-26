@@ -129,13 +129,9 @@ export function LogScreen({period, editShift, lookupDuty, initialDate, initialRe
     const current = isSpare ? "spare" : fixedType ? fixedType : "duty";
     if (choice === current) return;
     guardedRun("Changing duty type will clear the times you've already entered. Continue?", () => {
-      if (choice === "duty") {
-        setIsSpare(false); setFixedType(null);
-      } else if (choice === "spare") {
-        setIsSpare(true); setFixedType(null); setRIdx(-1);
-      } else {
-        setIsSpare(false); setFixedType(choice); setRIdx(-1);
-      }
+      setIsSpare(choice === "spare");
+      setFixedType(choice === "duty" || choice === "spare" ? null : choice);
+      setRIdx(-1);
       setReportTime(""); setSignOffVal("00:00"); setNextDay(false);
       setWorkH(0); setWorkM(0); setReliefH(0); setReliefM(0);
       setExtraDays([]);
@@ -250,6 +246,35 @@ export function LogScreen({period, editShift, lookupDuty, initialDate, initialRe
 
         {zoneAlerts.map(a => <RouteAlertCard key={a.id} alert={a}/>)}
 
+        {/* Duty type — Duty/Spare/CPC-Training/etc. as one selector, replacing
+            the old separate Spare toggle + "Other duty types" grid */}
+        <div style={{marginBottom:16}}>
+          <FieldLabel>Duty type</FieldLabel>
+          <p style={{color:MUTED,fontSize:11,margin:"-6px 0 10px"}}>CPC/Training = Certificate of Professional Competence</p>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
+            {[
+              {key:"duty", label:"Duty", hours:null},
+              {key:"spare", label:"Spare", hours:null},
+              ...FIXED_DUTY_TYPES.map(f=>({key:f.key, label:f.label, hours:f.hours})),
+            ].map(opt => {
+              const active = opt.key==="duty" ? (!isSpare && !fixedType)
+                : opt.key==="spare" ? isSpare
+                : fixedType===opt.key;
+              return (
+                <button key={opt.key} onClick={()=>selectDutyType(opt.key)} style={{
+                  background:active?ACCENT:CARD, color:active?"#07090F":MUTED,
+                  border:`1px solid ${active?ACCENT:BORDER}`, borderRadius:10,
+                  padding:"10px 6px", fontSize:12, fontWeight:600, cursor:"pointer",
+                  textAlign:"center", lineHeight:1.3
+                }}>
+                  {opt.label}
+                  {opt.hours!=null && <div style={{fontSize:10,fontWeight:400,opacity:0.85,marginTop:2}}>{fmtHrs(opt.hours)}</div>}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         {/* Duty */}
         {!isSpare && !fixedType && (
           <div style={{marginBottom:16}}>
@@ -292,35 +317,6 @@ export function LogScreen({period, editShift, lookupDuty, initialDate, initialRe
             )}
           </div>
         )}
-
-        {/* Duty type — Duty/Spare/CPC-Training/etc. as one selector, replacing
-            the old separate Spare toggle + "Other duty types" grid */}
-        <div style={{marginBottom:16}}>
-          <FieldLabel>Duty type</FieldLabel>
-          <p style={{color:MUTED,fontSize:11,margin:"-6px 0 10px"}}>CPC/Training = Certificate of Professional Competence</p>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
-            {[
-              {key:"duty", label:"Duty", hours:null},
-              {key:"spare", label:"Spare", hours:null},
-              ...FIXED_DUTY_TYPES.map(f=>({key:f.key, label:f.label, hours:f.hours})),
-            ].map(opt => {
-              const active = opt.key==="duty" ? (!isSpare && !fixedType)
-                : opt.key==="spare" ? isSpare
-                : fixedType===opt.key;
-              return (
-                <button key={opt.key} onClick={()=>selectDutyType(opt.key)} style={{
-                  background:active?ACCENT:CARD, color:active?"#07090F":MUTED,
-                  border:`1px solid ${active?ACCENT:BORDER}`, borderRadius:10,
-                  padding:"10px 6px", fontSize:12, fontWeight:600, cursor:"pointer",
-                  textAlign:"center", lineHeight:1.3
-                }}>
-                  {opt.label}
-                  {opt.hours!=null && <div style={{fontSize:10,fontWeight:400,opacity:0.85,marginTop:2}}>{fmtHrs(opt.hours)}</div>}
-                </button>
-              );
-            })}
-          </div>
-        </div>
 
         {/* Shift details */}
         {(rIdx>=0 || isSpare || fixedType) && (

@@ -36,12 +36,12 @@ export const TOUR_SLIDES = [
   {
     icon: "rest",
     title: "Spare & Rest Day",
-    body: "Covering a duty as a spare? Toggle 'Spare driver shift' and enter your times manually. Working on a rest day? Toggle 'Working on a rest day' — those hours won't count toward your 190h limit."
+    body: "Covering a duty as a spare? Pick 'Spare' from the Duty type buttons and enter your times manually. Working on a rest day? Open 'More options' and toggle 'Working on a rest day' — those hours won't count toward your 190h limit."
   },
   {
     icon: "limits",
     title: "Overtime Tracking",
-    body: "Log extra hours worked on top of any shift — add the time and a free text note. Overtime is tracked separately and won't affect your compliance total."
+    body: "Under 'More options', log extra hours worked on top of any shift — add the time and a free text note. Overtime is tracked separately and won't affect your compliance total."
   },
   {
     icon: "period",
