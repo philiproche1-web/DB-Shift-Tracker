@@ -1,0 +1,158 @@
+import { useState, useMemo } from "react";
+import { fmtDate } from "../lib/dutyMath.js";
+import { BG, CARD, CARD2, BORDER, TEXT, MUTED, ACCENT, SUCCESS, DANGER, btnStyle } from "../lib/theme.js";
+
+// ─── LEAVE SCREEN HELPERS ─────────────────────────────────────────────────────
+export function DayList({items, emptyMsg}) {
+  if(items.length===0) return <p style={{color:MUTED,fontSize:13,margin:"8px 0 0",lineHeight:1.5}}>{emptyMsg}</p>;
+  return (
+    <div style={{marginTop:10,display:"flex",flexDirection:"column",gap:4}}>
+      {items.map((d,i)=>(
+        <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 0",borderBottom:i<items.length-1?`1px solid ${BORDER}`:undefined}}>
+          <span style={{color:TEXT,fontSize:13}}>{fmtDate(d.date)}</span>
+          <span style={{color:MUTED,fontSize:12}}>{new Date(d.date+"T00:00:00").toLocaleDateString("en-IE",{weekday:"short"})}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function TrafficDot({color}) {
+  return <div style={{width:12,height:12,borderRadius:"50%",background:color,boxShadow:`0 0 6px ${color}88`,flexShrink:0}}/>;
+}
+
+export function LeaveCard({title, subtitle, color, used, total, remaining, children}) {
+  const [open,setOpen] = useState(false);
+  return (
+    <div style={{background:CARD,border:`1px solid ${color}44`,borderRadius:16,marginBottom:10,overflow:"hidden"}}>
+      <div style={{padding:"14px 16px",cursor:"pointer"}} onClick={()=>setOpen(!open)}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <div style={{display:"flex",alignItems:"center",gap:10}}>
+            <TrafficDot color={color}/>
+            <div>
+              <p style={{color:TEXT,fontSize:15,fontWeight:700,margin:0}}>{title}</p>
+              {subtitle&&<p style={{color:MUTED,fontSize:12,margin:"2px 0 0"}}>{subtitle}</p>}
+            </div>
+          </div>
+          <div style={{textAlign:"right"}}>
+            {total!==undefined ? (
+              <>
+                <p style={{color:color,fontSize:18,fontWeight:800,margin:0}}>{remaining} <span style={{color:MUTED,fontSize:12,fontWeight:400}}>left</span></p>
+                <p style={{color:MUTED,fontSize:11,margin:"1px 0 0"}}>{used} of {total} used</p>
+              </>
+            ) : (
+              <p style={{color:color,fontSize:18,fontWeight:800,margin:0}}>{used} <span style={{color:MUTED,fontSize:12,fontWeight:400}}>used</span></p>
+            )}
+            <span style={{color:MUTED,fontSize:11,display:"block",marginTop:3}}>{open?"▲ hide":"▼ dates"}</span>
+          </div>
+        </div>
+      </div>
+      {open&&<div style={{padding:"0 16px 14px",borderTop:`1px solid ${BORDER}`}}>{children}</div>}
+    </div>
+  );
+}
+
+// Self Cert — same collapsible header/tap pattern as LeaveCard, but keeps its
+// own two-half-year body since it tracks two independent 2-day allowances.
+export function SelfCertCard({scH1, scH2, scColor}) {
+  const [open, setOpen] = useState(false);
+  const totalUsed = scH1.length + scH2.length;
+  return (
+    <div style={{background:CARD,border:`1px solid ${BORDER}`,borderRadius:16,marginBottom:10,overflow:"hidden"}}>
+      <div style={{padding:"14px 16px",cursor:"pointer"}} onClick={()=>setOpen(!open)}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <div style={{display:"flex",alignItems:"center",gap:10}}>
+            <TrafficDot color={scColor(Math.max(scH1.length,scH2.length))}/>
+            <div>
+              <p style={{color:TEXT,fontSize:15,fontWeight:700,margin:0}}>Self Cert</p>
+              <p style={{color:MUTED,fontSize:12,margin:"2px 0 0"}}>2 days per half-year · resets 1 Jan &amp; 1 Jul</p>
+            </div>
+          </div>
+          <div style={{textAlign:"right"}}>
+            <p style={{color:TEXT,fontSize:18,fontWeight:800,margin:0}}>{totalUsed} <span style={{color:MUTED,fontSize:12,fontWeight:400}}>used</span></p>
+            <span style={{color:MUTED,fontSize:11,display:"block",marginTop:3}}>{open?"▲ hide":"▼ dates"}</span>
+          </div>
+        </div>
+      </div>
+      {open && (
+        <div style={{padding:"0 16px 14px",borderTop:`1px solid ${BORDER}`}}>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginTop:12}}>
+            {[{label:"Jan – Jun",items:scH1},{label:"Jul – Dec",items:scH2}].map(({label,items})=>(
+              <div key={label} style={{background:CARD2,borderRadius:12,padding:"12px 14px",border:`1px solid ${scColor(items.length)}44`}}>
+                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
+                  <TrafficDot color={scColor(items.length)}/>
+                  <p style={{color:TEXT,fontSize:13,fontWeight:700,margin:0}}>{label}</p>
+                </div>
+                <p style={{color:scColor(items.length),fontSize:22,fontWeight:800,margin:"0 0 1px"}}>{2-items.length} <span style={{color:MUTED,fontSize:12,fontWeight:400}}>left</span></p>
+                <p style={{color:MUTED,fontSize:11,margin:0}}>{items.length} of 2 used</p>
+                {items.length>0&&<div style={{marginTop:8,borderTop:`1px solid ${BORDER}`,paddingTop:6}}>
+                  {items.map((d,i)=><p key={i} style={{color:MUTED,fontSize:12,margin:"2px 0"}}>{fmtDate(d.date)}</p>)}
+                </div>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── LEAVE SCREEN ─────────────────────────────────────────────────────────────
+export function LeaveScreen({periods, leaveSettings, onLogDayOff}) {
+  const year = new Date().getFullYear();
+  const [editTotal, setEditTotal] = useState(false);
+  const [totalInput, setTotalInput] = useState(String(leaveSettings?.annualTotal||20));
+
+  const allDaysOff = useMemo(() => {
+    return periods.flatMap(p => (p.daysOff||[]).filter(d => d.date.startsWith(String(year))));
+  }, [periods, year]);
+
+  const annual = allDaysOff.filter(d=>d.type==="Annual Leave").sort((a,b)=>a.date.localeCompare(b.date));
+  const sick   = allDaysOff.filter(d=>d.type==="Sick Day").sort((a,b)=>a.date.localeCompare(b.date));
+  const scAll  = allDaysOff.filter(d=>d.type==="Self Cert").sort((a,b)=>a.date.localeCompare(b.date));
+  const fm     = allDaysOff.filter(d=>d.type==="Force Majeure").sort((a,b)=>a.date.localeCompare(b.date));
+  const scH1   = scAll.filter(d=>{ const m=parseInt(d.date.slice(5,7)); return m>=1&&m<=6; });
+  const scH2   = scAll.filter(d=>{ const m=parseInt(d.date.slice(5,7)); return m>=7&&m<=12; });
+
+  const annualUsed = annual.length;
+  const annualTotal = leaveSettings.annualTotal;
+  const annualRem = annualTotal - annualUsed;
+  const annualColor = annualRem>=8?SUCCESS:annualRem>=4?"#F59E0B":DANGER;
+  const sickColor = sick.length<=3?SUCCESS:sick.length<=7?"#F59E0B":DANGER;
+  const scColor = n => n===0?SUCCESS:n===1?"#F59E0B":DANGER;
+
+  return (
+    <div style={{background:BG,minHeight:"100vh",paddingBottom:100}}>
+      <div style={{padding:"28px 20px 16px",background:`linear-gradient(180deg,${CARD2} 0%,${BG} 100%)`}}>
+        <p style={{color:ACCENT,fontSize:11,textTransform:"uppercase",letterSpacing:2,fontWeight:700,margin:"0 0 4px"}}>Calendar year {year}</p>
+        <h1 style={{color:TEXT,fontSize:24,fontWeight:800,margin:"0 0 4px",letterSpacing:"-0.5px"}}>Leave Tracker</h1>
+        <p style={{color:MUTED,fontSize:13,margin:0}}>Based on day-off entries logged in the app</p>
+      </div>
+      <div style={{padding:"4px 16px 0"}}>
+
+        <button onClick={onLogDayOff} style={{...btnStyle,marginBottom:16,display:"flex",alignItems:"center",justifyContent:"center",gap:10}}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#07090F" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Log Day Off
+        </button>
+
+        <LeaveCard title="Annual Leave" subtitle={`${annualTotal} days entitlement · Jan–Dec`}
+          color={annualColor} used={annualUsed} total={annualTotal} remaining={annualRem}>
+          <DayList items={annual} emptyMsg="No annual leave logged this year"/>
+        </LeaveCard>
+
+        <LeaveCard title="Sick Leave" subtitle="Certified by doctor · Jan–Dec"
+          color={sickColor} used={sick.length}>
+          <DayList items={sick} emptyMsg="No sick days logged this year"/>
+        </LeaveCard>
+
+        <SelfCertCard scH1={scH1} scH2={scH2} scColor={scColor}/>
+
+        <LeaveCard title="Force Majeure" subtitle="No fixed limit · Jan–Dec"
+          color={fm.length===0?MUTED:fm.length<=2?SUCCESS:"#F59E0B"} used={fm.length}>
+          <DayList items={fm} emptyMsg="No force majeure logged this year"/>
+        </LeaveCard>
+
+      </div>
+    </div>
+  );
+}

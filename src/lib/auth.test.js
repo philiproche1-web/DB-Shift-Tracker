@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { signUp, signIn, signOut, getSession, onAuthStateChange } from "./auth.js";
+import { signUp, signIn, signOut, getSession, onAuthStateChange, isDriverNumberTaken } from "./auth.js";
 
 function makeFakeSupabase() {
   return {
@@ -10,22 +10,49 @@ function makeFakeSupabase() {
       getSession: vi.fn().mockResolvedValue({ data: { session: null }, error: null }),
       onAuthStateChange: vi.fn(),
     },
+    rpc: vi.fn().mockResolvedValue({ data: false, error: null }),
   };
 }
 
 describe("signUp", () => {
-  it("passes driver_number and garage as signup metadata, with an email redirect", async () => {
+  it("passes driver_number, garage, and first_name as signup metadata, with an email redirect", async () => {
     const supabase = makeFakeSupabase();
-    await signUp(supabase, { email: "a@b.com", password: "secret123", driverNumber: "D123", garage: "Broadstone" });
+    await signUp(supabase, { email: "a@b.com", password: "secret123", driverNumber: "D123", garage: "Summerhill", firstName: "Phil" });
 
     expect(supabase.auth.signUp).toHaveBeenCalledWith({
       email: "a@b.com",
       password: "secret123",
       options: {
-        data: { driver_number: "D123", garage: "Broadstone" },
+        data: { driver_number: "D123", garage: "Summerhill", first_name: "Phil" },
         emailRedirectTo: window.location.origin,
       },
     });
+  });
+});
+
+describe("isDriverNumberTaken", () => {
+  it("trims the number and returns the RPC result", async () => {
+    const supabase = makeFakeSupabase();
+    supabase.rpc.mockResolvedValue({ data: true, error: null });
+
+    const result = await isDriverNumberTaken(supabase, " D123 ");
+
+    expect(supabase.rpc).toHaveBeenCalledWith("is_driver_number_taken", { p_driver_number: "D123" });
+    expect(result).toBe(true);
+  });
+
+  it("is false when the number is free", async () => {
+    const supabase = makeFakeSupabase();
+    supabase.rpc.mockResolvedValue({ data: false, error: null });
+
+    expect(await isDriverNumberTaken(supabase, "D999")).toBe(false);
+  });
+
+  it("fails open (false) if the RPC call errors, since the DB constraint is the real backstop", async () => {
+    const supabase = makeFakeSupabase();
+    supabase.rpc.mockResolvedValue({ data: null, error: new Error("offline") });
+
+    expect(await isDriverNumberTaken(supabase, "D123")).toBe(false);
   });
 });
 

@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { signUp, signIn } from "../lib/auth.js";
+import { signUp, signIn, isDriverNumberTaken } from "../lib/auth.js";
+import { GARAGES, garageOptions } from "../lib/garages.js";
 
 const BG = "#07090F";
 const CARD = "#11141B";
@@ -37,7 +38,8 @@ export default function AuthScreen({ supabase }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [driverNumber, setDriverNumber] = useState("");
-  const [garage, setGarage] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [garage, setGarage] = useState(GARAGES[0]);
   const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [awaitingVerification, setAwaitingVerification] = useState(false);
@@ -48,8 +50,19 @@ export default function AuthScreen({ supabase }) {
     setSubmitting(true);
     try {
       if (mode === "signup") {
-        const { error: signUpError } = await signUp(supabase, { email, password, driverNumber, garage });
-        if (signUpError) { setError(signUpError.message); return; }
+        if (await isDriverNumberTaken(supabase, driverNumber)) {
+          setError("That driver number is already registered. Check with your depot if you think this is a mistake.");
+          return;
+        }
+        const { error: signUpError } = await signUp(supabase, { email, password, driverNumber, garage, firstName });
+        if (signUpError) {
+          // Fallback for the rare race — two drivers submitting the same
+          // number in the same instant — that the check above can't catch.
+          setError(/driver_number/i.test(signUpError.message)
+            ? "That driver number is already registered. Check with your depot if you think this is a mistake."
+            : signUpError.message);
+          return;
+        }
         setAwaitingVerification(true);
       } else {
         const { error: signInError } = await signIn(supabase, { email, password });
@@ -95,8 +108,13 @@ export default function AuthScreen({ supabase }) {
 
         {mode === "signup" && (
           <>
+            <input style={inputStyle} type="text" placeholder="First name" value={firstName} onChange={(e) => setFirstName(e.target.value)} required />
             <input style={inputStyle} type="text" placeholder="Driver number" value={driverNumber} onChange={(e) => setDriverNumber(e.target.value)} required />
-            <input style={inputStyle} type="text" placeholder="Garage" value={garage} onChange={(e) => setGarage(e.target.value)} required />
+            <select style={inputStyle} value={garage} onChange={(e) => setGarage(e.target.value)} required aria-label="Garage">
+              {garageOptions().map((o) => (
+                <option key={o.value} value={o.value} disabled={o.disabled}>{o.label}</option>
+              ))}
+            </select>
           </>
         )}
 
