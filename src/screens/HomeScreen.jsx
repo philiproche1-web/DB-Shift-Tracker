@@ -195,7 +195,11 @@ export function HomeScreen({period, periods, alerts, onViewAlerts, driverGarage,
   const [confirmFeedback, setConfirmFeedback] = useState(false);
   const [backupBannerDismissed, setBackupBannerDismissed] = useState(false);
   const [weather, setWeather] = useState(null);
-  useEffect(() => { fetchWeather().then(setWeather); }, []);
+  useEffect(() => {
+    let cancelled = false;
+    fetchWeather().then(w => { if (!cancelled) setWeather(w); });
+    return () => { cancelled = true; };
+  }, []);
   const todayDate = today();
   const cwIdx = stats.weeks.findIndex(w => todayDate >= w.start && todayDate <= w.end);
   const wi = cwIdx >= 0 ? cwIdx : 0;
@@ -208,11 +212,15 @@ export function HomeScreen({period, periods, alerts, onViewAlerts, driverGarage,
   const todayShift = (period.shifts||[]).find(s => s.date === todayDate);
   // Tomorrow's duty — look for a shift logged for tomorrow
   const tomorrowShift = (period.shifts||[]).find(s => s.date === addDays(todayDate,1));
-  // Fixed rest day — comes from the merged (real + auto) daysOff on the current week
-  const todayRestEntry = (cw.daysOff||[]).find(d => d.date === todayDate && d.type === "Rest Day");
+  // Any day off logged for today (Rest Day or otherwise) — comes from the
+  // merged (real + auto) daysOff on the current week. Used below to decide
+  // which today-card renders and whether the "log today's shift" notification
+  // should fire; widened from a Rest-Day-only check so it agrees with the
+  // greeting, which already covers all day-off types via greetingDutyContext.
+  const todayDayOff = (cw.daysOff||[]).find(d => d.date === todayDate);
 
-  const dutyContext = greetingDutyContext(period, todayDate);
-  const shiftStreak = computeShiftStreak(periods, period.id, todayDate);
+  const dutyContext = useMemo(() => greetingDutyContext(period, todayDate), [period, todayDate]);
+  const shiftStreak = useMemo(() => computeShiftStreak(periods, period.id, todayDate), [periods, period.id, todayDate]);
 
   const activeAlerts = useMemo(() => (alerts||[]).filter(a => isActiveOn(a, todayDate)), [alerts, todayDate]);
 
@@ -231,7 +239,7 @@ export function HomeScreen({period, periods, alerts, onViewAlerts, driverGarage,
       });
       return;
     }
-    if (!todayShift && !todayRestEntry) {
+    if (!todayShift && !todayDayOff) {
       notifyOnce(`dbus_notified_log_${todayDate}`, "Log today's shift", "Nothing logged yet for today in Shift Tracker.");
     }
     if (stats.total >= MAX_HOURS*0.9) {
@@ -240,7 +248,7 @@ export function HomeScreen({period, periods, alerts, onViewAlerts, driverGarage,
     if (stats.sunday >= MAX_SUNDAY*0.9) {
       notifyOnce(`dbus_notified_sun90_${period.id}`, "Approaching your Sunday hours limit", `You're at ${fmtHrs(stats.sunday)} of your 14h 30m Sunday limit.`);
     }
-  }, [period.id, stats.total, stats.sunday, todayShift, todayRestEntry, todayDate]);
+  }, [period.id, stats.total, stats.sunday, todayShift, todayDayOff, todayDate]);
 
   // Break-end reminder — unlike the checks above (which fire once whenever
   // their state changes), this needs to fire at a specific real-world
@@ -283,7 +291,10 @@ export function HomeScreen({period, periods, alerts, onViewAlerts, driverGarage,
                 )}
               </>
             ) : (
-              <p style={{color:MUTED,fontSize:11,margin:"0 0 4px",textTransform:"uppercase",letterSpacing:2,fontWeight:600}}>Shift Tracker</p>
+              <p style={{color:MUTED,fontSize:11,margin:"0 0 4px",textTransform:"uppercase",letterSpacing:2,fontWeight:600,display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+                <span>Shift Tracker</span>
+                {weather && <WeatherChip tempC={weather.tempC} iconKind={weatherIconKind(weather.code)}/>}
+              </p>
             )}
             <p style={{color:TEXT,fontSize:22,fontWeight:800,margin:0,letterSpacing:"-0.5px"}}>
               {fmtShort(period.startDate)} <span style={{color:MUTED,fontWeight:400}}>—</span> {fmtShort(addDays(period.startDate,34))}
@@ -313,16 +324,28 @@ export function HomeScreen({period, periods, alerts, onViewAlerts, driverGarage,
         {/* TODAY'S DUTY — hero card when a shift is logged for today */}
         {todayShift ? (
           <TodayDutyCard shift={todayShift} label="Today's Duty" accentColor={ACCENT} />
-        ) : todayRestEntry ? (
-          <div style={{background:CARD,border:`1px solid ${BORDER}`,borderRadius:18,padding:"16px 18px",marginBottom:12,display:"flex",alignItems:"center",gap:14}}>
-            <div style={{width:42,height:42,borderRadius:12,background:`${SUCCESS}14`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={SUCCESS} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12.5l2.5 2.5L16 9"/></svg>
+        ) : todayDayOff ? (
+          todayDayOff.type === "Rest Day" ? (
+            <div style={{background:CARD,border:`1px solid ${BORDER}`,borderRadius:18,padding:"16px 18px",marginBottom:12,display:"flex",alignItems:"center",gap:14}}>
+              <div style={{width:42,height:42,borderRadius:12,background:`${SUCCESS}14`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={SUCCESS} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12.5l2.5 2.5L16 9"/></svg>
+              </div>
+              <div style={{flex:1}}>
+                <p style={{color:TEXT,fontSize:14,fontWeight:700,margin:"0 0 2px"}}>Resting today</p>
+                <p style={{color:MUTED,fontSize:12,margin:0}}>Scheduled rest day — nothing to log</p>
+              </div>
             </div>
-            <div style={{flex:1}}>
-              <p style={{color:TEXT,fontSize:14,fontWeight:700,margin:"0 0 2px"}}>Resting today</p>
-              <p style={{color:MUTED,fontSize:12,margin:0}}>Scheduled rest day — nothing to log</p>
+          ) : (
+            <div style={{background:CARD,border:`1px solid ${BORDER}`,borderRadius:18,padding:"16px 18px",marginBottom:12,display:"flex",alignItems:"center",gap:14}}>
+              <div style={{width:42,height:42,borderRadius:12,background:`${SUCCESS}14`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={SUCCESS} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12.5l2.5 2.5L16 9"/></svg>
+              </div>
+              <div style={{flex:1}}>
+                <p style={{color:TEXT,fontSize:14,fontWeight:700,margin:"0 0 2px"}}>{todayDayOff.type} today</p>
+                <p style={{color:MUTED,fontSize:12,margin:0}}>Logged as {todayDayOff.type} — nothing to log</p>
+              </div>
             </div>
-          </div>
+          )
         ) : (
           <div style={{background:CARD,border:`1px solid ${BORDER}`,borderRadius:18,padding:"16px 18px",marginBottom:12,display:"flex",alignItems:"center",gap:14}}>
             <div style={{width:42,height:42,borderRadius:12,background:`${ACCENT}14`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>

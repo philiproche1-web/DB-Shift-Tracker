@@ -105,6 +105,16 @@ export function dayInfo(period, date) {
   return { status: "unlogged", date };
 }
 
+// Natural-reading phrasing per non-Rest-Day DAY_OFF_TYPES entry (Rest Day is
+// handled separately below, unchanged) - "you're on X today" reads fine for
+// Annual Leave but awkwardly for the other three, so each gets its own clause.
+const DAY_OFF_GREETING_PHRASES = {
+  "Annual Leave": "you're on Annual Leave today",
+  "Sick Day": "you're off sick today",
+  "Force Majeure": "you're on Force Majeure leave today",
+  "Self Cert": "you're on a self-certified sick day today",
+};
+
 // Builds the Home-screen greeting's duty/day-context clause from the same
 // resolution `dayInfo` already does for the Upcoming carousel - no separate
 // rest-day/day-off logic to keep in sync.
@@ -112,7 +122,8 @@ export function greetingDutyContext(period, date) {
   const info = dayInfo(period, date);
   if (info.status === "shift") return `you're on ${info.shift.roster} today`;
   if (info.status === "dayoff") {
-    return info.dayOff.type === "Rest Day" ? "enjoy your rest day" : `you're on ${info.dayOff.type} today`;
+    if (info.dayOff.type === "Rest Day") return "enjoy your rest day";
+    return DAY_OFF_GREETING_PHRASES[info.dayOff.type] || `you're on ${info.dayOff.type} today`;
   }
   return "nothing logged for today yet";
 }
