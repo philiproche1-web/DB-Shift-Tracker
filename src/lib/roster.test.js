@@ -87,20 +87,33 @@ describe("computeShiftStreak", () => {
     expect(computeShiftStreak([earlierPeriod, PERIOD], "p1", "2026-07-19")).toBe(1);
   });
   it("caps the walk at 60 iterations and returns 0 rather than looping forever", () => {
-    // Two contiguous periods (70 days combined) with a day-off logged for
-    // every single day for 61+ days back from todayDate, so the walk would
-    // otherwise never hit an "unlogged" day to stop on.
+    // Two contiguous periods spanning 70+ days. Days 1-60 walking backward from
+    // todayDate are all logged as day-offs (Rest Days, skipped through). Day 61
+    // has a real shift buried beyond the cap. With the 60-iteration cap in place,
+    // the walk exits before ever reaching day 61, so the shift is never seen and
+    // count stays 0. Without the cap, the loop would continue past iteration 60,
+    // find the shift at day 61, increment count to at least 1 — proving the cap
+    // is load-bearing, not an artifact of the data running out naturally.
     const startA = "2026-05-01";
     const periodA = { id: "capA", startDate: startA, shifts: [], daysOff: [] };
     const startB = addDays(startA, 35);
     const periodB = { id: "capB", startDate: startB, shifts: [], daysOff: [] };
     const todayDate = addDays(startB, 30);
-    for (let i = 1; i <= 61; i++) {
+
+    // Days 1-60: all logged as day-offs (skipped through, don't break streak)
+    for (let i = 1; i <= 60; i++) {
       const d = addDays(todayDate, -i);
-      const off = { id: `off-${i}`, date: d, type: "Sick Day" };
+      const off = { id: `off-${i}`, date: d, type: "Rest Day" };
       if (d >= periodB.startDate) periodB.daysOff.push(off);
       else periodA.daysOff.push(off);
     }
+
+    // Day 61: a real shift (beyond the 60-iteration cap)
+    const shiftDate = addDays(todayDate, -61);
+    const shift = { id: "buried-shift-61", date: shiftDate, roster: "BURIED/61" };
+    if (shiftDate >= periodB.startDate) periodB.shifts.push(shift);
+    else periodA.shifts.push(shift);
+
     expect(computeShiftStreak([periodA, periodB], "capB", todayDate)).toBe(0);
   });
 });
