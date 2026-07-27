@@ -122,15 +122,18 @@ export function LogScreen({period, editShift, lookupDuty, initialDate, initialRe
     }
   }
 
-  // Unified handler for the Duty/Spare/CPC-Training/etc. selector — every
-  // transition goes through guardedRun so switching type after entering
-  // times always warns, unlike the old selectFixedType() which wiped silently.
+  // Unified handler for the CPC-Training/Spare selector — every transition
+  // goes through guardedRun so switching type after entering times always
+  // warns, unlike the old selectFixedType() which wiped silently. There's no
+  // explicit "Duty" button any more — it's the implicit default, so tapping
+  // the already-active fixed type deselects it and falls back to Duty rather
+  // than being a no-op.
   function selectDutyType(choice) {
     const current = isSpare ? "spare" : fixedType ? fixedType : "duty";
-    if (choice === current) return;
+    const next = choice === current ? "duty" : choice;
     guardedRun("Changing duty type will clear the times you've already entered. Continue?", () => {
-      setIsSpare(choice === "spare");
-      setFixedType(choice === "duty" || choice === "spare" ? null : choice);
+      setIsSpare(next === "spare");
+      setFixedType(next === "duty" || next === "spare" ? null : next);
       setRIdx(-1);
       setReportTime(""); setSignOffVal("00:00"); setNextDay(false);
       setWorkH(0); setWorkM(0); setReliefH(0); setReliefM(0);
@@ -246,17 +249,15 @@ export function LogScreen({period, editShift, lookupDuty, initialDate, initialRe
 
         {zoneAlerts.map(a => <RouteAlertCard key={a.id} alert={a}/>)}
 
-        {/* Duty type — Duty/Spare/CPC-Training/etc. as one selector, replacing
-            the old separate Spare toggle + "Other duty types" grid */}
+        {/* Duty type — a normal roster Duty is the implicit default (no button
+            needed for it), so this row is just the 3 exceptions. Tap one to
+            switch to it, tap again to go back to a normal Duty. */}
         <div style={{marginBottom:16}}>
           <FieldLabel>Duty type</FieldLabel>
-          <p style={{color:MUTED,fontSize:11,margin:"-6px 0 10px"}}>CPC/Training = Certificate of Professional Competence</p>
+          <p style={{color:MUTED,fontSize:11,margin:"-6px 0 10px"}}>Logging a normal duty? Leave these unselected and pick it below. CPC/Training = Certificate of Professional Competence.</p>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
-            {[
-              {key:"duty", label:"Duty", hours:null},
-              ...FIXED_DUTY_TYPES.map(f=>({key:f.key, label:f.label, hours:f.hours})),
-            ].map(opt => {
-              const active = opt.key==="duty" ? (!isSpare && !fixedType) : fixedType===opt.key;
+            {FIXED_DUTY_TYPES.map(opt => {
+              const active = fixedType===opt.key;
               return (
                 <button key={opt.key} onClick={()=>selectDutyType(opt.key)} style={{
                   background:active?ACCENT:CARD, color:active?"#07090F":MUTED,
