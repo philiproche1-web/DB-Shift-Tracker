@@ -34,7 +34,7 @@ describe("alertsForZone", () => {
 describe("fetchRouteAlerts", () => {
   it("returns and caches data on success", async () => {
     const data = [{ id: "1", garage: "Summerhill" }];
-    const supabase = { from: () => ({ select: () => ({ eq: () => ({ order: () => Promise.resolve({ data, error: null }) }) }) }) };
+    const supabase = { from: () => ({ select: () => ({ eq: () => ({ eq: () => ({ order: () => Promise.resolve({ data, error: null }) }) }) }) }) };
 
     const result = await fetchRouteAlerts(supabase, "Summerhill");
 
@@ -44,7 +44,7 @@ describe("fetchRouteAlerts", () => {
 
   it("falls back to the cache when the fetch errors", async () => {
     localStorage.setItem("dbus_route_alerts_cache", JSON.stringify([{ id: "cached" }]));
-    const supabase = { from: () => ({ select: () => ({ eq: () => ({ order: () => Promise.resolve({ data: null, error: new Error("offline") }) }) }) }) };
+    const supabase = { from: () => ({ select: () => ({ eq: () => ({ eq: () => ({ order: () => Promise.resolve({ data: null, error: new Error("offline") }) }) }) }) }) };
 
     const result = await fetchRouteAlerts(supabase, "Summerhill");
 
@@ -52,7 +52,7 @@ describe("fetchRouteAlerts", () => {
   });
 
   it("returns an empty array when the fetch errors and there's no cache", async () => {
-    const supabase = { from: () => ({ select: () => ({ eq: () => ({ order: () => Promise.resolve({ data: null, error: new Error("offline") }) }) }) }) };
+    const supabase = { from: () => ({ select: () => ({ eq: () => ({ eq: () => ({ order: () => Promise.resolve({ data: null, error: new Error("offline") }) }) }) }) }) };
 
     const result = await fetchRouteAlerts(supabase, "Summerhill");
 

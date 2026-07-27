@@ -1,11 +1,11 @@
 import { useState, useEffect, useMemo, useRef, useLayoutEffect } from "react";
 import { MAX_HOURS, MAX_SUNDAY, getDayType, addDays, fmtShort, fmtHrs, today, calcSpreadover, greetingTimeBand } from "../lib/dutyMath.js";
-import { isActiveOn } from "../lib/routeAlerts.js";
+import { isLiveNow } from "../lib/routeAlerts.js";
 import { DUTIES, shiftDepartLocation, shiftBreakEnd, pStats, periodForDate, dayInfo, getSeq, greetingDutyContext, computeShiftStreak } from "../lib/roster.js";
 import { BG, CARD, BORDER, CARD2, TEXT, MUTED, ACCENT, SUCCESS, DANGER, btnStyle, tag } from "../lib/theme.js";
-import { daysSinceLastBackup, isBackupNudgeSnoozed, notifyOnce, loadSettings, saveSettings } from "../lib/persistence.js";
+import { notifyOnce, loadSettings, saveSettings } from "../lib/persistence.js";
 import { fetchWeather, weatherIconKind } from "../lib/weather.js";
-import { BackupNudgeBanner, RouteAlertBanner, ConfirmDialog, WeatherChip } from "../components/shared.jsx";
+import { RouteAlertBanner, ConfirmDialog, WeatherChip } from "../components/shared.jsx";
 import { SettingsPanel } from "./SettingsPanel.jsx";
 
 // ─── TODAY DUTY CARD ──────────────────────────────────────────────────────────
@@ -189,11 +189,10 @@ export function UpcomingCarousel({periods, activePeriodId, todayDate, onLogDate}
 }
 
 // ─── HOME SCREEN ──────────────────────────────────────────────────────────────
-export function HomeScreen({period, periods, alerts, onViewAlerts, driverGarage, onChangeGarage, driverFirstName, onChangeFirstName, onLog, onLogDate, onGoWeek, onHelp, onThemeChange, leaveSettings, onLeaveSettingsChange, onViewTerms, onEditStartDate}) {
+export function HomeScreen({period, periods, alerts, onViewAlerts, driverGarage, onChangeGarage, driverFirstName, onChangeFirstName, onLog, onLogDate, onGoWeek, onHelp, onThemeChange, leaveSettings, onLeaveSettingsChange, onViewTerms, onViewFAQ, onEditStartDate}) {
   const stats = useMemo(() => pStats(period), [period]);
   const [showSettings, setShowSettings] = useState(false);
   const [confirmFeedback, setConfirmFeedback] = useState(false);
-  const [backupBannerDismissed, setBackupBannerDismissed] = useState(false);
   const [weather, setWeather] = useState(null);
   useEffect(() => {
     let cancelled = false;
@@ -222,11 +221,7 @@ export function HomeScreen({period, periods, alerts, onViewAlerts, driverGarage,
   const dutyContext = useMemo(() => greetingDutyContext(period, todayDate), [period, todayDate]);
   const shiftStreak = useMemo(() => computeShiftStreak(periods, period.id, todayDate), [periods, period.id, todayDate]);
 
-  const activeAlerts = useMemo(() => (alerts||[]).filter(a => isActiveOn(a, todayDate)), [alerts, todayDate]);
-
-  const hasRealData = (period.shifts?.length||0) > 0 || (period.daysOff?.length||0) > 0;
-  const showBackupNudge = !backupBannerDismissed && hasRealData && !isBackupNudgeSnoozed()
-    && (daysSinceLastBackup() === null || daysSinceLastBackup() >= 14);
+  const activeAlerts = useMemo(() => (alerts||[]).filter(a => isLiveNow(a)), [alerts, todayDate]);
 
   useEffect(() => {
     if (!loadSettings().notificationsEnabled) return;
@@ -273,7 +268,7 @@ export function HomeScreen({period, periods, alerts, onViewAlerts, driverGarage,
 
   return (
     <div style={{background:BG,minHeight:"100vh",paddingBottom:100}}>
-      {showSettings && <SettingsPanel period={period} onClose={()=>setShowSettings(false)} onThemeChange={onThemeChange} leaveSettings={leaveSettings} onLeaveSettingsChange={onLeaveSettingsChange} onReplayTour={()=>{setShowSettings(false);onHelp();}} onViewTerms={()=>{setShowSettings(false);onViewTerms();}} onEditStartDate={onEditStartDate} driverGarage={driverGarage} onChangeGarage={onChangeGarage} driverFirstName={driverFirstName} onChangeFirstName={onChangeFirstName}/>}
+      {showSettings && <SettingsPanel period={period} onClose={()=>setShowSettings(false)} onThemeChange={onThemeChange} leaveSettings={leaveSettings} onLeaveSettingsChange={onLeaveSettingsChange} onReplayTour={()=>{setShowSettings(false);onHelp();}} onViewTerms={()=>{setShowSettings(false);onViewTerms();}} onViewFAQ={()=>{setShowSettings(false);onViewFAQ();}} onEditStartDate={onEditStartDate} driverGarage={driverGarage} onChangeGarage={onChangeGarage} driverFirstName={driverFirstName} onChangeFirstName={onChangeFirstName}/>}
       {confirmFeedback && <ConfirmDialog msg="This opens a feedback form in a new tab, outside the app. Continue?" yesLabel="Continue" onYes={()=>{setConfirmFeedback(false);window.open("https://docs.google.com/forms/d/e/1FAIpQLScgZEIoRM7xqkOpSyVcDQl23fbDJ_UTq99sF0c4mgta5bwrUQ/viewform?usp=header","_blank");}} onNo={()=>setConfirmFeedback(false)}/>}
 
       {/* Header gradient */}
@@ -318,8 +313,6 @@ export function HomeScreen({period, periods, alerts, onViewAlerts, driverGarage,
         <UpcomingCarousel periods={periods} activePeriodId={period.id} todayDate={todayDate} onLogDate={onLogDate}/>
 
         <RouteAlertBanner alerts={activeAlerts} onView={onViewAlerts}/>
-
-        {showBackupNudge && <BackupNudgeBanner onDismiss={()=>setBackupBannerDismissed(true)} />}
 
         {/* TODAY'S DUTY — hero card when a shift is logged for today */}
         {todayShift ? (

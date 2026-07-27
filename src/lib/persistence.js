@@ -1,4 +1,4 @@
-import { today, addDays } from "./dutyMath.js";
+import { today } from "./dutyMath.js";
 import { markDirty } from "./sync.js";
 
 export const LEAVE_KEY = "dbus_leave";
@@ -20,38 +20,6 @@ export async function saveData(data) {
   return ok;
 }
 
-// ─── BACKUP NUDGE ───────────────────────────────────────────────────────────────
-// A lost phone or a cleared cache is the single most damaging thing that can
-// happen to a localStorage-only app — this tracks when the driver last
-// exported a backup so Home can nudge them before that happens, not after.
-export const BACKUP_DATE_KEY = "dbus_last_backup";
-export const BACKUP_SNOOZE_KEY = "dbus_backup_snooze_until";
-export function runExportBackup() {
-  try {
-    const data = localStorage.getItem("dbus_v3");
-    if (!data) return {ok:false, reason:"No data to export yet."};
-    const blob = new Blob([data], {type:"application/json"});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url; a.download = `ShiftTracker-backup-${today()}.json`; a.click();
-    URL.revokeObjectURL(url);
-    localStorage.setItem(BACKUP_DATE_KEY, today());
-    return {ok:true};
-  } catch { return {ok:false, reason:"Export failed — try again."}; }
-}
-export function daysSinceLastBackup() {
-  const last = localStorage.getItem(BACKUP_DATE_KEY);
-  if (!last) return null;
-  return Math.round((new Date(today()+"T12:00:00") - new Date(last+"T12:00:00")) / 86400000);
-}
-export function isBackupNudgeSnoozed() {
-  const until = localStorage.getItem(BACKUP_SNOOZE_KEY);
-  return !!until && today() < until;
-}
-export function snoozeBackupNudge(days) {
-  try { localStorage.setItem(BACKUP_SNOOZE_KEY, addDays(today(), days)); } catch {}
-}
-
 // ─── SHIFT REMINDERS (opt-in, foreground-only) ─────────────────────────────────
 // There's no backend here, so there's no way to notify a driver who hasn't
 // opened the app — these fire the moment a relevant condition is true on a
@@ -68,19 +36,18 @@ export function notifyOnce(dedupeKey, title, body) {
   } catch {}
 }
 
-export const APP_VERSION = "1.6";
+export const APP_VERSION = "1.7";
 export const WHATS_NEW = {
-  version: "1.6",
-  title: "What's new in v1.6",
+  version: "1.7",
+  title: "What's new in v1.7",
   showToExisting: true,
   features: [
-    { icon: "carousel", heading: "Upcoming days on Home", body: "A new strip at the top of Home shows your next few days at a glance — swipe to see more, tap any day to log it straight away." },
-    { icon: "repeat", heading: "Repeat a duty while logging", body: "Log a Shift now lets you tick off extra days in the same week when you're logging the same duty — no more separate Repeat screen." },
-    { icon: "overwrite", heading: "Fix a mistake without being blocked", body: "Logging a shift on a date that already has one no longer hard-blocks you — you can now confirm to overwrite it." },
-    { icon: "board", heading: "Running board corrections", body: "Corrected report/depart times and stops across a large number of duties — running boards should now match your real routes more closely." },
-    { icon: "period", heading: "Period screen opens on your week", body: "Opening the Period tab now takes you straight to your current week — the other four stay collapsed until you tap them." },
-    { icon: "install", heading: "Install to your home screen", body: "Add the app to your home screen like a real app, and it'll still open with no signal (garage, underground stop, etc)." },
-    { icon: "backup", heading: "Backup reminder", body: "If it's been a while since you last backed up your data, Home will now nudge you — protects against losing everything if you clear your cache or change phones." },
+    { icon: "account", heading: "Accounts & multi-device sync", body: "Sign up with your driver number and log in from any phone — your shifts, leave and settings follow your account, not just one device." },
+    { icon: "garage", heading: "Garage groundwork", body: "Your garage is now part of your profile, editable in Settings if you move depot. Summerhill has the live roster — other garages are coming soon." },
+    { icon: "alert", heading: "Route alerts", body: "Diversions, roadworks and other notices now show up on Home, and inline on Log a Shift and Lookup, matched to your zone." },
+    { icon: "home", heading: "Personalized Home", body: "A greeting with your name, your logging streak, and today's weather chip — all at the top of Home." },
+    { icon: "duty", heading: "Simpler duty type picker", body: "Duty, CPC/Training and both Spare types are now one set of buttons instead of a separate toggle — pick one, times adjust accordingly." },
+    { icon: "help", heading: "FAQ added", body: "A new FAQ in Settings answers common questions on signing up, logging shifts, hours limits, leave and route alerts." },
   ]
 };
 

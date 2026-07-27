@@ -6,7 +6,7 @@ import { PageHeader, ComplianceBar, EmptyState } from "../components/shared.jsx"
 import { exportPDF } from "../lib/pdfExport.js";
 
 // ─── PERIOD SCREEN ────────────────────────────────────────────────────────────
-export function PeriodScreen({period, onEdit, onDelete, onEditDayOff, onDeleteDayOff, onViewArchive, onEndPeriod, initWeek=null, readOnly=false}) {
+export function PeriodScreen({period, onEdit, onDelete, onEditDayOff, onDeleteDayOff, onViewArchive, onEndPeriod, onViewFAQ, initWeek=null, readOnly=false}) {
   const stats = useMemo(() => pStats(period), [period]);
   // Default to current week, fallback to week 0
   const defaultWeek = useMemo(() => {
@@ -73,6 +73,11 @@ export function PeriodScreen({period, onEdit, onDelete, onEditDayOff, onDeleteDa
           <button onClick={onViewArchive} style={{...btnStyle,padding:"12px 16px",fontSize:13}}>
             View Period Archive
           </button>
+          {onViewFAQ && (
+            <button onClick={()=>onViewFAQ("compliance")} style={{background:"none",border:"none",color:ACCENT,fontSize:13,fontWeight:600,cursor:"pointer",padding:"4px 0",textAlign:"center"}}>
+              Questions about your hours? See FAQ →
+            </button>
+          )}
         </div>
       )}
 

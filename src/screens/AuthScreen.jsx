@@ -104,7 +104,12 @@ export default function AuthScreen({ supabase }) {
         </p>
 
         <input style={inputStyle} type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-        <input style={inputStyle} type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} />
+        <input style={inputStyle} type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} />
+        {mode === "signup" && (
+          <p style={{ color: MUTED, fontSize: 12, marginTop: -8, marginBottom: 12 }}>
+            Use at least 8 characters, mixing letters, numbers, and a symbol.
+          </p>
+        )}
 
         {mode === "signup" && (
           <>

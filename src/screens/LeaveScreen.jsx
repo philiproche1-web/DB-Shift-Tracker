@@ -98,7 +98,7 @@ export function SelfCertCard({scH1, scH2, scColor}) {
 }
 
 // ─── LEAVE SCREEN ─────────────────────────────────────────────────────────────
-export function LeaveScreen({periods, leaveSettings, onLogDayOff}) {
+export function LeaveScreen({periods, leaveSettings, onLogDayOff, onViewFAQ}) {
   const year = new Date().getFullYear();
   const [editTotal, setEditTotal] = useState(false);
   const [totalInput, setTotalInput] = useState(String(leaveSettings?.annualTotal||20));
@@ -151,6 +151,12 @@ export function LeaveScreen({periods, leaveSettings, onLogDayOff}) {
           color={fm.length===0?MUTED:fm.length<=2?SUCCESS:"#F59E0B"} used={fm.length}>
           <DayList items={fm} emptyMsg="No force majeure logged this year"/>
         </LeaveCard>
+
+        {onViewFAQ && (
+          <button onClick={()=>onViewFAQ("leave")} style={{background:"none",border:"none",color:ACCENT,fontSize:13,fontWeight:600,cursor:"pointer",padding:"8px 0",width:"100%",textAlign:"center"}}>
+            Questions about leave? See FAQ →
+          </button>
+        )}
 
       </div>
     </div>

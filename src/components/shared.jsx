@@ -2,7 +2,7 @@ import { useState, useRef } from "react";
 import { fmtHrs } from "../lib/dutyMath.js";
 import { dutyLabel } from "../lib/roster.js";
 import { compColor, BG, CARD, CARD2, BORDER, TEXT, MUTED, ACCENT, DANGER, cardStyle, inputStyle } from "../lib/theme.js";
-import { runExportBackup, daysSinceLastBackup, snoozeBackupNudge } from "../lib/persistence.js";
+import { alertWindowLabel } from "../lib/routeAlerts.js";
 
 // ─── SHARED UI ────────────────────────────────────────────────────────────────
 // Bus logo mark — clean SVG, replaces emoji
@@ -165,42 +165,6 @@ export function ComplianceBar({label, current, max, limitLabel}) {
   );
 }
 
-// ─── BACKUP NUDGE BANNER ────────────────────────────────────────────────────────
-// Shown on Home when there's real data on the device and no recent export —
-// a lost phone or a cleared cache today means a lost shift history, and the
-// only way off this device is a backup the driver has to remember to make.
-export function BackupNudgeBanner({onDismiss}) {
-  const [busy, setBusy] = useState(false);
-  const daysSince = daysSinceLastBackup();
-  const message = daysSince === null
-    ? "You've never backed up your data. A lost phone or cleared cache would lose your shift history."
-    : `Last backup: ${daysSince} day${daysSince===1?"":"s"} ago. Worth a fresh one.`;
-  return (
-    <div style={{...cardStyle,marginBottom:12,padding:"14px 16px",border:`1px solid ${ACCENT}44`,display:"flex",gap:12,alignItems:"flex-start"}}>
-      <div style={{width:36,height:36,borderRadius:10,background:`${ACCENT}18`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={ACCENT} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 18a4.5 4.5 0 0 1-1-8.9 5 5 0 0 1 9.7-1.7A4 4 0 0 1 17 15.9"/><polyline points="12 12 12 21"/><polyline points="9 18 12 21 15 18"/></svg>
-      </div>
-      <div style={{flex:1,minWidth:0}}>
-        <p style={{color:TEXT,fontSize:13.5,fontWeight:700,margin:"0 0 3px"}}>Back up your data</p>
-        <p style={{color:MUTED,fontSize:12.5,margin:"0 0 10px"}}>{message}</p>
-        <div style={{display:"flex",gap:8}}>
-          <button onClick={()=>{
-            setBusy(true);
-            const res = runExportBackup();
-            setBusy(false);
-            if(res.ok) onDismiss();
-          }} style={{background:ACCENT,color:"#07090F",border:"none",borderRadius:9,padding:"9px 14px",fontSize:12.5,fontWeight:800,cursor:"pointer"}}>
-            {busy?"Backing up…":"Back up now"}
-          </button>
-          <button onClick={()=>{ snoozeBackupNudge(7); onDismiss(); }} style={{background:"transparent",color:MUTED,border:`1px solid ${BORDER}`,borderRadius:9,padding:"9px 14px",fontSize:12.5,fontWeight:600,cursor:"pointer"}}>
-            Remind me later
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ─── ROUTE ALERTS (diversions, roadworks, other notices) ───────────────────────
 export const ALERT_COLOR = "#F59E0B"; // same amber already used for warning-tier banners elsewhere
 export const ALERT_TYPE_LABEL = { diversion: "Diversion", roadworks: "Roadworks", other: "Notice" };
@@ -214,6 +178,7 @@ export function RouteAlertCard({alert}) {
         </span>
         {alert.zone && <span style={{fontSize:11,color:MUTED,fontWeight:600}}>{alert.zone}</span>}
       </div>
+      <p style={{color:MUTED,fontSize:11,margin:"0 0 6px",fontWeight:600}}>{alertWindowLabel(alert)}</p>
       <p style={{color:TEXT,fontSize:13,margin:"0 0 8px",lineHeight:1.5}}>{alert.description}</p>
       {alert.map_url && (
         <a href={alert.map_url} target="_blank" rel="noopener noreferrer" style={{fontSize:12,fontWeight:700,color:ALERT_COLOR,textDecoration:"none"}}>
@@ -268,44 +233,69 @@ export function NavIcon({id, active}) {
 // Small inline weather icon set for the Home greeting's weather chip -
 // matches this app's existing SVG-only convention (see BusLogo/NavIcon) -
 // no emoji, since low-end Android renders emoji as blank boxes.
+// Small looping CSS animations per weather kind — sun rays turn, clouds drift,
+// rain/snow fall and fade, the storm bolt flickers. Keyframes are global (by
+// name) so this tag can safely render every time WeatherIcon does.
+const WEATHER_KEYFRAMES = (
+  <style>{`
+    @keyframes wx-spin { to { transform: rotate(360deg); } }
+    @keyframes wx-drift { 0%,100% { transform: translateX(0); } 50% { transform: translateX(1.6px); } }
+    @keyframes wx-fall { 0% { transform: translateY(-1px); opacity: 1; } 100% { transform: translateY(3px); opacity: 0; } }
+    @keyframes wx-flicker { 0%,42%,58%,100% { opacity: 1; } 50% { opacity: 0.25; } }
+  `}</style>
+);
+
 export function WeatherIcon({kind, size=16}) {
   const s = {width:size, height:size, fill:"none", stroke:"currentColor", strokeWidth:1.8, strokeLinecap:"round", strokeLinejoin:"round"};
   if (kind==="clear") return (
     <svg viewBox="0 0 24 24" style={s}>
+      {WEATHER_KEYFRAMES}
       <circle cx="12" cy="12" r="4"/>
-      <line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/>
-      <line x1="4.2" y1="4.2" x2="5.6" y2="5.6"/><line x1="18.4" y1="18.4" x2="19.8" y2="19.8"/>
-      <line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/>
-      <line x1="4.2" y1="19.8" x2="5.6" y2="18.4"/><line x1="18.4" y1="5.6" x2="19.8" y2="4.2"/>
+      <g style={{transformOrigin:"12px 12px", animation:"wx-spin 16s linear infinite"}}>
+        <line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/>
+        <line x1="4.2" y1="4.2" x2="5.6" y2="5.6"/><line x1="18.4" y1="18.4" x2="19.8" y2="19.8"/>
+        <line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/>
+        <line x1="4.2" y1="19.8" x2="5.6" y2="18.4"/><line x1="18.4" y1="5.6" x2="19.8" y2="4.2"/>
+      </g>
     </svg>
   );
   if (kind==="fog") return (
     <svg viewBox="0 0 24 24" style={s}>
+      {WEATHER_KEYFRAMES}
       <path d="M17 12a4 4 0 0 0-3.7-4A5 5 0 0 0 4 9.5"/>
-      <line x1="3" y1="16" x2="21" y2="16"/><line x1="5" y1="20" x2="19" y2="20"/>
+      <line x1="3" y1="16" x2="21" y2="16" style={{animation:"wx-drift 3s ease-in-out infinite"}}/>
+      <line x1="5" y1="20" x2="19" y2="20" style={{animation:"wx-drift 3s ease-in-out infinite 0.4s"}}/>
     </svg>
   );
   if (kind==="rain") return (
     <svg viewBox="0 0 24 24" style={s}>
-      <path d="M17 13a4 4 0 0 0-3.7-6A5 5 0 0 0 4 8.5 3.5 3.5 0 0 0 4.5 15h11.8"/>
-      <line x1="8" y1="18" x2="8" y2="21"/><line x1="12" y1="18" x2="12" y2="21"/><line x1="16" y1="18" x2="16" y2="21"/>
+      {WEATHER_KEYFRAMES}
+      <path d="M17 13a4 4 0 0 0-3.7-6A5 5 0 0 0 4 8.5 3.5 3.5 0 0 0 4.5 15h11.8" style={{animation:"wx-drift 4s ease-in-out infinite"}}/>
+      <line x1="8" y1="18" x2="8" y2="21" style={{animation:"wx-fall 1s ease-in infinite"}}/>
+      <line x1="12" y1="18" x2="12" y2="21" style={{animation:"wx-fall 1s ease-in infinite 0.3s"}}/>
+      <line x1="16" y1="18" x2="16" y2="21" style={{animation:"wx-fall 1s ease-in infinite 0.6s"}}/>
     </svg>
   );
   if (kind==="snow") return (
     <svg viewBox="0 0 24 24" style={s}>
-      <path d="M17 13a4 4 0 0 0-3.7-6A5 5 0 0 0 4 8.5 3.5 3.5 0 0 0 4.5 15h11.8"/>
-      <line x1="8" y1="18" x2="8" y2="18.5"/><line x1="12" y1="19" x2="12" y2="19.5"/><line x1="16" y1="18" x2="16" y2="18.5"/>
+      {WEATHER_KEYFRAMES}
+      <path d="M17 13a4 4 0 0 0-3.7-6A5 5 0 0 0 4 8.5 3.5 3.5 0 0 0 4.5 15h11.8" style={{animation:"wx-drift 4s ease-in-out infinite"}}/>
+      <line x1="8" y1="18" x2="8" y2="18.5" style={{animation:"wx-fall 1.8s ease-in-out infinite"}}/>
+      <line x1="12" y1="19" x2="12" y2="19.5" style={{animation:"wx-fall 1.8s ease-in-out infinite 0.5s"}}/>
+      <line x1="16" y1="18" x2="16" y2="18.5" style={{animation:"wx-fall 1.8s ease-in-out infinite 1s"}}/>
     </svg>
   );
   if (kind==="storm") return (
     <svg viewBox="0 0 24 24" style={s}>
-      <path d="M17 13a4 4 0 0 0-3.7-6A5 5 0 0 0 4 8.5 3.5 3.5 0 0 0 4.5 15h6.5"/>
-      <polyline points="13 14 10 19 13 19 11 23"/>
+      {WEATHER_KEYFRAMES}
+      <path d="M17 13a4 4 0 0 0-3.7-6A5 5 0 0 0 4 8.5 3.5 3.5 0 0 0 4.5 15h6.5" style={{animation:"wx-drift 4s ease-in-out infinite"}}/>
+      <polyline points="13 14 10 19 13 19 11 23" style={{animation:"wx-flicker 2.2s ease-in-out infinite"}}/>
     </svg>
   );
   return ( // "cloudy" and any unrecognized kind
     <svg viewBox="0 0 24 24" style={s}>
-      <path d="M17 13a4 4 0 0 0-3.7-6A5 5 0 0 0 4 8.5 3.5 3.5 0 0 0 4.5 15h11.8"/>
+      {WEATHER_KEYFRAMES}
+      <path d="M17 13a4 4 0 0 0-3.7-6A5 5 0 0 0 4 8.5 3.5 3.5 0 0 0 4.5 15h11.8" style={{animation:"wx-drift 4s ease-in-out infinite"}}/>
     </svg>
   );
 }

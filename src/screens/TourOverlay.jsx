@@ -14,6 +14,8 @@ export function TourIcon({type}) {
   if(type==="pdf") return <div style={wrap}><svg viewBox="0 0 24 24" style={s}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/></svg></div>;
   if(type==="rest") return <div style={wrap}><svg viewBox="0 0 24 24" style={s}><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/></svg></div>;
   if(type==="tally") return <div style={wrap}><svg viewBox="0 0 24 24" style={s}><line x1="5" y1="20" x2="5" y2="9"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="19" y1="20" x2="19" y2="13"/></svg></div>;
+  if(type==="home") return <div style={wrap}><svg viewBox="0 0 24 24" style={s}><path d="M3 11.5L12 4l9 7.5"/><path d="M5 10v10h14V10"/></svg></div>;
+  if(type==="alert") return <div style={wrap}><svg viewBox="0 0 24 24" style={s}><path d="M12 3l10 18H2z"/><line x1="12" y1="10" x2="12" y2="14"/><line x1="12" y1="17" x2="12" y2="17.01"/></svg></div>;
   return null;
 }
 
@@ -21,7 +23,12 @@ export const TOUR_SLIDES = [
   {
     icon: "welcome",
     title: "Welcome to\nShift Tracker",
-    body: "Built for Dublin Bus drivers at Summerhill. Log shifts, track your 5-week hours, look up any duty — all on your phone."
+    body: "Built for Dublin Bus drivers at Summerhill. Log shifts, track your 5-week hours, look up any duty — all on your phone. Your account works on any device, everything you log stays in sync."
+  },
+  {
+    icon: "home",
+    title: "Your Home Screen",
+    body: "A quick greeting, your logging streak, and today's weather at a glance. Swipe the upcoming-days strip to see what's next, and tap any day to log it straight away."
   },
   {
     icon: "lookup",
@@ -52,6 +59,11 @@ export const TOUR_SLIDES = [
     icon: "tally",
     title: "Three Limits Tracked",
     body: "Total hours (190h 4m), Sunday hours (14h 30m), and Overtime are all tracked separately. Bars turn amber as you approach a limit, red if you exceed it."
+  },
+  {
+    icon: "alert",
+    title: "Stay in the Loop",
+    body: "Diversions, roadworks and other notices show up right where you need them — a banner on Home, and inline cards on Log a Shift and Lookup, matched to your zone."
   },
   {
     icon: "pdf",

@@ -15,6 +15,7 @@ import {
 import { BusLogo, BottomNav, ConfirmDialog } from "./components/shared.jsx";
 import { GarageComingSoonScreen } from "./screens/GarageComingSoonScreen.jsx";
 import { TermsScreen } from "./screens/TermsScreen.jsx";
+import { FAQScreen } from "./screens/FAQScreen.jsx";
 import { WhatsNewScreen } from "./screens/WhatsNewScreen.jsx";
 import { SetupScreen } from "./screens/SetupScreen.jsx";
 import { LogScreen } from "./screens/LogScreen.jsx";
@@ -50,6 +51,7 @@ export default function App() {
   const [leaveSettings, setLeaveSettings] = useState(loadLeaveSettings);
   const [dayOffFrom, setDayOffFrom] = useState("home"); // tracks where to return after logging day off
   const [viewingTerms, setViewingTerms] = useState(false);
+  const [viewingFAQ, setViewingFAQ] = useState(null); // null = closed, "" | category key = open
   const [saveError, setSaveError] = useState(false);
   const [loadCorrupted, setLoadCorrupted] = useState(false);
   const [rosterVersion, setRosterVersion] = useState(0);
@@ -377,6 +379,7 @@ export default function App() {
         leaveSettings={leaveSettings}
         onLeaveSettingsChange={handleLeaveSettingsChange}
         onViewTerms={()=>setViewingTerms(true)}
+        onViewFAQ={()=>setViewingFAQ("")}
         onEditStartDate={editActivePeriodStartDate}/>}
       {screen==="period"&&<PeriodScreen period={activePeriod} initWeek={openWeek}
         onEdit={s=>{setEditShift(s);setScreen("log");}}
@@ -384,8 +387,10 @@ export default function App() {
         onEditDayOff={d=>{setEditDayOff(d);setDayOffFrom("period");setScreen("dayoff");}}
         onDeleteDayOff={deleteDayOff}
         onViewArchive={()=>setScreen("archive")}
-        onEndPeriod={startNewPeriod}/>}
-      {screen==="leave"&&<LeaveScreen periods={periods} leaveSettings={leaveSettings} onLogDayOff={()=>{setEditDayOff(null);setDayOffFrom("leave");setScreen("dayoff");}}/>}
+        onEndPeriod={startNewPeriod}
+        onViewFAQ={cat=>setViewingFAQ(cat)}/>}
+      {screen==="leave"&&<LeaveScreen periods={periods} leaveSettings={leaveSettings} onLogDayOff={()=>{setEditDayOff(null);setDayOffFrom("leave");setScreen("dayoff");}}
+        onViewFAQ={cat=>setViewingFAQ(cat)}/>}
       {screen==="archive"&&<ArchiveScreen periods={periods} activePeriodId={activePeriodId}
         onStartNew={startNewPeriod} onView={id=>setArchiveViewId(id)}/>}
       <BottomNav active={screen==="log"?"log":["archive"].includes(screen)?"leave":screen} onChange={tab=>{
@@ -400,6 +405,11 @@ export default function App() {
       {viewingTerms && (
         <div style={{position:"fixed",inset:0,zIndex:250,background:BG}}>
           <TermsScreen readOnly onClose={()=>setViewingTerms(false)}/>
+        </div>
+      )}
+      {viewingFAQ !== null && (
+        <div style={{position:"fixed",inset:0,zIndex:250,background:BG}}>
+          <FAQScreen initialCategory={viewingFAQ} onClose={()=>setViewingFAQ(null)}/>
         </div>
       )}
       {saveError && (

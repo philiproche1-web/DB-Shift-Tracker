@@ -3,17 +3,16 @@ import { getDayType, addDays, fmtShort } from "../lib/dutyMath.js";
 import { ZONES } from "../lib/roster.js";
 import { garageOptions } from "../lib/garages.js";
 import { CARD, CARD2, BORDER, TEXT, MUTED, SUCCESS, DANGER, cardStyle, inputStyle, btnStyle } from "../lib/theme.js";
-import { loadSettings, saveSettings, runExportBackup, APP_VERSION } from "../lib/persistence.js";
+import { loadSettings, saveSettings, APP_VERSION } from "../lib/persistence.js";
 import { SegGroup, DateInput, ConfirmDialog } from "../components/shared.jsx";
 
 // ─── SETTINGS PANEL ───────────────────────────────────────────────────────────
-export function SettingsPanel({period, onClose, onThemeChange, leaveSettings, onLeaveSettingsChange, onReplayTour, onViewTerms, onEditStartDate, driverGarage, onChangeGarage, driverFirstName, onChangeFirstName}) {
+export function SettingsPanel({period, onClose, onThemeChange, leaveSettings, onLeaveSettingsChange, onReplayTour, onViewTerms, onViewFAQ, onEditStartDate, driverGarage, onChangeGarage, driverFirstName, onChangeFirstName}) {
   const [settings, setSettings] = useState(loadSettings);
   const [annualInput, setAnnualInput] = useState(String(leaveSettings?.annualTotal||20));
   const [annualError, setAnnualError] = useState(null);
   const [toast, setToast] = useState(null);
   const [confirmDialog, setConfirmDialog] = useState(null);
-  const [showReload, setShowReload] = useState(false);
   const [scrolledToEnd, setScrolledToEnd] = useState(false);
   const [editingStartDate, setEditingStartDate] = useState(false);
   const [startDateInput, setStartDateInput] = useState(period?.startDate||"");
@@ -160,7 +159,7 @@ export function SettingsPanel({period, onClose, onThemeChange, leaveSettings, on
         {!editingGarage ? (
           <div style={{...cardStyle,marginBottom:20,padding:"14px 16px",display:"flex",justifyContent:"space-between",alignItems:"center",gap:10}}>
             <div>
-              <p style={{color:TEXT,fontSize:14,fontWeight:600,margin:0}}>{driverGarage}</p>
+              <p style={{color:TEXT,fontSize:14,fontWeight:600,margin:0}}>{driverGarage || "Not set"}</p>
               <p style={{color:MUTED,fontSize:12,margin:"2px 0 0"}}>Moved depot? Change it here.</p>
             </div>
             <button onClick={()=>{setGarageInput(driverGarage||"");setEditingGarage(true);}}
@@ -297,58 +296,13 @@ export function SettingsPanel({period, onClose, onThemeChange, leaveSettings, on
         </div>
         {annualError && <p style={{color:DANGER,fontSize:12,margin:"0 0 20px"}}>{annualError}</p>}
 
-        {/* Backup & Restore */}
-        <p style={{color:MUTED,fontSize:11,textTransform:"uppercase",letterSpacing:1.5,fontWeight:700,margin:"0 0 10px"}}>Data backup</p>
-        <p style={{color:MUTED,fontSize:12,margin:"0 0 12px"}}>Export your shifts and leave to a file. Import it on a new phone to restore everything.</p>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:showReload?12:24}}>
-          <button onClick={()=>{
-            const res = runExportBackup();
-            setToast(res.ok ? "Backup downloaded." : res.reason);
-          }} style={{background:CARD2,color:TEXT,border:`1px solid ${BORDER}`,borderRadius:12,padding:"12px 8px",fontSize:13,fontWeight:600,cursor:"pointer"}}>
-            ⬇ Export backup
-          </button>
-          <button onClick={()=>{
-            const inp = document.createElement("input");
-            inp.type="file"; inp.accept=".json";
-            inp.onchange=e=>{
-              const file=e.target.files[0]; if(!file) return;
-              const reader=new FileReader();
-              reader.onload=ev=>{
-                try {
-                  const parsed=JSON.parse(ev.target.result);
-                  if(!parsed.periods||!parsed.activePeriodId) throw new Error("Invalid");
-                  setConfirmDialog({
-                    msg:"This will replace all your current data with the backup. Continue?",
-                    yesLabel:"Restore",
-                    onYes:()=>{
-                      try {
-                        localStorage.setItem("dbus_v3",JSON.stringify(parsed));
-                        setConfirmDialog(null);
-                        setShowReload(true);
-                        setToast("Restored — tap Reload to see your data.");
-                      } catch { setConfirmDialog(null); setToast("Couldn't save the restored data — try again."); }
-                    },
-                    onNo:()=>setConfirmDialog(null)
-                  });
-                } catch{setToast("That file isn't a valid backup.");}
-              };
-              reader.readAsText(file);
-            };
-            inp.click();
-          }} style={{background:CARD2,color:TEXT,border:`1px solid ${BORDER}`,borderRadius:12,padding:"12px 8px",fontSize:13,fontWeight:600,cursor:"pointer"}}>
-            ⬆ Import backup
-          </button>
-        </div>
-        {showReload && (
-          <button onClick={()=>window.location.reload()} style={{...btnStyle,marginBottom:24}}>
-            Reload now
-          </button>
-        )}
-
         {/* Help & legal */}
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:16}}>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:16}}>
           <button onClick={onReplayTour} style={{background:CARD2,color:TEXT,border:`1px solid ${BORDER}`,borderRadius:12,padding:"12px 8px",fontSize:13,fontWeight:600,cursor:"pointer"}}>
             ↻ Replay tour
+          </button>
+          <button onClick={onViewFAQ} style={{background:CARD2,color:TEXT,border:`1px solid ${BORDER}`,borderRadius:12,padding:"12px 8px",fontSize:13,fontWeight:600,cursor:"pointer"}}>
+            FAQ
           </button>
           <button onClick={onViewTerms} style={{background:CARD2,color:TEXT,border:`1px solid ${BORDER}`,borderRadius:12,padding:"12px 8px",fontSize:13,fontWeight:600,cursor:"pointer"}}>
             Terms & Conditions
