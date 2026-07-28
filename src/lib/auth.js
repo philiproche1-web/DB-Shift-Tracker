@@ -32,5 +32,13 @@ export function getSession(supabase) {
 }
 
 export function onAuthStateChange(supabase, callback) {
-  return supabase.auth.onAuthStateChange((_event, session) => callback(session));
+  return supabase.auth.onAuthStateChange((event, session) => callback(session, event));
+}
+
+export function resetPasswordForEmail(supabase, email) {
+  return supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin });
+}
+
+export function updatePassword(supabase, password) {
+  return supabase.auth.updateUser({ password });
 }

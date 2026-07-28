@@ -31,6 +31,7 @@ import { TourOverlay } from "./screens/TourOverlay.jsx";
 // Lazy: only a signed-out visitor ever needs this bundle chunk, so a logged-in
 // driver's initial load never pays for it.
 const AuthScreen = lazy(() => import("./screens/AuthScreen.jsx"));
+const ResetPasswordScreen = lazy(() => import("./screens/ResetPasswordScreen.jsx"));
 
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
 export default function App() {
@@ -58,6 +59,7 @@ export default function App() {
   const [logInitDate, setLogInitDate] = useState(null);
   const [logInitRestDay, setLogInitRestDay] = useState(false);
   const [session, setSession] = useState(undefined); // undefined = not checked yet, null = signed out
+  const [passwordRecovery, setPasswordRecovery] = useState(false);
   const [driverGarage, setDriverGarage] = useState(undefined); // undefined = not fetched yet, null = fetch failed
   const [driverFirstName, setDriverFirstName] = useState(null);
   const [routeAlerts, setRouteAlerts] = useState([]);
@@ -84,7 +86,10 @@ export default function App() {
 
   useEffect(() => {
     getSession(supabase).then(({ data }) => setSession(data.session ?? null));
-    const { data: { subscription } } = onAuthStateChange(supabase, (newSession) => setSession(newSession));
+    const { data: { subscription } } = onAuthStateChange(supabase, (newSession, event) => {
+      setSession(newSession);
+      if (event === "PASSWORD_RECOVERY") setPasswordRecovery(true);
+    });
     return () => subscription.unsubscribe();
   }, []);
 
@@ -313,6 +318,13 @@ export default function App() {
 
   if (session === undefined) {
     return <div style={{ background: BG, minHeight: "100vh" }} />; // brief blank frame while session check resolves
+  }
+  if (passwordRecovery) {
+    return (
+      <Suspense fallback={<div style={{ background: BG, minHeight: "100vh" }} />}>
+        <ResetPasswordScreen supabase={supabase} onDone={() => setPasswordRecovery(false)} />
+      </Suspense>
+    );
   }
   if (session === null) {
     return (

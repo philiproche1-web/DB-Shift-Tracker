@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { signUp, signIn, signOut, getSession, onAuthStateChange, isDriverNumberTaken } from "./auth.js";
+import { signUp, signIn, signOut, getSession, onAuthStateChange, isDriverNumberTaken, resetPasswordForEmail, updatePassword } from "./auth.js";
 
 function makeFakeSupabase() {
   return {
@@ -9,6 +9,8 @@ function makeFakeSupabase() {
       signOut: vi.fn().mockResolvedValue({ error: null }),
       getSession: vi.fn().mockResolvedValue({ data: { session: null }, error: null }),
       onAuthStateChange: vi.fn(),
+      resetPasswordForEmail: vi.fn().mockResolvedValue({ data: {}, error: null }),
+      updateUser: vi.fn().mockResolvedValue({ data: {}, error: null }),
     },
     rpc: vi.fn().mockResolvedValue({ data: false, error: null }),
   };
@@ -84,7 +86,7 @@ describe("getSession", () => {
 });
 
 describe("onAuthStateChange", () => {
-  it("forwards the session to the callback", () => {
+  it("forwards the session and event to the callback", () => {
     const supabase = makeFakeSupabase();
     const callback = vi.fn();
     let capturedHandler;
@@ -93,6 +95,36 @@ describe("onAuthStateChange", () => {
     onAuthStateChange(supabase, callback);
     capturedHandler("SIGNED_IN", { user: { id: "user-1" } });
 
-    expect(callback).toHaveBeenCalledWith({ user: { id: "user-1" } });
+    expect(callback).toHaveBeenCalledWith({ user: { id: "user-1" } }, "SIGNED_IN");
+  });
+
+  it("forwards a PASSWORD_RECOVERY event so callers can detect the reset flow", () => {
+    const supabase = makeFakeSupabase();
+    const callback = vi.fn();
+    let capturedHandler;
+    supabase.auth.onAuthStateChange.mockImplementation((handler) => { capturedHandler = handler; });
+
+    onAuthStateChange(supabase, callback);
+    capturedHandler("PASSWORD_RECOVERY", { user: { id: "user-1" } });
+
+    expect(callback).toHaveBeenCalledWith({ user: { id: "user-1" } }, "PASSWORD_RECOVERY");
+  });
+});
+
+describe("resetPasswordForEmail", () => {
+  it("calls supabase resetPasswordForEmail with an origin redirect", async () => {
+    const supabase = makeFakeSupabase();
+    await resetPasswordForEmail(supabase, "a@b.com");
+
+    expect(supabase.auth.resetPasswordForEmail).toHaveBeenCalledWith("a@b.com", { redirectTo: window.location.origin });
+  });
+});
+
+describe("updatePassword", () => {
+  it("calls supabase updateUser with the new password", async () => {
+    const supabase = makeFakeSupabase();
+    await updatePassword(supabase, "newSecret123");
+
+    expect(supabase.auth.updateUser).toHaveBeenCalledWith({ password: "newSecret123" });
   });
 });

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { signUp, signIn, isDriverNumberTaken } from "../lib/auth.js";
+import { signUp, signIn, isDriverNumberTaken, resetPasswordForEmail } from "../lib/auth.js";
 import { GARAGES, garageOptions } from "../lib/garages.js";
 
 const BG = "#07090F";
@@ -34,7 +34,7 @@ const buttonStyle = {
 };
 
 export default function AuthScreen({ supabase }) {
-  const [mode, setMode] = useState("login"); // "login" | "signup"
+  const [mode, setMode] = useState("login"); // "login" | "signup" | "forgot"
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [driverNumber, setDriverNumber] = useState("");
@@ -43,6 +43,7 @@ export default function AuthScreen({ supabase }) {
   const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [awaitingVerification, setAwaitingVerification] = useState(false);
+  const [awaitingReset, setAwaitingReset] = useState(false);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -64,6 +65,10 @@ export default function AuthScreen({ supabase }) {
           return;
         }
         setAwaitingVerification(true);
+      } else if (mode === "forgot") {
+        const { error: resetError } = await resetPasswordForEmail(supabase, email);
+        if (resetError) { setError(resetError.message); return; }
+        setAwaitingReset(true);
       } else {
         const { error: signInError } = await signIn(supabase, { email, password });
         if (signInError) { setError(signInError.message); return; }
@@ -93,18 +98,36 @@ export default function AuthScreen({ supabase }) {
     );
   }
 
+  if (awaitingReset) {
+    return (
+      <div style={{ background: BG, minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+        <div style={{ background: CARD, borderRadius: 16, padding: 28, maxWidth: 380, textAlign: "center" }}>
+          <h1 style={{ color: TEXT, fontSize: 20, marginBottom: 12 }}>Check your email</h1>
+          <p style={{ color: MUTED, fontSize: 14, lineHeight: 1.5 }}>
+            We sent a password reset link to <strong style={{ color: TEXT }}>{email}</strong>. Open it on this device to set a new password.
+          </p>
+          <button style={{ ...buttonStyle, marginTop: 20 }} onClick={() => { setAwaitingReset(false); setMode("login"); }}>
+            Back to login
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={{ background: BG, minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
       <form onSubmit={handleSubmit} style={{ background: CARD, borderRadius: 16, padding: 28, width: "100%", maxWidth: 380 }}>
         <h1 style={{ color: TEXT, fontSize: 22, fontWeight: 800, marginBottom: 4 }}>
-          {mode === "signup" ? "Create account" : "Log in"}
+          {mode === "signup" ? "Create account" : mode === "forgot" ? "Reset password" : "Log in"}
         </h1>
         <p style={{ color: MUTED, fontSize: 13, marginBottom: 20 }}>
-          {mode === "signup" ? "Sync your duty logs and settings across devices." : "Welcome back."}
+          {mode === "signup" ? "Sync your duty logs and settings across devices." : mode === "forgot" ? "Enter your email and we'll send a reset link." : "Welcome back."}
         </p>
 
         <input style={inputStyle} type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-        <input style={inputStyle} type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} />
+        {mode !== "forgot" && (
+          <input style={inputStyle} type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} />
+        )}
         {mode === "signup" && (
           <p style={{ color: MUTED, fontSize: 12, marginTop: -8, marginBottom: 12 }}>
             Use at least 8 characters, mixing letters, numbers, and a symbol.
@@ -123,21 +146,45 @@ export default function AuthScreen({ supabase }) {
           </>
         )}
 
+        {mode === "login" && (
+          <p style={{ textAlign: "right", marginTop: -8, marginBottom: 16 }}>
+            <button
+              type="button"
+              onClick={() => { setMode("forgot"); setError(null); }}
+              style={{ background: "none", border: "none", color: MUTED, cursor: "pointer", fontSize: 12, padding: 0 }}
+            >
+              Forgot password?
+            </button>
+          </p>
+        )}
+
         {error && <p style={{ color: DANGER, fontSize: 13, marginBottom: 12 }}>{error}</p>}
 
         <button style={buttonStyle} type="submit" disabled={submitting}>
-          {submitting ? "Please wait…" : mode === "signup" ? "Sign up" : "Log in"}
+          {submitting ? "Please wait…" : mode === "signup" ? "Sign up" : mode === "forgot" ? "Send reset link" : "Log in"}
         </button>
 
         <p style={{ color: MUTED, fontSize: 13, marginTop: 16, textAlign: "center" }}>
-          {mode === "signup" ? "Already have an account?" : "New driver?"}{" "}
-          <button
-            type="button"
-            onClick={() => { setMode(mode === "signup" ? "login" : "signup"); setError(null); }}
-            style={{ background: "none", border: "none", color: ACCENT, cursor: "pointer", fontSize: 13, fontWeight: 700, padding: 0 }}
-          >
-            {mode === "signup" ? "Log in" : "Sign up"}
-          </button>
+          {mode === "forgot" ? (
+            <button
+              type="button"
+              onClick={() => { setMode("login"); setError(null); }}
+              style={{ background: "none", border: "none", color: ACCENT, cursor: "pointer", fontSize: 13, fontWeight: 700, padding: 0 }}
+            >
+              Back to login
+            </button>
+          ) : (
+            <>
+              {mode === "signup" ? "Already have an account?" : "New driver?"}{" "}
+              <button
+                type="button"
+                onClick={() => { setMode(mode === "signup" ? "login" : "signup"); setError(null); }}
+                style={{ background: "none", border: "none", color: ACCENT, cursor: "pointer", fontSize: 13, fontWeight: 700, padding: 0 }}
+              >
+                {mode === "signup" ? "Log in" : "Sign up"}
+              </button>
+            </>
+          )}
         </p>
       </form>
     </div>
