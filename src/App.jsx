@@ -26,6 +26,7 @@ import { LeaveScreen } from "./screens/LeaveScreen.jsx";
 import { ArchiveScreen } from "./screens/ArchiveScreen.jsx";
 import { DutyLookup } from "./screens/DutyLookup.jsx";
 import { HomeScreen } from "./screens/HomeScreen.jsx";
+import { SettingsPanel } from "./screens/SettingsPanel.jsx";
 import { TourOverlay } from "./screens/TourOverlay.jsx";
 
 // Lazy: only a signed-out visitor ever needs this bundle chunk, so a logged-in
@@ -63,6 +64,8 @@ export default function App() {
   const [driverGarage, setDriverGarage] = useState(undefined); // undefined = not fetched yet, null = fetch failed
   const [driverFirstName, setDriverFirstName] = useState(null);
   const [routeAlerts, setRouteAlerts] = useState([]);
+  const [showSettings, setShowSettings] = useState(false);
+  const [confirmFeedback, setConfirmFeedback] = useState(false);
 
   const activePeriod = periods.find(p=>p.id===activePeriodId);
 
@@ -375,24 +378,15 @@ export default function App() {
 
   return (
     <div style={{background:BG,minHeight:"100vh"}}>
-      {screen==="lookup"&&<DutyLookup alerts={routeAlerts} onLogShift={(d,dt,date)=>{setLookupDuty({d,dt,date});setScreen("log");}}/>}
+      {screen==="lookup"&&<DutyLookup alerts={routeAlerts} onLogShift={(d,dt,date)=>{setLookupDuty({d,dt,date});setScreen("log");}} onOpenSettings={()=>setShowSettings(true)}/>}
       {screen==="home"&&<HomeScreen period={activePeriod} periods={periods}
         alerts={routeAlerts}
         onViewAlerts={()=>setScreen("alerts")}
-        driverGarage={driverGarage}
-        onChangeGarage={handleChangeGarage}
         driverFirstName={driverFirstName}
-        onChangeFirstName={handleChangeFirstName}
         onLog={()=>{setEditShift(null);setLogInitDate(null);setLogInitRestDay(false);setScreen("log");}}
         onLogDate={(date,opts)=>{setEditShift(null);setLookupDuty(null);setLogInitDate(date);setLogInitRestDay(!!opts?.isRestDay);setScreen("log");}}
         onGoWeek={i=>{setOpenWeek(i);setScreen("period");}}
-        onHelp={()=>setShowTour(true)}
-        onThemeChange={handleThemeChange}
-        leaveSettings={leaveSettings}
-        onLeaveSettingsChange={handleLeaveSettingsChange}
-        onViewTerms={()=>setViewingTerms(true)}
-        onViewFAQ={()=>setViewingFAQ("")}
-        onEditStartDate={editActivePeriodStartDate}/>}
+        onOpenSettings={()=>setShowSettings(true)}/>}
       {screen==="period"&&<PeriodScreen period={activePeriod} initWeek={openWeek}
         onEdit={s=>{setEditShift(s);setScreen("log");}}
         onDelete={deleteShift}
@@ -400,11 +394,14 @@ export default function App() {
         onDeleteDayOff={deleteDayOff}
         onViewArchive={()=>setScreen("archive")}
         onEndPeriod={startNewPeriod}
-        onViewFAQ={cat=>setViewingFAQ(cat)}/>}
+        onViewFAQ={cat=>setViewingFAQ(cat)}
+        onOpenSettings={()=>setShowSettings(true)}/>}
       {screen==="leave"&&<LeaveScreen periods={periods} leaveSettings={leaveSettings} onLogDayOff={()=>{setEditDayOff(null);setDayOffFrom("leave");setScreen("dayoff");}}
-        onViewFAQ={cat=>setViewingFAQ(cat)}/>}
+        onViewFAQ={cat=>setViewingFAQ(cat)}
+        onOpenSettings={()=>setShowSettings(true)}/>}
       {screen==="archive"&&<ArchiveScreen periods={periods} activePeriodId={activePeriodId}
-        onStartNew={startNewPeriod} onView={id=>setArchiveViewId(id)}/>}
+        onStartNew={startNewPeriod} onView={id=>setArchiveViewId(id)}
+        onOpenSettings={()=>setShowSettings(true)}/>}
       <BottomNav active={screen==="log"?"log":["archive"].includes(screen)?"leave":screen} onChange={tab=>{
         if(tab==="log"){setEditShift(null);setLookupDuty(null);setLogInitDate(null);setLogInitRestDay(false);setScreen("log");}
         else{
@@ -414,6 +411,22 @@ export default function App() {
       }}/>
       {confirm&&<ConfirmDialog msg={confirm.msg} yesLabel={confirm.yesLabel} danger={confirm.danger!==false} onYes={confirm.onYes} onNo={()=>setConfirm(null)}/>}
       {showTour&&<TourOverlay onDone={dismissTour}/>}
+      {showSettings && activePeriod && (
+        <SettingsPanel period={activePeriod} onClose={()=>setShowSettings(false)}
+          onThemeChange={handleThemeChange} leaveSettings={leaveSettings} onLeaveSettingsChange={handleLeaveSettingsChange}
+          onReplayTour={()=>{setShowSettings(false);setShowTour(true);}}
+          onViewTerms={()=>{setShowSettings(false);setViewingTerms(true);}}
+          onViewFAQ={()=>{setShowSettings(false);setViewingFAQ("");}}
+          onEditStartDate={editActivePeriodStartDate}
+          driverGarage={driverGarage} onChangeGarage={handleChangeGarage}
+          driverFirstName={driverFirstName} onChangeFirstName={handleChangeFirstName}
+          onSendFeedback={()=>setConfirmFeedback(true)}/>
+      )}
+      {confirmFeedback && (
+        <ConfirmDialog msg="This opens a feedback form in a new tab, outside the app. Continue?" yesLabel="Continue" danger={false}
+          onYes={()=>{setConfirmFeedback(false);window.open("https://docs.google.com/forms/d/e/1FAIpQLScgZEIoRM7xqkOpSyVcDQl23fbDJ_UTq99sF0c4mgta5bwrUQ/viewform?usp=header","_blank");}}
+          onNo={()=>setConfirmFeedback(false)}/>
+      )}
       {viewingTerms && (
         <div style={{position:"fixed",inset:0,zIndex:250,background:BG}}>
           <TermsScreen readOnly onClose={()=>setViewingTerms(false)}/>

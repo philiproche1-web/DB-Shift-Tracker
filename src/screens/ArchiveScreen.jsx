@@ -1,15 +1,15 @@
 import { addDays, fmtShort, fmtHrs } from "../lib/dutyMath.js";
 import { pStats } from "../lib/roster.js";
 import { BG, BORDER, TEXT, MUTED, ACCENT, SUCCESS, cardStyle, btnStyle } from "../lib/theme.js";
-import { PageHeader, EmptyState } from "../components/shared.jsx";
+import { PageHeader, EmptyState, SettingsButton } from "../components/shared.jsx";
 import { exportPDF } from "../lib/pdfExport.js";
 
 // ─── ARCHIVE SCREEN ────────────────────────────────────────────────────────────
-export function ArchiveScreen({periods, activePeriodId, onStartNew, onView}) {
+export function ArchiveScreen({periods, activePeriodId, onStartNew, onView, onOpenSettings}) {
   const archived = [...periods].filter(p=>p.id!==activePeriodId).reverse();
   return (
     <div style={{background:BG,minHeight:"100vh",paddingBottom:100}}>
-      <PageHeader eyebrow="Past periods" title="Archive" subtitle={archived.length>0?`${archived.length} archived period${archived.length!==1?"s":""}`:undefined}/>
+      <PageHeader eyebrow="Past periods" title="Archive" subtitle={archived.length>0?`${archived.length} archived period${archived.length!==1?"s":""}`:undefined} right={<SettingsButton onClick={onOpenSettings}/>}/>
       <div style={{padding:"4px 16px 0"}}>
       <button style={{...btnStyle,marginBottom:20}} onClick={onStartNew}>Start New Period</button>
       {archived.length===0?(

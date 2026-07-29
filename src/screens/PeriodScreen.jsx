@@ -2,11 +2,11 @@ import { useState, useMemo } from "react";
 import { MAX_HOURS, MAX_SUNDAY, DAY_OFF_TYPES, getDayType, addDays, fmtDate, fmtShort, fmtHrs, today, calcSpreadover } from "../lib/dutyMath.js";
 import { pStats } from "../lib/roster.js";
 import { BG, BORDER, TEXT, MUTED, ACCENT, SUCCESS, DANGER, cardStyle, btnStyle, tag } from "../lib/theme.js";
-import { PageHeader, ComplianceBar, EmptyState } from "../components/shared.jsx";
+import { PageHeader, ComplianceBar, EmptyState, SettingsButton } from "../components/shared.jsx";
 import { exportPDF } from "../lib/pdfExport.js";
 
 // ─── PERIOD SCREEN ────────────────────────────────────────────────────────────
-export function PeriodScreen({period, onEdit, onDelete, onEditDayOff, onDeleteDayOff, onViewArchive, onEndPeriod, onViewFAQ, initWeek=null, readOnly=false}) {
+export function PeriodScreen({period, onEdit, onDelete, onEditDayOff, onDeleteDayOff, onViewArchive, onEndPeriod, onViewFAQ, onOpenSettings, initWeek=null, readOnly=false}) {
   const stats = useMemo(() => pStats(period), [period]);
   // Default to current week, fallback to week 0
   const defaultWeek = useMemo(() => {
@@ -23,11 +23,16 @@ export function PeriodScreen({period, onEdit, onDelete, onEditDayOff, onDeleteDa
         eyebrow={readOnly?"Archived period":"Current period"}
         title="Period Detail"
         subtitle={`${fmtDate(period.startDate)} – ${fmtDate(addDays(period.startDate,34))}`}
-        right={!readOnly && (
-          <button onClick={()=>exportPDF(period,stats)} style={{background:ACCENT,color:"#07090F",border:"none",borderRadius:10,padding:"10px 16px",fontSize:13,fontWeight:800,cursor:"pointer",flexShrink:0,whiteSpace:"nowrap"}}>
-            Export PDF
-          </button>
-        )}
+        right={
+          <div style={{display:"flex",gap:8,alignItems:"center"}}>
+            {!readOnly && (
+              <button onClick={()=>exportPDF(period,stats)} style={{background:ACCENT,color:"#07090F",border:"none",borderRadius:10,padding:"10px 16px",fontSize:13,fontWeight:800,cursor:"pointer",flexShrink:0,whiteSpace:"nowrap"}}>
+                Export PDF
+              </button>
+            )}
+            {!readOnly && <SettingsButton onClick={onOpenSettings}/>}
+          </div>
+        }
       />
 
       <div style={{padding:"4px 16px 0"}}>

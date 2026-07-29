@@ -7,7 +7,7 @@ import { loadSettings, saveSettings, APP_VERSION } from "../lib/persistence.js";
 import { SegGroup, DateInput, ConfirmDialog } from "../components/shared.jsx";
 
 // ─── SETTINGS PANEL ───────────────────────────────────────────────────────────
-export function SettingsPanel({period, onClose, onThemeChange, leaveSettings, onLeaveSettingsChange, onReplayTour, onViewTerms, onViewFAQ, onEditStartDate, driverGarage, onChangeGarage, driverFirstName, onChangeFirstName}) {
+export function SettingsPanel({period, onClose, onThemeChange, leaveSettings, onLeaveSettingsChange, onReplayTour, onViewTerms, onViewFAQ, onEditStartDate, driverGarage, onChangeGarage, driverFirstName, onChangeFirstName, onSendFeedback}) {
   const [settings, setSettings] = useState(loadSettings);
   const [annualInput, setAnnualInput] = useState(String(leaveSettings?.annualTotal||20));
   const [annualError, setAnnualError] = useState(null);
@@ -297,15 +297,20 @@ export function SettingsPanel({period, onClose, onThemeChange, leaveSettings, on
         {annualError && <p style={{color:DANGER,fontSize:12,margin:"0 0 20px"}}>{annualError}</p>}
 
         {/* Help & legal */}
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:16}}>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
           <button onClick={onReplayTour} style={{background:CARD2,color:TEXT,border:`1px solid ${BORDER}`,borderRadius:12,padding:"12px 8px",fontSize:13,fontWeight:600,cursor:"pointer"}}>
             ↻ Replay tour
           </button>
           <button onClick={onViewFAQ} style={{background:CARD2,color:TEXT,border:`1px solid ${BORDER}`,borderRadius:12,padding:"12px 8px",fontSize:13,fontWeight:600,cursor:"pointer"}}>
             FAQ
           </button>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:16}}>
           <button onClick={onViewTerms} style={{background:CARD2,color:TEXT,border:`1px solid ${BORDER}`,borderRadius:12,padding:"12px 8px",fontSize:13,fontWeight:600,cursor:"pointer"}}>
             Terms & Conditions
+          </button>
+          <button onClick={onSendFeedback} style={{background:CARD2,color:TEXT,border:`1px solid ${BORDER}`,borderRadius:12,padding:"12px 8px",fontSize:13,fontWeight:600,cursor:"pointer"}}>
+            Send Feedback
           </button>
         </div>
 

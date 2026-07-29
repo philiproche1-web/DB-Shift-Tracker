@@ -3,7 +3,7 @@ import { getDayType, isBankHoliday, addDays, fmtHrs, today, calcSpreadover } fro
 import { alertsForZone } from "../lib/routeAlerts.js";
 import { ZONES, getDuties, getSeq } from "../lib/roster.js";
 import { BG, CARD, CARD2, BORDER, TEXT, MUTED, ACCENT, SUCCESS, btnStyle, tag } from "../lib/theme.js";
-import { SegGroup, DutyPicker, RouteAlertCard } from "../components/shared.jsx";
+import { SegGroup, DutyPicker, RouteAlertCard, SettingsButton } from "../components/shared.jsx";
 
 export function parseEntry(e) {
   const m=e.match(/^(\d{1,2}:\d{2})\s*-\s*(.+)$/);
@@ -11,7 +11,7 @@ export function parseEntry(e) {
 }
 
 // ─── DUTY LOOKUP SCREEN ───────────────────────────────────────────────────────
-export function DutyLookup({alerts, onLogShift}) {
+export function DutyLookup({alerts, onLogShift, onOpenSettings}) {
   // Remember last used zone across sessions
   const savedZone = localStorage.getItem("dbus_last_zone") || "Zone 1";
   const [zone, setZone] = useState(savedZone);
@@ -59,9 +59,14 @@ export function DutyLookup({alerts, onLogShift}) {
     <div style={{background:BG,minHeight:"100vh",paddingBottom:100}}>
       {/* Header */}
       <div style={{padding:"24px 20px 20px",background:`linear-gradient(180deg,${CARD2} 0%,${BG} 100%)`}}>
-        <p style={{color:MUTED,fontSize:11,margin:"0 0 4px",textTransform:"uppercase",letterSpacing:2,fontWeight:600}}>Dublin Bus</p>
-        <h1 style={{color:TEXT,fontSize:26,fontWeight:800,margin:0,letterSpacing:"-0.5px"}}>Duty Lookup</h1>
-        <p style={{color:MUTED,fontSize:13,margin:"6px 0 0"}}>Select zone, day and duty to see your running board</p>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:12}}>
+          <div style={{flex:1,minWidth:0}}>
+            <p style={{color:MUTED,fontSize:11,margin:"0 0 4px",textTransform:"uppercase",letterSpacing:2,fontWeight:600}}>Dublin Bus</p>
+            <h1 style={{color:TEXT,fontSize:26,fontWeight:800,margin:0,letterSpacing:"-0.5px"}}>Duty Lookup</h1>
+            <p style={{color:MUTED,fontSize:13,margin:"6px 0 0"}}>Select zone, day and duty to see your running board</p>
+          </div>
+          <SettingsButton onClick={onOpenSettings}/>
+        </div>
       </div>
 
       <div style={{padding:"0 16px"}}>

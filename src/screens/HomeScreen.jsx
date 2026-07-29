@@ -5,8 +5,7 @@ import { DUTIES, shiftDepartLocation, shiftBreakEnd, pStats, periodForDate, dayI
 import { BG, CARD, BORDER, CARD2, TEXT, MUTED, ACCENT, SUCCESS, DANGER, btnStyle, tag } from "../lib/theme.js";
 import { notifyOnce, loadSettings, saveSettings } from "../lib/persistence.js";
 import { fetchWeather, weatherIconKind } from "../lib/weather.js";
-import { RouteAlertBanner, ConfirmDialog, WeatherChip } from "../components/shared.jsx";
-import { SettingsPanel } from "./SettingsPanel.jsx";
+import { RouteAlertBanner, WeatherChip, SettingsButton } from "../components/shared.jsx";
 
 // ─── TODAY DUTY CARD ──────────────────────────────────────────────────────────
 export function TodayDutyCard({shift, label, accentColor, defaultExpanded=true}) {
@@ -189,10 +188,8 @@ export function UpcomingCarousel({periods, activePeriodId, todayDate, onLogDate}
 }
 
 // ─── HOME SCREEN ──────────────────────────────────────────────────────────────
-export function HomeScreen({period, periods, alerts, onViewAlerts, driverGarage, onChangeGarage, driverFirstName, onChangeFirstName, onLog, onLogDate, onGoWeek, onHelp, onThemeChange, leaveSettings, onLeaveSettingsChange, onViewTerms, onViewFAQ, onEditStartDate}) {
+export function HomeScreen({period, periods, alerts, onViewAlerts, driverFirstName, onLog, onLogDate, onGoWeek, onOpenSettings}) {
   const stats = useMemo(() => pStats(period), [period]);
-  const [showSettings, setShowSettings] = useState(false);
-  const [confirmFeedback, setConfirmFeedback] = useState(false);
   const [weather, setWeather] = useState(null);
   useEffect(() => {
     let cancelled = false;
@@ -268,13 +265,10 @@ export function HomeScreen({period, periods, alerts, onViewAlerts, driverGarage,
 
   return (
     <div style={{background:BG,minHeight:"100vh",paddingBottom:100}}>
-      {showSettings && <SettingsPanel period={period} onClose={()=>setShowSettings(false)} onThemeChange={onThemeChange} leaveSettings={leaveSettings} onLeaveSettingsChange={onLeaveSettingsChange} onReplayTour={()=>{setShowSettings(false);onHelp();}} onViewTerms={()=>{setShowSettings(false);onViewTerms();}} onViewFAQ={()=>{setShowSettings(false);onViewFAQ();}} onEditStartDate={onEditStartDate} driverGarage={driverGarage} onChangeGarage={onChangeGarage} driverFirstName={driverFirstName} onChangeFirstName={onChangeFirstName}/>}
-      {confirmFeedback && <ConfirmDialog msg="This opens a feedback form in a new tab, outside the app. Continue?" yesLabel="Continue" onYes={()=>{setConfirmFeedback(false);window.open("https://docs.google.com/forms/d/e/1FAIpQLScgZEIoRM7xqkOpSyVcDQl23fbDJ_UTq99sF0c4mgta5bwrUQ/viewform?usp=header","_blank");}} onNo={()=>setConfirmFeedback(false)}/>}
-
       {/* Header gradient */}
       <div style={{padding:"calc(28px + env(safe-area-inset-top,0px)) 20px 20px",background:`linear-gradient(180deg,${CARD2} 0%,${BG} 100%)`}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
-          <div>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:12}}>
+          <div style={{flex:1,minWidth:0}}>
             {driverFirstName ? (
               <>
                 <p style={{color:TEXT,fontSize:15,fontWeight:700,margin:"0 0 4px",display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
@@ -296,15 +290,7 @@ export function HomeScreen({period, periods, alerts, onViewAlerts, driverGarage,
             </p>
             <p style={{color:MUTED,fontSize:12,margin:"4px 0 0"}}>Week {wi+1} of 5 · {fmtShort(cw.start)} – {fmtShort(cw.end)}</p>
           </div>
-        <div style={{display:"flex",gap:10}}>
-          <button aria-label="Send feedback" onClick={()=>setConfirmFeedback(true)} style={{background:CARD,border:`1px solid ${BORDER}`,color:MUTED,borderRadius:10,width:44,height:44,fontSize:13,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",padding:0,flexShrink:0}}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={MUTED} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-          </button>
-          <button aria-label="Settings" onClick={()=>setShowSettings(true)} style={{background:CARD,border:`1px solid ${BORDER}`,color:MUTED,borderRadius:10,width:44,height:44,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",padding:0,flexShrink:0}}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={MUTED} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-          </button>
-          <button aria-label="Help / tour" onClick={onHelp} style={{background:CARD,border:`1px solid ${BORDER}`,color:MUTED,borderRadius:10,width:44,height:44,fontSize:15,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",padding:0,flexShrink:0}}>?</button>
-        </div>
+          <SettingsButton onClick={onOpenSettings}/>
         </div>
       </div>
 

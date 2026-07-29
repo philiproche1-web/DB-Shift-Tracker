@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { fmtDate } from "../lib/dutyMath.js";
 import { BG, CARD, CARD2, BORDER, TEXT, MUTED, ACCENT, SUCCESS, DANGER, btnStyle } from "../lib/theme.js";
+import { SettingsButton } from "../components/shared.jsx";
 
 // ─── LEAVE SCREEN HELPERS ─────────────────────────────────────────────────────
 export function DayList({items, emptyMsg}) {
@@ -98,7 +99,7 @@ export function SelfCertCard({scH1, scH2, scColor}) {
 }
 
 // ─── LEAVE SCREEN ─────────────────────────────────────────────────────────────
-export function LeaveScreen({periods, leaveSettings, onLogDayOff, onViewFAQ}) {
+export function LeaveScreen({periods, leaveSettings, onLogDayOff, onViewFAQ, onOpenSettings}) {
   const year = new Date().getFullYear();
   const [editTotal, setEditTotal] = useState(false);
   const [totalInput, setTotalInput] = useState(String(leaveSettings?.annualTotal||20));
@@ -124,9 +125,14 @@ export function LeaveScreen({periods, leaveSettings, onLogDayOff, onViewFAQ}) {
   return (
     <div style={{background:BG,minHeight:"100vh",paddingBottom:100}}>
       <div style={{padding:"28px 20px 16px",background:`linear-gradient(180deg,${CARD2} 0%,${BG} 100%)`}}>
-        <p style={{color:ACCENT,fontSize:11,textTransform:"uppercase",letterSpacing:2,fontWeight:700,margin:"0 0 4px"}}>Calendar year {year}</p>
-        <h1 style={{color:TEXT,fontSize:24,fontWeight:800,margin:"0 0 4px",letterSpacing:"-0.5px"}}>Leave Tracker</h1>
-        <p style={{color:MUTED,fontSize:13,margin:0}}>Based on day-off entries logged in the app</p>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:12}}>
+          <div style={{flex:1,minWidth:0}}>
+            <p style={{color:ACCENT,fontSize:11,textTransform:"uppercase",letterSpacing:2,fontWeight:700,margin:"0 0 4px"}}>Calendar year {year}</p>
+            <h1 style={{color:TEXT,fontSize:24,fontWeight:800,margin:"0 0 4px",letterSpacing:"-0.5px"}}>Leave Tracker</h1>
+            <p style={{color:MUTED,fontSize:13,margin:0}}>Based on day-off entries logged in the app</p>
+          </div>
+          <SettingsButton onClick={onOpenSettings}/>
+        </div>
       </div>
       <div style={{padding:"4px 16px 0"}}>
 
