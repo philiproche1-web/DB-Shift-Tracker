@@ -359,13 +359,7 @@ export default function App() {
 
   const archivePeriod=periods.find(p=>p.id===archiveViewId);
 
-  if(screen==="log") return <LogScreen period={activePeriod} editShift={editShift} lookupDuty={lookupDuty} initialDate={logInitDate} initialRestDay={logInitRestDay} alerts={routeAlerts}
-    onSave={saveShift} onCancel={()=>{setEditShift(null);setLookupDuty(null);setLogInitDate(null);setLogInitRestDay(false);setScreen(editShift?"period":lookupDuty?"lookup":"home");}}/>;
-
   if(screen==="alerts") return <RouteAlertsScreen alerts={routeAlerts} onBack={()=>setScreen("home")}/>;
-
-  if(screen==="dayoff") return <LogDayOffScreen periods={periods} editDayOff={editDayOff}
-    onSave={saveDayOff} onCancel={()=>{setEditDayOff(null);setScreen(editDayOff?"period":dayOffFrom);}}/>;
 
   if(screen==="archive"&&archiveViewId&&archivePeriod) return (
     <div style={{background:BG,minHeight:"100vh"}}>
@@ -378,6 +372,12 @@ export default function App() {
 
   return (
     <div style={{background:BG,minHeight:"100vh"}}>
+      {screen==="log"&&<LogScreen period={activePeriod} editShift={editShift} lookupDuty={lookupDuty} initialDate={logInitDate} initialRestDay={logInitRestDay} alerts={routeAlerts}
+        onSave={saveShift} onCancel={()=>{setEditShift(null);setLookupDuty(null);setLogInitDate(null);setLogInitRestDay(false);setScreen(editShift?"period":lookupDuty?"lookup":"home");}}
+        onOpenSettings={()=>setShowSettings(true)}/>}
+      {screen==="dayoff"&&<LogDayOffScreen periods={periods} editDayOff={editDayOff}
+        onSave={saveDayOff} onCancel={()=>{setEditDayOff(null);setScreen(editDayOff?"period":dayOffFrom);}}
+        onOpenSettings={()=>setShowSettings(true)}/>}
       {screen==="lookup"&&<DutyLookup alerts={routeAlerts} onLogShift={(d,dt,date)=>{setLookupDuty({d,dt,date});setScreen("log");}} onOpenSettings={()=>setShowSettings(true)}/>}
       {screen==="home"&&<HomeScreen period={activePeriod} periods={periods}
         alerts={routeAlerts}
@@ -403,11 +403,12 @@ export default function App() {
         onStartNew={startNewPeriod} onView={id=>setArchiveViewId(id)}
         onOpenSettings={()=>setShowSettings(true)}/>}
       <BottomNav active={screen==="log"?"log":["archive"].includes(screen)?"leave":screen} onChange={tab=>{
-        if(tab==="log"){setEditShift(null);setLookupDuty(null);setLogInitDate(null);setLogInitRestDay(false);setScreen("log");}
-        else{
-          if(tab==="period")setOpenWeek(null);
-          setScreen(tab);
-        }
+        // Navigating away from an in-progress shift/day-off edit discards it,
+        // same as that screen's own Cancel — otherwise stale editShift/
+        // editDayOff state would resurface next time Log opens.
+        setEditShift(null);setLookupDuty(null);setLogInitDate(null);setLogInitRestDay(false);setEditDayOff(null);
+        if(tab==="period")setOpenWeek(null);
+        setScreen(tab);
       }}/>
       {confirm&&<ConfirmDialog msg={confirm.msg} yesLabel={confirm.yesLabel} danger={confirm.danger!==false} onYes={confirm.onYes} onNo={()=>setConfirm(null)}/>}
       {showTour&&<TourOverlay onDone={dismissTour}/>}

@@ -5,6 +5,11 @@
 export const MAX_HOURS = 190 + 4 / 60;
 export const MAX_SUNDAY = 14.5;
 export const DAY_OFF_TYPES = ["Annual Leave", "Sick Day", "Rest Day", "Force Majeure", "Self Cert"];
+// Rest Day is auto-generated from the fixed roster pattern (see
+// withFixedRestDays in roster.js) — it stays in DAY_OFF_TYPES for tallies/PDF
+// export, but drivers no longer manually log it, so the Log Day Off picker
+// offers this shorter list instead.
+export const LOGGABLE_DAY_OFF_TYPES = DAY_OFF_TYPES.filter(t => t !== "Rest Day");
 
 // Republic of Ireland public holidays — Dublin Bus runs Sunday-service duties
 // on every one of these regardless of actual weekday. Literal calendar dates

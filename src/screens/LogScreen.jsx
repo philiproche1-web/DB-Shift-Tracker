@@ -3,10 +3,10 @@ import { getDayType, isBankHoliday, addDays, fmtDate, fmtShort, fmtHrs, today, u
 import { alertsForZone } from "../lib/routeAlerts.js";
 import { ZONES, FIXED_DUTY_TYPES, getDuties } from "../lib/roster.js";
 import { BG, CARD, BORDER, CARD2, TEXT, MUTED, ACCENT, SUCCESS, DANGER, cardStyle, inputStyle, btnStyle, tag } from "../lib/theme.js";
-import { PageHeader, FieldLabel, DateInput, SegGroup, DutyPicker, RouteAlertCard, ConfirmDialog } from "../components/shared.jsx";
+import { PageHeader, FieldLabel, DateInput, SegGroup, DutyPicker, RouteAlertCard, ConfirmDialog, SettingsButton } from "../components/shared.jsx";
 
 // ─── LOG SHIFT SCREEN ─────────────────────────────────────────────────────────
-export function LogScreen({period, editShift, lookupDuty, initialDate, initialRestDay, alerts, onSave, onCancel}) {
+export function LogScreen({period, editShift, lookupDuty, initialDate, initialRestDay, alerts, onSave, onCancel, onOpenSettings}) {
   // lookupDuty = {d: dutyObj, dt: dayType} from the Lookup screen
   const initZone = lookupDuty?.d.z || editShift?.zone || "Zone 1";
   const [date, setDate] = useState(lookupDuty?.date || editShift?.date || initialDate || today());
@@ -203,7 +203,7 @@ export function LogScreen({period, editShift, lookupDuty, initialDate, initialRe
           <p style={{color:DANGER,fontSize:13,fontWeight:600,margin:0}}>Logging this as overtime — you're on a scheduled rest day.</p>
         </div>
       )}
-      <PageHeader eyebrow={editShift?"Editing":lookupDuty?"From Lookup":"New entry"} title={editShift?"Edit Shift":"Log a Shift"} onBack={onCancel}/>
+      <PageHeader eyebrow={editShift?"Editing":lookupDuty?"From Lookup":"New entry"} title={editShift?"Edit Shift":"Log a Shift"} onBack={onCancel} right={<SettingsButton onClick={onOpenSettings}/>}/>
 
       <div style={{padding:"4px 16px 0"}}>
         {lookupDuty && (

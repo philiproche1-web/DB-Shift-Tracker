@@ -1,11 +1,15 @@
 import { useState, useMemo } from "react";
-import { DAY_OFF_TYPES, addDays, fmtDate, today, uid } from "../lib/dutyMath.js";
+import { DAY_OFF_TYPES, LOGGABLE_DAY_OFF_TYPES, addDays, fmtDate, today, uid } from "../lib/dutyMath.js";
 import { BG, CARD, BORDER, TEXT, MUTED, ACCENT, btnStyle } from "../lib/theme.js";
-import { PageHeader, FieldLabel, DateInput } from "../components/shared.jsx";
+import { PageHeader, FieldLabel, DateInput, SettingsButton } from "../components/shared.jsx";
 
 // ─── LOG DAY OFF SCREEN ───────────────────────────────────────────────────────
-export function LogDayOffScreen({periods, editDayOff, onSave, onCancel}) {
-  const [type, setType] = useState(editDayOff?.type || DAY_OFF_TYPES[0]);
+export function LogDayOffScreen({periods, editDayOff, onSave, onCancel, onOpenSettings}) {
+  const [type, setType] = useState(editDayOff?.type || LOGGABLE_DAY_OFF_TYPES[0]);
+  // Rest days are auto-generated from the fixed roster pattern and no longer
+  // manually logged — but an old manually-logged Rest Day entry being edited
+  // must still show its own type as a selectable option.
+  const typeOptions = editDayOff?.type === "Rest Day" ? DAY_OFF_TYPES : LOGGABLE_DAY_OFF_TYPES;
   const [date, setDate] = useState(editDayOff?.date || today());
   // Range mode for Annual Leave
   const [rangeTo, setRangeTo] = useState(editDayOff?.date || today());
@@ -40,7 +44,7 @@ export function LogDayOffScreen({periods, editDayOff, onSave, onCancel}) {
 
   return (
     <div style={{background:BG,minHeight:"100vh",paddingBottom:100}}>
-      <PageHeader eyebrow={editDayOff?"Editing":"New entry"} title={editDayOff?"Edit Day Off":"Log Day Off"} onBack={onCancel}/>
+      <PageHeader eyebrow={editDayOff?"Editing":"New entry"} title={editDayOff?"Edit Day Off":"Log Day Off"} onBack={onCancel} right={<SettingsButton onClick={onOpenSettings}/>}/>
 
       <div style={{padding:"4px 16px 0"}}>
 
@@ -48,7 +52,7 @@ export function LogDayOffScreen({periods, editDayOff, onSave, onCancel}) {
         <div style={{marginBottom:20}}>
           <FieldLabel>Type</FieldLabel>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-            {DAY_OFF_TYPES.map(t=>{
+            {typeOptions.map(t=>{
               const sel = type===t;
               return (
                 <button key={t} onClick={()=>setType(t)} style={{

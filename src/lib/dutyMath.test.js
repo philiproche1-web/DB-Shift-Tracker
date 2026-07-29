@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  MAX_HOURS, MAX_SUNDAY, getDayType, isBankHoliday, addDays, fmtHrs, calcSpreadover,
+  MAX_HOURS, MAX_SUNDAY, DAY_OFF_TYPES, LOGGABLE_DAY_OFF_TYPES, getDayType, isBankHoliday, addDays, fmtHrs, calcSpreadover,
   parseTimeToMins, addDuration, maxConsec, dayOffTally, inPeriod, wkStats, greetingTimeBand,
 } from "./dutyMath.js";
 
@@ -8,6 +8,14 @@ describe("MAX_HOURS / MAX_SUNDAY", () => {
   it("is 190h 4m and 14h 30m", () => {
     expect(MAX_HOURS).toBeCloseTo(190 + 4 / 60, 5);
     expect(MAX_SUNDAY).toBe(14.5);
+  });
+});
+
+describe("LOGGABLE_DAY_OFF_TYPES", () => {
+  it("excludes Rest Day (auto-generated) but keeps it in DAY_OFF_TYPES for tallies", () => {
+    expect(LOGGABLE_DAY_OFF_TYPES).not.toContain("Rest Day");
+    expect(DAY_OFF_TYPES).toContain("Rest Day");
+    expect(LOGGABLE_DAY_OFF_TYPES).toEqual(["Annual Leave", "Sick Day", "Force Majeure", "Self Cert"]);
   });
 });
 
