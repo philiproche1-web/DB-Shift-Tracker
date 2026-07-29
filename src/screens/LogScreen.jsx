@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { getDayType, addDays, fmtDate, fmtShort, fmtHrs, today, uid, sundayOf, calcSpreadover, addDuration, inPeriod } from "../lib/dutyMath.js";
+import { getDayType, isBankHoliday, addDays, fmtDate, fmtShort, fmtHrs, today, uid, sundayOf, calcSpreadover, addDuration, inPeriod } from "../lib/dutyMath.js";
 import { alertsForZone } from "../lib/routeAlerts.js";
 import { ZONES, FIXED_DUTY_TYPES, getDuties } from "../lib/roster.js";
 import { BG, CARD, BORDER, CARD2, TEXT, MUTED, ACCENT, SUCCESS, DANGER, cardStyle, inputStyle, btnStyle, tag } from "../lib/theme.js";
@@ -62,9 +62,10 @@ export function LogScreen({period, editShift, lookupDuty, initialDate, initialRe
   }
 
   // Use lookupDuty's dayType for duty filtering when coming from Lookup
-  // so the right duties show regardless of today's day
+  // so the right duties show regardless of today's day — except on a bank
+  // holiday, where Sunday duties are mandatory and override any lookup pick.
   const dateDayType = getDayType(date);
-  const dutyDayType = lookupDuty ? lookupDuty.dt : dateDayType;
+  const dutyDayType = (lookupDuty && !isBankHoliday(date)) ? lookupDuty.dt : dateDayType;
   const duties = useMemo(() => getDuties(zone, dutyDayType), [zone, dutyDayType]);
   const zoneAlerts = useMemo(() => alertsForZone(alerts||[], zone, date), [alerts, zone, date]);
   const dayLabel = dateDayType==="sunday"?"Sunday":dateDayType==="saturday"?"Saturday":"Mon–Fri";

@@ -6,7 +6,29 @@ export const MAX_HOURS = 190 + 4 / 60;
 export const MAX_SUNDAY = 14.5;
 export const DAY_OFF_TYPES = ["Annual Leave", "Sick Day", "Rest Day", "Force Majeure", "Self Cert"];
 
+// Republic of Ireland public holidays — Dublin Bus runs Sunday-service duties
+// on every one of these regardless of actual weekday. Literal calendar dates
+// (not the private-sector "nearest Monday" substitute day off). Add next
+// year's set each December — moving dates (Easter Monday, St. Brigid's Day)
+// must be looked up, not computed.
+export const BANK_HOLIDAYS_IE = [
+  // 2025
+  "2025-01-01", "2025-02-03", "2025-03-17", "2025-04-21", "2025-05-05",
+  "2025-06-02", "2025-08-04", "2025-10-27", "2025-12-25", "2025-12-26",
+  // 2026
+  "2026-01-01", "2026-02-02", "2026-03-17", "2026-04-06", "2026-05-04",
+  "2026-06-01", "2026-08-03", "2026-10-26", "2026-12-25", "2026-12-26",
+  // 2027
+  "2027-01-01", "2027-02-01", "2027-03-17", "2027-03-29", "2027-05-03",
+  "2027-06-07", "2027-08-02", "2027-10-25", "2027-12-25", "2027-12-26",
+];
+
+export function isBankHoliday(s) {
+  return BANK_HOLIDAYS_IE.includes(s);
+}
+
 export function getDayType(s) {
+  if (isBankHoliday(s)) return "sunday";
   const day = new Date(s + "T12:00:00").getDay();
   return day === 0 ? "sunday" : day === 6 ? "saturday" : "weekday";
 }

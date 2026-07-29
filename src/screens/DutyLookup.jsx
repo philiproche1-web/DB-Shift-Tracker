@@ -1,8 +1,8 @@
 import { useState, useMemo } from "react";
-import { getDayType, addDays, fmtHrs, today, calcSpreadover } from "../lib/dutyMath.js";
+import { getDayType, isBankHoliday, addDays, fmtHrs, today, calcSpreadover } from "../lib/dutyMath.js";
 import { alertsForZone } from "../lib/routeAlerts.js";
 import { ZONES, getDuties, getSeq } from "../lib/roster.js";
-import { BG, CARD, CARD2, BORDER, TEXT, MUTED, ACCENT, SUCCESS, btnStyle } from "../lib/theme.js";
+import { BG, CARD, CARD2, BORDER, TEXT, MUTED, ACCENT, SUCCESS, btnStyle, tag } from "../lib/theme.js";
 import { SegGroup, DutyPicker, RouteAlertCard } from "../components/shared.jsx";
 
 export function parseEntry(e) {
@@ -21,7 +21,12 @@ export function DutyLookup({alerts, onLogShift}) {
   const zoneAlerts = useMemo(() => alertsForZone(alerts||[], zone, today()), [alerts, zone]);
   const duty = rIdx>=0 ? duties[rIdx] : null;
   const sequence = useMemo(()=> duty ? getSeq(duty.z, duty.t, duty.d2) : [], [duty]);
-  const dayOpts=[{v:"weekday",l:"Mon–Fri"},{v:"saturday",l:"Saturday"},{v:"sunday",l:"Sunday"}];
+  // Today's a bank holiday: Sunday duties run across every route/garage, so
+  // Mon–Fri/Saturday aren't real options — lock the picker to Sunday only.
+  const todayIsHoliday = isBankHoliday(today());
+  const dayOpts = todayIsHoliday
+    ? [{v:"sunday",l:"Sunday"}]
+    : [{v:"weekday",l:"Mon–Fri"},{v:"saturday",l:"Saturday"},{v:"sunday",l:"Sunday"}];
   const spreadover = duty ? calcSpreadover(duty.s, duty.e) : 0;
 
   function handleZoneChange(z) {
@@ -70,8 +75,10 @@ export function DutyLookup({alerts, onLogShift}) {
 
         {/* Day selector */}
         <div style={{marginBottom:12}}>
-          <p style={{color:MUTED,fontSize:11,textTransform:"uppercase",letterSpacing:1.5,fontWeight:600,margin:"0 0 8px"}}>Day</p>
-          <SegGroup options={dayOpts.map(o=>({v:o.v,l:o.l}))} value={dayType} cols={3}
+          <p style={{color:MUTED,fontSize:11,textTransform:"uppercase",letterSpacing:1.5,fontWeight:600,margin:"0 0 8px"}}>Day
+            {todayIsHoliday && <span style={{...tag(SUCCESS),marginLeft:8}}>Bank Holiday — Sunday duties</span>}
+          </p>
+          <SegGroup options={dayOpts.map(o=>({v:o.v,l:o.l}))} value={dayType} cols={dayOpts.length}
             onChange={v=>{setDayType(v);setRIdx(-1);}}/>
         </div>
 

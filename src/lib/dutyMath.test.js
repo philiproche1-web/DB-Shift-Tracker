@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  MAX_HOURS, MAX_SUNDAY, getDayType, addDays, fmtHrs, calcSpreadover,
+  MAX_HOURS, MAX_SUNDAY, getDayType, isBankHoliday, addDays, fmtHrs, calcSpreadover,
   parseTimeToMins, addDuration, maxConsec, dayOffTally, inPeriod, wkStats, greetingTimeBand,
 } from "./dutyMath.js";
 
@@ -16,6 +16,20 @@ describe("getDayType", () => {
     expect(getDayType("2026-07-26")).toBe("sunday");
     expect(getDayType("2026-07-25")).toBe("saturday");
     expect(getDayType("2026-07-27")).toBe("weekday");
+  });
+
+  it("forces Sunday duties on a bank holiday regardless of actual weekday", () => {
+    expect(getDayType("2026-03-17")).toBe("sunday"); // St. Patrick's Day, a Tuesday
+    expect(getDayType("2026-08-03")).toBe("sunday"); // August bank holiday, a Monday
+    expect(getDayType("2026-12-26")).toBe("sunday"); // St. Stephen's Day, a Saturday
+  });
+});
+
+describe("isBankHoliday", () => {
+  it("flags known IE bank holidays and rejects ordinary dates", () => {
+    expect(isBankHoliday("2026-01-01")).toBe(true);
+    expect(isBankHoliday("2026-04-06")).toBe(true); // Easter Monday
+    expect(isBankHoliday("2026-07-27")).toBe(false);
   });
 });
 
