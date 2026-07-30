@@ -257,7 +257,7 @@ export default function App() {
     persist(updated,activePeriodId); setEditShift(null); setLookupDuty(null); setLogInitDate(null); setLogInitRestDay(false); setScreen("home");
   }
 
-  function saveDayOff(dayOffOrArray, replaceShiftIds) {
+  function saveDayOff(dayOffOrArray, replaceShiftIds, replaceDayOffIds) {
     const items = Array.isArray(dayOffOrArray) ? dayOffOrArray : [dayOffOrArray];
     // Group items by target period
     let updated = [...periods];
@@ -272,13 +272,17 @@ export default function App() {
         : (periodForDate(periods, dayOff.date, activePeriodId)?.id ?? activePeriodId);
       updated = updated.map(p => {
         if(p.id !== targetId) return p;
-        const daysOff = p.daysOff||[];
+        // Log Day Off warns and names what's already logged before calling
+        // this, then replaceDayOffIds carries the old day off(s) to drop —
+        // a second day off on the same date replaces the first, same as a
+        // day off replaces a same-date shift below.
+        let daysOff = p.daysOff||[];
+        if (replaceDayOffIds?.length) daysOff = daysOff.filter(d=>!replaceDayOffIds.includes(d.id));
         const ei = daysOff.findIndex(d=>d.id===dayOff.id);
         if (ei>=0) return {...p, daysOff: daysOff.map(d=>d.id===dayOff.id?dayOff:d)};
         // New entry (multi-day path): skip if another day off already owns
-        // this date — the Log Day Off screen already blocks this in the UI,
-        // this is just the same race guard saveShift already has for its own
-        // multi-day path.
+        // this date and wasn't in the replace list — the same race guard
+        // saveShift already has for its own multi-day path.
         if (daysOff.some(d=>d.date===dayOff.date)) return p;
         return {...p, daysOff:[...daysOff, dayOff]};
       });

@@ -37,32 +37,40 @@ export function LogDayOffScreen({periods, editDayOff, onSave, onCancel, onOpenSe
     .map(d => allShifts.find(s => s.date === d))
     .filter(Boolean);
 
-  // A driver can only be on one kind of day off per date — unlike a shift
-  // overlapping a day off (replaced, see above), two day-off records on the
-  // same date is never valid, so this blocks Save entirely rather than warning.
+  // A driver can only be on one kind of day off per date, so a second one
+  // (any type) replaces the first — same confirm-and-replace pattern as a
+  // shift above, not a dead-end block.
   const allDaysOff = useMemo(()=>periods.flatMap(p=>p.daysOff||[]), [periods]);
-  const duplicateDates = (isRange ? rangeDays : [date]).filter(d => allDaysOff.some(o=>o.date===d && o.id!==editDayOff?.id));
+  const conflictDayOffs = (isRange ? rangeDays : [date])
+    .map(d => allDaysOff.find(o => o.date === d && o.id !== editDayOff?.id))
+    .filter(Boolean);
 
   function performSave() {
+    const shiftIds = conflictShifts.map(s=>s.id);
+    const dayOffIds = conflictDayOffs.map(o=>o.id);
     if (isRange && rangeCount > 0) {
-      onSave(rangeDays.map(d => ({id:uid(), date:d, type})), conflictShifts.map(s=>s.id));
+      onSave(rangeDays.map(d => ({id:uid(), date:d, type})), shiftIds, dayOffIds);
     } else {
-      onSave({id:editDayOff?.id||uid(), date, type}, conflictShifts.map(s=>s.id));
+      onSave({id:editDayOff?.id||uid(), date, type}, shiftIds, dayOffIds);
     }
   }
 
   function handleSave() {
-    if (conflictShifts.length > 0) {
-      const msg = conflictShifts.length === 1
-        ? `This will replace the shift already logged for ${fmtDate(conflictShifts[0].date)} (${conflictShifts[0].roster}) with ${type} — continue?`
-        : `This will replace ${conflictShifts.length} shifts already logged (${conflictShifts.map(s=>`${fmtDate(s.date)}: ${s.roster}`).join(", ")}) with ${type} — continue?`;
-      setPendingAction({ msg, run: performSave });
+    if (conflictShifts.length > 0 || conflictDayOffs.length > 0) {
+      const parts = [];
+      if (conflictShifts.length > 0) parts.push(conflictShifts.length===1
+        ? `the shift already logged for ${fmtDate(conflictShifts[0].date)} (${conflictShifts[0].roster})`
+        : `${conflictShifts.length} shifts already logged (${conflictShifts.map(s=>`${fmtDate(s.date)}: ${s.roster}`).join(", ")})`);
+      if (conflictDayOffs.length > 0) parts.push(conflictDayOffs.length===1
+        ? `the ${conflictDayOffs[0].type} already logged for ${fmtDate(conflictDayOffs[0].date)}`
+        : `${conflictDayOffs.length} day offs already logged (${conflictDayOffs.map(o=>`${fmtDate(o.date)}: ${o.type}`).join(", ")})`);
+      setPendingAction({ msg: `This will replace ${parts.join(" and ")} with ${type} — continue?`, run: performSave });
       return;
     }
     performSave();
   }
 
-  const canSave = date && (isRange ? rangeCount > 0 : true) && duplicateDates.length === 0;
+  const canSave = date && (isRange ? rangeCount > 0 : true);
 
   return (
     <div style={{background:BG,minHeight:"100vh",paddingBottom:100}}>
@@ -123,11 +131,13 @@ export function LogDayOffScreen({periods, editDayOff, onSave, onCancel, onOpenSe
           </div>
         )}
 
-        {duplicateDates.length > 0 && (
+        {conflictDayOffs.length > 0 && (
           <div style={{display:"flex",alignItems:"flex-start",gap:8,marginBottom:16,padding:"10px 12px",background:`${DANGER}14`,border:`1px solid ${DANGER}44`,borderRadius:10}}>
             <span style={{width:6,height:6,borderRadius:"50%",background:DANGER,flexShrink:0,marginTop:6}}/>
             <p style={{color:DANGER,fontSize:13,margin:0}}>
-              {duplicateDates.length===1 ? `A day off is already logged on ${fmtDate(duplicateDates[0])}.` : `${duplicateDates.length} of these days already have a day off logged.`} Edit or remove it first.
+              {conflictDayOffs.length===1
+                ? `${conflictDayOffs[0].type} is already logged on ${fmtDate(conflictDayOffs[0].date)}.`
+                : `${conflictDayOffs.length} of these days already have a day off logged.`} Saving will replace it.
             </p>
           </div>
         )}
