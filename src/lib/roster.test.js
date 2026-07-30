@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { greetingDutyContext, computeShiftStreak, dayInfo, periodForDate } from "./roster.js";
+import { greetingDutyContext, computeShiftStreak, dayInfo, periodForDate, weekHighlights } from "./roster.js";
 import { addDays } from "./dutyMath.js";
 
 const PERIOD = {
@@ -155,5 +155,115 @@ describe("computeShiftStreak", () => {
     else periodA.shifts.push(shift);
 
     expect(computeShiftStreak([periodA, periodB], "capB", todayDate)).toBe(0);
+  });
+});
+
+describe("weekHighlights", () => {
+  const base = { id: "wh1", startDate: "2026-07-19", shifts: [], daysOff: [] };
+
+  it("names an exact Saturday+Sunday rest pattern a short weekend", () => {
+    // Week of 2026-07-19 (Sun) to 2026-07-25 (Sat): FIXED_REST_PATTERN week 1 is
+    // [Sunday, Monday] by default in roster.js, so override via removedFixedRestDates
+    // and a real Rest Day pair to get exactly Sat+Sun for this test.
+    const p = {
+      ...base,
+      removedFixedRestDates: ["2026-07-19", "2026-07-20"], // remove the auto Sun+Mon
+      daysOff: [
+        { id: "r1", date: "2026-07-25", type: "Rest Day" }, // Saturday
+        { id: "r2", date: "2026-07-19", type: "Rest Day" }, // Sunday (re-added as real)
+      ],
+    };
+    expect(weekHighlights(p, "2026-07-19")).toEqual(["Short weekend"]);
+  });
+
+  it("names an exact Saturday+Sunday+Monday rest pattern a long weekend", () => {
+    const p = {
+      ...base,
+      daysOff: [{ id: "r1", date: "2026-07-25", type: "Rest Day" }], // Saturday, real
+      // Week 1's FIXED_REST_PATTERN default is [Sunday, Monday] - combined with
+      // the real Saturday above, this week's merged rest days are exactly Sat+Sun+Mon.
+    };
+    expect(weekHighlights(p, "2026-07-19")).toEqual(["Long weekend"]);
+  });
+
+  it("lists non-weekend rest-day combinations plainly, in date order", () => {
+    const p = {
+      ...base,
+      removedFixedRestDates: ["2026-07-19", "2026-07-20"], // remove the auto Sun+Mon
+      daysOff: [
+        { id: "r1", date: "2026-07-25", type: "Rest Day" }, // Saturday
+        { id: "r2", date: "2026-07-21", type: "Rest Day" }, // Tuesday
+      ],
+    };
+    expect(weekHighlights(p, "2026-07-19")).toEqual(["Off Tuesday & Saturday"]);
+  });
+
+  it("announces a special day-off run that starts this week, in weeks when a multiple of 7", () => {
+    const p = {
+      ...base,
+      daysOff: [
+        ...Array.from({ length: 14 }, (_, i) => ({
+          id: `al${i}`, date: addDays("2026-07-20", i), type: "Annual Leave",
+        })),
+      ],
+    };
+    // Run starts 2026-07-20 (Monday, within the 07-19..07-25 week), 14 days = 2 weeks.
+    expect(weekHighlights(p, "2026-07-19")).toContain("2 weeks Annual Leave starts this week");
+  });
+
+  it("uses singular '1 week' for an exact 7-day run (the week/day boundary)", () => {
+    const p = {
+      ...base,
+      daysOff: Array.from({ length: 7 }, (_, i) => ({
+        id: `s${i}`, date: addDays("2026-07-20", i), type: "Sick Day",
+      })),
+    };
+    // 2026-07-20 through 2026-07-26 inclusive = exactly 7 days.
+    expect(weekHighlights(p, "2026-07-19")).toContain("1 week Sick Day starts this week");
+  });
+
+  it("uses day-count phrasing for an 8-day run (just over the week boundary, not a multiple of 7)", () => {
+    const p = {
+      ...base,
+      daysOff: Array.from({ length: 8 }, (_, i) => ({
+        id: `s${i}`, date: addDays("2026-07-20", i), type: "Sick Day",
+      })),
+    };
+    expect(weekHighlights(p, "2026-07-19")).toContain("8 days Sick Day starts this week");
+  });
+
+  it("uses day-count phrasing when the run isn't a whole number of weeks", () => {
+    const p = {
+      ...base,
+      daysOff: [
+        { id: "s1", date: "2026-07-22", type: "Sick Day" },
+        { id: "s2", date: "2026-07-23", type: "Sick Day" },
+        { id: "s3", date: "2026-07-24", type: "Sick Day" },
+      ],
+    };
+    expect(weekHighlights(p, "2026-07-19")).toContain("3 days Sick Day starts this week");
+  });
+
+  it("stays silent about a run that started before this week", () => {
+    const p = {
+      ...base,
+      removedFixedRestDates: ["2026-07-19", "2026-07-20"],
+      daysOff: [
+        { id: "s1", date: "2026-07-17", type: "Sick Day" }, // starts the PRIOR week
+        { id: "s2", date: "2026-07-18", type: "Sick Day" },
+        { id: "s3", date: "2026-07-19", type: "Sick Day" }, // continues into this week
+      ],
+    };
+    const result = weekHighlights(p, "2026-07-19");
+    expect(result.some(l => l.includes("Sick Day"))).toBe(false);
+  });
+
+  it("adds a CPC line alongside a rest-day line in the same week", () => {
+    const p = {
+      ...base,
+      shifts: [{ id: "c1", date: "2026-07-23", roster: "CPC/Training", fixedType: "cpc" }], // Thursday
+      // Week 1's default FIXED_REST_PATTERN [Sunday, Monday] applies unchanged.
+    };
+    expect(weekHighlights(p, "2026-07-19")).toEqual(["Off Sunday & Monday", "CPC · Thursday"]);
   });
 });

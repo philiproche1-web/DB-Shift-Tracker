@@ -69,6 +69,76 @@ export function withFixedRestDays(startDate, daysOff, shifts, removedFixed) {
     .map(d => ({ id: `fixed-${d}`, date: d, type: "Rest Day", fixed: true }));
   return [...(daysOff || []), ...virtual];
 }
+const WEEKDAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+function weekdayName(dateStr) {
+  return WEEKDAY_NAMES[new Date(dateStr + "T12:00:00").getDay()];
+}
+function joinWeekdayNames(names) {
+  if (names.length <= 1) return names.join("");
+  if (names.length === 2) return `${names[0]} & ${names[1]}`;
+  return `${names.slice(0, -1).join(", ")} & ${names[names.length - 1]}`;
+}
+
+// Summarizes the current week for the Home screen's "This Week" widget:
+// the rest-day pattern (named "Short weekend"/"Long weekend" when it matches
+// those exact shapes), any CPC/Training days, and the start of any special
+// day-off run (Annual Leave/Sick Day/Force Majeure/Self Cert). A run already
+// in progress before this week is silent - see the design spec
+// (docs/superpowers/specs/2026-07-30-home-week-highlights-design.md) for why.
+export function weekHighlights(period, weekStart) {
+  const weekEnd = addDays(weekStart, 6);
+  const mergedDaysOff = withFixedRestDays(period.startDate, period.daysOff || [], period.shifts || [], period.removedFixedRestDates);
+  const lines = [];
+
+  // 1. Rest days this week
+  const restDates = mergedDaysOff
+    .filter(d => d.type === "Rest Day" && d.date >= weekStart && d.date <= weekEnd)
+    .map(d => d.date)
+    .sort();
+  if (restDates.length > 0) {
+    const weekdaySet = new Set(restDates.map(d => new Date(d + "T12:00:00").getDay()));
+    if (weekdaySet.size === 2 && weekdaySet.has(0) && weekdaySet.has(6)) {
+      lines.push("Short weekend");
+    } else if (weekdaySet.size === 3 && weekdaySet.has(0) && weekdaySet.has(6) && weekdaySet.has(1)) {
+      lines.push("Long weekend");
+    } else {
+      lines.push(`Off ${joinWeekdayNames(restDates.map(weekdayName))}`);
+    }
+  }
+
+  // 2. Special day-off runs (contiguous same-type dates) starting this week
+  const special = mergedDaysOff
+    .filter(d => d.type !== "Rest Day")
+    .sort((a, b) => a.date.localeCompare(b.date));
+  special.forEach((d, i) => {
+    const prev = special[i - 1];
+    const isRunStart = !prev || prev.type !== d.type || addDays(prev.date, 1) !== d.date;
+    if (!isRunStart) return;
+    if (d.date < weekStart || d.date > weekEnd) return;
+    let runEnd = d.date;
+    let j = i + 1;
+    while (j < special.length && special[j].type === d.type && special[j].date === addDays(runEnd, 1)) {
+      runEnd = special[j].date;
+      j++;
+    }
+    const dayCount = Math.round((new Date(runEnd + "T12:00:00") - new Date(d.date + "T12:00:00")) / 86400000) + 1;
+    const label = dayCount >= 7 && dayCount % 7 === 0
+      ? `${dayCount / 7} week${dayCount / 7 > 1 ? "s" : ""}`
+      : `${dayCount} day${dayCount > 1 ? "s" : ""}`;
+    lines.push(`${label} ${d.type} starts this week`);
+  });
+
+  // 3. CPC/Training days this week
+  const cpcDates = (period.shifts || [])
+    .filter(s => s.fixedType === "cpc" && s.date >= weekStart && s.date <= weekEnd)
+    .map(s => s.date)
+    .sort();
+  if (cpcDates.length > 0) {
+    lines.push(`CPC · ${joinWeekdayNames(cpcDates.map(weekdayName))}`);
+  }
+
+  return lines;
+}
 export function pStats(p) {
   const mergedDaysOff = withFixedRestDays(p.startDate, p.daysOff||[], p.shifts||[], p.removedFixedRestDates);
   const weeks = Array.from({length:5}, (_, i) => wkStats(p.shifts||[], mergedDaysOff, addDays(p.startDate, i*7)));
