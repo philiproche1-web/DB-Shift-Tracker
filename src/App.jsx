@@ -257,7 +257,7 @@ export default function App() {
     persist(updated,activePeriodId); setEditShift(null); setLookupDuty(null); setLogInitDate(null); setLogInitRestDay(false); setScreen("home");
   }
 
-  function saveDayOff(dayOffOrArray) {
+  function saveDayOff(dayOffOrArray, replaceShiftIds) {
     const items = Array.isArray(dayOffOrArray) ? dayOffOrArray : [dayOffOrArray];
     // Group items by target period
     let updated = [...periods];
@@ -283,6 +283,11 @@ export default function App() {
         return {...p, daysOff:[...daysOff, dayOff]};
       });
     });
+    // A day off replaces any shift(s) already logged on the same date(s) —
+    // Log Day Off warns and names what's being replaced before calling this.
+    if (replaceShiftIds?.length) {
+      updated = updated.map(p => ({...p, shifts:(p.shifts||[]).filter(s=>!replaceShiftIds.includes(s.id))}));
+    }
     persist(updated, activePeriodId);
     setEditDayOff(null);
     setScreen(dayOffFrom === "leave" ? "leave" : "period");

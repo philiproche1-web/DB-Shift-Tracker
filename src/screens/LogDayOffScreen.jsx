@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { DAY_OFF_TYPES, LOGGABLE_DAY_OFF_TYPES, addDays, fmtDate, today, uid } from "../lib/dutyMath.js";
 import { BG, CARD, BORDER, TEXT, MUTED, ACCENT, DANGER, btnStyle } from "../lib/theme.js";
-import { PageHeader, FieldLabel, DateInput, SettingsButton } from "../components/shared.jsx";
+import { PageHeader, FieldLabel, DateInput, SettingsButton, ConfirmDialog } from "../components/shared.jsx";
 
 // ─── LOG DAY OFF SCREEN ───────────────────────────────────────────────────────
 export function LogDayOffScreen({periods, editDayOff, onSave, onCancel, onOpenSettings}) {
@@ -28,23 +28,38 @@ export function LogDayOffScreen({periods, editDayOff, onSave, onCancel, onOpenSe
 
   const rangeDays = isRange ? getDaysInRange(date, rangeTo < date ? date : rangeTo) : [];
   const rangeCount = rangeDays.length;
+  const [pendingAction, setPendingAction] = useState(null);
 
   const allShifts = useMemo(()=>periods.flatMap(p=>p.shifts||[]), [periods]);
-  const conflictDates = (isRange ? rangeDays : [date]).filter(d => allShifts.some(s=>s.date===d));
+  // A day off replaces a shift already logged that date (a driver can't work
+  // and be on leave the same day) — one shift per conflicting date, in order.
+  const conflictShifts = (isRange ? rangeDays : [date])
+    .map(d => allShifts.find(s => s.date === d))
+    .filter(Boolean);
 
   // A driver can only be on one kind of day off per date — unlike a shift
-  // overlapping a day off (allowed, just warned about above), two day-off
-  // records on the same date is never valid, so this blocks Save entirely
-  // rather than just warning.
+  // overlapping a day off (replaced, see above), two day-off records on the
+  // same date is never valid, so this blocks Save entirely rather than warning.
   const allDaysOff = useMemo(()=>periods.flatMap(p=>p.daysOff||[]), [periods]);
   const duplicateDates = (isRange ? rangeDays : [date]).filter(d => allDaysOff.some(o=>o.date===d && o.id!==editDayOff?.id));
 
-  function handleSave() {
+  function performSave() {
     if (isRange && rangeCount > 0) {
-      onSave(rangeDays.map(d => ({id:uid(), date:d, type})));
+      onSave(rangeDays.map(d => ({id:uid(), date:d, type})), conflictShifts.map(s=>s.id));
     } else {
-      onSave({id:editDayOff?.id||uid(), date, type});
+      onSave({id:editDayOff?.id||uid(), date, type}, conflictShifts.map(s=>s.id));
     }
+  }
+
+  function handleSave() {
+    if (conflictShifts.length > 0) {
+      const msg = conflictShifts.length === 1
+        ? `This will replace the shift already logged for ${fmtDate(conflictShifts[0].date)} (${conflictShifts[0].roster}) with ${type} — continue?`
+        : `This will replace ${conflictShifts.length} shifts already logged (${conflictShifts.map(s=>`${fmtDate(s.date)}: ${s.roster}`).join(", ")}) with ${type} — continue?`;
+      setPendingAction({ msg, run: performSave });
+      return;
+    }
+    performSave();
   }
 
   const canSave = date && (isRange ? rangeCount > 0 : true) && duplicateDates.length === 0;
@@ -117,11 +132,13 @@ export function LogDayOffScreen({periods, editDayOff, onSave, onCancel, onOpenSe
           </div>
         )}
 
-        {conflictDates.length > 0 && (
+        {conflictShifts.length > 0 && (
           <div style={{display:"flex",alignItems:"flex-start",gap:8,marginBottom:16,padding:"10px 12px",background:"#F59E0B14",border:"1px solid #F59E0B44",borderRadius:10}}>
             <span style={{width:6,height:6,borderRadius:"50%",background:"#F59E0B",flexShrink:0,marginTop:6}}/>
             <p style={{color:"#F59E0B",fontSize:13,margin:0}}>
-              {conflictDates.length===1 ? `A shift is already logged on ${fmtDate(conflictDates[0])}.` : `${conflictDates.length} of these days already have a shift logged.`} Saving will keep both records — check that's right.
+              {conflictShifts.length===1
+                ? `A shift (${conflictShifts[0].roster}) is already logged on ${fmtDate(conflictShifts[0].date)}.`
+                : `${conflictShifts.length} of these days already have a shift logged.`} Saving will replace it.
             </p>
           </div>
         )}
@@ -130,6 +147,11 @@ export function LogDayOffScreen({periods, editDayOff, onSave, onCancel, onOpenSe
           {editDayOff ? "Save Changes" : isRange && rangeCount > 1 ? `Log ${rangeCount} Days` : "Log Day Off"}
         </button>
       </div>
+      {pendingAction && (
+        <ConfirmDialog msg={pendingAction.msg} yesLabel="Replace" danger
+          onYes={()=>{ const run = pendingAction.run; setPendingAction(null); run(); }}
+          onNo={()=>setPendingAction(null)}/>
+      )}
     </div>
   );
 }
