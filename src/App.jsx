@@ -4,8 +4,8 @@ import { signOut, getSession, onAuthStateChange } from "./lib/auth.js";
 import { syncAll, migrateLocalDataIfNeeded } from "./lib/sync.js";
 import { hasLiveRoster } from "./lib/garages.js";
 import { fetchRouteAlerts } from "./lib/routeAlerts.js";
-import { getDayType, addDays, fmtShort, uid, inPeriod } from "./lib/dutyMath.js";
-import { loadRosterData, applyRosterData } from "./lib/roster.js";
+import { getDayType, addDays, fmtShort, uid } from "./lib/dutyMath.js";
+import { loadRosterData, applyRosterData, periodForDate } from "./lib/roster.js";
 import { BG, TEXT, MUTED, ACCENT, DANGER, applyTheme, btnStyle } from "./lib/theme.js";
 import {
   loadData, writeDataLocally, saveData, APP_VERSION, WHATS_NEW,
@@ -258,24 +258,29 @@ export default function App() {
   }
 
   function saveDayOff(dayOffOrArray) {
-    // Find which period a date belongs to (or use active period as fallback)
-    function findPeriodId(date) {
-      const match = periods.find(p => inPeriod(date, p));
-      return match ? match.id : activePeriodId;
-    }
     const items = Array.isArray(dayOffOrArray) ? dayOffOrArray : [dayOffOrArray];
     // Group items by target period
     let updated = [...periods];
     items.forEach(dayOff => {
+      // periodForDate checks the active period first — a plain periods.find()
+      // here could silently resolve into a stale archived period whose date
+      // range still overlaps the active one, saving the day off somewhere it
+      // would never be seen (not in Period, not on the Home carousel, not
+      // editable/deletable). See periodForDate's own comment for why.
       const targetId = dayOff.id && periods.some(p=>(p.daysOff||[]).some(d=>d.id===dayOff.id))
         ? periods.find(p=>(p.daysOff||[]).some(d=>d.id===dayOff.id))?.id
-        : findPeriodId(dayOff.date);
+        : (periodForDate(periods, dayOff.date, activePeriodId)?.id ?? activePeriodId);
       updated = updated.map(p => {
         if(p.id !== targetId) return p;
         const daysOff = p.daysOff||[];
         const ei = daysOff.findIndex(d=>d.id===dayOff.id);
-        const newDaysOff = ei>=0 ? daysOff.map(d=>d.id===dayOff.id?dayOff:d) : [...daysOff,dayOff];
-        return {...p, daysOff:newDaysOff};
+        if (ei>=0) return {...p, daysOff: daysOff.map(d=>d.id===dayOff.id?dayOff:d)};
+        // New entry (multi-day path): skip if another day off already owns
+        // this date — the Log Day Off screen already blocks this in the UI,
+        // this is just the same race guard saveShift already has for its own
+        // multi-day path.
+        if (daysOff.some(d=>d.date===dayOff.date)) return p;
+        return {...p, daysOff:[...daysOff, dayOff]};
       });
     });
     persist(updated, activePeriodId);

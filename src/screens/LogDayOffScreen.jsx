@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { DAY_OFF_TYPES, LOGGABLE_DAY_OFF_TYPES, addDays, fmtDate, today, uid } from "../lib/dutyMath.js";
-import { BG, CARD, BORDER, TEXT, MUTED, ACCENT, btnStyle } from "../lib/theme.js";
+import { BG, CARD, BORDER, TEXT, MUTED, ACCENT, DANGER, btnStyle } from "../lib/theme.js";
 import { PageHeader, FieldLabel, DateInput, SettingsButton } from "../components/shared.jsx";
 
 // ─── LOG DAY OFF SCREEN ───────────────────────────────────────────────────────
@@ -32,6 +32,13 @@ export function LogDayOffScreen({periods, editDayOff, onSave, onCancel, onOpenSe
   const allShifts = useMemo(()=>periods.flatMap(p=>p.shifts||[]), [periods]);
   const conflictDates = (isRange ? rangeDays : [date]).filter(d => allShifts.some(s=>s.date===d));
 
+  // A driver can only be on one kind of day off per date — unlike a shift
+  // overlapping a day off (allowed, just warned about above), two day-off
+  // records on the same date is never valid, so this blocks Save entirely
+  // rather than just warning.
+  const allDaysOff = useMemo(()=>periods.flatMap(p=>p.daysOff||[]), [periods]);
+  const duplicateDates = (isRange ? rangeDays : [date]).filter(d => allDaysOff.some(o=>o.date===d && o.id!==editDayOff?.id));
+
   function handleSave() {
     if (isRange && rangeCount > 0) {
       onSave(rangeDays.map(d => ({id:uid(), date:d, type})));
@@ -40,7 +47,7 @@ export function LogDayOffScreen({periods, editDayOff, onSave, onCancel, onOpenSe
     }
   }
 
-  const canSave = date && (isRange ? rangeCount > 0 : true);
+  const canSave = date && (isRange ? rangeCount > 0 : true) && duplicateDates.length === 0;
 
   return (
     <div style={{background:BG,minHeight:"100vh",paddingBottom:100}}>
@@ -98,6 +105,15 @@ export function LogDayOffScreen({periods, editDayOff, onSave, onCancel, onOpenSe
           <div style={{marginBottom:20}}>
             <FieldLabel>Date</FieldLabel>
             <DateInput value={date} onChange={e=>setDate(e.target.value)}/>
+          </div>
+        )}
+
+        {duplicateDates.length > 0 && (
+          <div style={{display:"flex",alignItems:"flex-start",gap:8,marginBottom:16,padding:"10px 12px",background:`${DANGER}14`,border:`1px solid ${DANGER}44`,borderRadius:10}}>
+            <span style={{width:6,height:6,borderRadius:"50%",background:DANGER,flexShrink:0,marginTop:6}}/>
+            <p style={{color:DANGER,fontSize:13,margin:0}}>
+              {duplicateDates.length===1 ? `A day off is already logged on ${fmtDate(duplicateDates[0])}.` : `${duplicateDates.length} of these days already have a day off logged.`} Edit or remove it first.
+            </p>
           </div>
         )}
 

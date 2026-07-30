@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { greetingDutyContext, computeShiftStreak } from "./roster.js";
+import { greetingDutyContext, computeShiftStreak, dayInfo, periodForDate } from "./roster.js";
 import { addDays } from "./dutyMath.js";
 
 const PERIOD = {
@@ -15,6 +15,46 @@ const PERIOD = {
     { id: "d2", date: "2026-07-24", type: "Annual Leave" },
   ],
 };
+
+// Root cause of the "Self Cert never shows in Period or the carousel" report:
+// App.jsx's saveDayOff() resolved which period to write into with its own
+// plain `periods.find(p => inPeriod(date, p))` — the exact unsafe pattern
+// periodForDate's own comment warns against, since an old archived period's
+// range can still overlap the active one (see the 2026-07-16 startNewPeriod
+// history). A day off logged for "today" could silently land in the wrong,
+// stale period's daysOff array — never appearing anywhere the driver looks,
+// and not editable/deletable from Period either. saveDayOff must resolve
+// through periodForDate (which checks the active period first) instead.
+describe("periodForDate resolves the active period first when ranges overlap", () => {
+  it("picks the active period, not an earlier archived one whose range still covers the date", () => {
+    const archived = { id: "old", startDate: "2026-06-20", shifts: [], daysOff: [] }; // covers up to 2026-07-24
+    const active = { id: "p1", startDate: "2026-07-19", shifts: [], daysOff: [] }; // covers 2026-07-19 to 2026-08-22
+    // periods array is chronological (oldest first) - a naive .find() would
+    // hit `archived` first for 2026-07-20, which both ranges cover.
+    expect(periodForDate([archived, active], "2026-07-20", "p1").id).toBe("p1");
+  });
+});
+
+// Reproduces the reported bug: a shift is logged for a date, a Self Cert day
+// off is then also logged for that same date (App.jsx's saveShift/saveDayOff
+// deliberately allow both records to coexist, with just a warning), then the
+// shift is deleted from Period. The remaining Self Cert should surface on
+// dayInfo (what the Home carousel calls) instead of "unlogged".
+describe("dayInfo after a same-date shift is deleted out from under a day off", () => {
+  it("falls through to the day off once the conflicting shift is gone", () => {
+    const withBoth = {
+      ...PERIOD,
+      shifts: [...PERIOD.shifts, { id: "s4", date: "2026-07-25", roster: "SZ1/04" }],
+      daysOff: [...PERIOD.daysOff, { id: "d4", date: "2026-07-25", type: "Self Cert" }],
+    };
+    // Sanity: with both present, shift wins (matches LogScreen's own conflict warning).
+    expect(dayInfo(withBoth, "2026-07-25")).toMatchObject({ status: "shift" });
+
+    // deleteShift(sid) in App.jsx only ever filters p.shifts — daysOff is untouched.
+    const afterShiftDeleted = { ...withBoth, shifts: withBoth.shifts.filter(s => s.id !== "s4") };
+    expect(dayInfo(afterShiftDeleted, "2026-07-25")).toMatchObject({ status: "dayoff", dayOff: { type: "Self Cert" } });
+  });
+});
 
 describe("greetingDutyContext", () => {
   it("returns the roster when a real shift is logged", () => {
