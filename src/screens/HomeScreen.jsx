@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef, useLayoutEffect } from "react";
 import { MAX_HOURS, MAX_SUNDAY, getDayType, addDays, fmtShort, fmtHrs, today, calcSpreadover, greetingTimeBand } from "../lib/dutyMath.js";
 import { isLiveNow } from "../lib/routeAlerts.js";
-import { DUTIES, shiftDepartLocation, shiftBreakEnd, pStats, periodForDate, dayInfo, getSeq, greetingDutyContext, computeShiftStreak } from "../lib/roster.js";
+import { DUTIES, shiftDepartLocation, shiftBreakEnd, pStats, periodForDate, dayInfo, getSeq, greetingDutyContext, computeShiftStreak, weekHighlights } from "../lib/roster.js";
 import { BG, CARD, BORDER, CARD2, TEXT, MUTED, ACCENT, SUCCESS, DANGER, btnStyle, tag } from "../lib/theme.js";
 import { notifyOnce, loadSettings, saveSettings } from "../lib/persistence.js";
 import { fetchWeather, weatherIconKind } from "../lib/weather.js";
@@ -92,6 +92,19 @@ export function TodayDutyCard({shift, label, accentColor, defaultExpanded=true})
           <p style={{color:MUTED,fontSize:13,margin:0,textAlign:"center"}}>No running board available for this duty</p>
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── WEEK HIGHLIGHTS ──────────────────────────────────────────────────────────
+function WeekHighlightsCard({highlights}) {
+  if (!highlights || highlights.length === 0) return null;
+  return (
+    <div style={{background:CARD,border:`1px solid ${BORDER}`,borderRadius:14,padding:"14px 16px",marginBottom:12}}>
+      <p style={{color:MUTED,fontSize:10,textTransform:"uppercase",letterSpacing:1.5,fontWeight:700,margin:"0 0 8px"}}>This Week</p>
+      {highlights.map((h,i) => (
+        <p key={i} style={{color:TEXT,fontSize:14,fontWeight:600,margin:i<highlights.length-1?"0 0 4px":0}}>{h}</p>
+      ))}
     </div>
   );
 }
@@ -200,6 +213,7 @@ export function HomeScreen({period, periods, alerts, onViewAlerts, driverFirstNa
   const cwIdx = stats.weeks.findIndex(w => todayDate >= w.start && todayDate <= w.end);
   const wi = cwIdx >= 0 ? cwIdx : 0;
   const cw = stats.weeks[wi];
+  const thisWeekHighlights = useMemo(() => weekHighlights(period, cw.start), [period, cw.start]);
   const totalPct = Math.min((stats.total/MAX_HOURS)*100,100);
   const sunPct = Math.min((stats.sunday/MAX_SUNDAY)*100,100);
   const remainingHrs = Math.max(0, MAX_HOURS - stats.total);
@@ -295,6 +309,8 @@ export function HomeScreen({period, periods, alerts, onViewAlerts, driverFirstNa
       </div>
 
       <div style={{padding:"0 16px"}}>
+
+        <WeekHighlightsCard highlights={thisWeekHighlights}/>
 
         <UpcomingCarousel periods={periods} activePeriodId={period.id} todayDate={todayDate} onLogDate={onLogDate}/>
 
