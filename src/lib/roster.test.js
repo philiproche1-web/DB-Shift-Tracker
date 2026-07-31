@@ -1,6 +1,26 @@
 import { describe, it, expect } from "vitest";
-import { greetingDutyContext, computeShiftStreak, dayInfo, periodForDate, weekHighlights } from "./roster.js";
+import { greetingDutyContext, computeShiftStreak, dayInfo, periodForDate, weekHighlights, getSeq, DUTIES } from "./roster.js";
 import { addDays } from "./dutyMath.js";
+
+// Helper: look up a duty's own record from the bundled DUTIES fallback.
+function findDuty(zone, dayType, roster) {
+  const d = DUTIES.find(d => d.z === zone && d.t === dayType && d.r === roster);
+  if (!d) throw new Error(`Fixture duty not found: ${zone}/${dayType}/${roster}`);
+  return d;
+}
+
+// getSeq's "finish" entries key off `ft` (finish time) when present, falling
+// back to `e` (end time) for duties like the Skerries ones where `ft` is null.
+function expectSeqMatchesDuty(seq, duty) {
+  expect(seq.length).toBeGreaterThan(0);
+  const first = seq[0];
+  const last = seq[seq.length - 1];
+  expect(first.startsWith(duty.s)).toBe(true);
+  expect(first.toLowerCase()).toContain("report");
+  const finishTime = duty.ft || duty.e;
+  expect(last.startsWith(finishTime)).toBe(true);
+  expect(last.toLowerCase()).toContain("finish");
+}
 
 const PERIOD = {
   id: "p1",
@@ -25,6 +45,48 @@ const PERIOD = {
 // stale period's daysOff array — never appearing anywhere the driver looks,
 // and not editable/deletable from Period either. saveDayOff must resolve
 // through periodForDate (which checks the active period first) instead.
+// Regression guard for the "wrong/missing running board" Critical finding:
+// getSeq() branches on whether its 3rd arg looks purely numeric. d2 became a
+// real numeric duty number for 80 Zone 1 Saturday duties (previously it just
+// duplicated the roster label, which is non-numeric), which flips getSeq into
+// the wrong branch when a caller passes d2/shift.duty instead of the roster
+// label. The fix (DutyLookup.jsx, HomeScreen.jsx) is to always call
+// getSeq(duty.z, duty.t, duty.r) — the roster label — never d2/shift.duty.
+// These tests lock in that usage pattern directly against getSeq, independent
+// of the two call sites, using real bundled duty data (via findDuty) rather
+// than hardcoded guesses.
+describe("getSeq resolves the correct board when called with the roster label", () => {
+  it("SZ1/1X weekday — already worked before and after the data fix (no regression)", () => {
+    const duty = findDuty("Zone 1", "weekday", "SZ1/1X");
+    const seq = getSeq(duty.z, duty.t, duty.r);
+    expectSeqMatchesDuty(seq, duty);
+  });
+
+  it("SZ1/1X Saturday — one of the 17 that broke; must resolve to Duty 68's board, not 71's", () => {
+    const duty = findDuty("Zone 1", "saturday", "SZ1/1X");
+    const seq = getSeq(duty.z, duty.t, duty.r);
+    expectSeqMatchesDuty(seq, duty);
+  });
+
+  it("SZ1/17X Saturday — one of the 3 that resolved to nothing at all; must return a real, matching sequence", () => {
+    const duty = findDuty("Zone 1", "saturday", "SZ1/17X");
+    const seq = getSeq(duty.z, duty.t, duty.r);
+    expectSeqMatchesDuty(seq, duty);
+  });
+
+  it("SZ1/1X Sunday — pre-existing bug (numeric d2 predates the recent feature); must resolve correctly too", () => {
+    const duty = findDuty("Zone 1", "sunday", "SZ1/1X");
+    const seq = getSeq(duty.z, duty.t, duty.r);
+    expectSeqMatchesDuty(seq, duty);
+  });
+
+  it("SZ2/01 weekday — an ordinary non-X duty in a different zone still resolves correctly", () => {
+    const duty = findDuty("Zone 2", "weekday", "SZ2/01");
+    const seq = getSeq(duty.z, duty.t, duty.r);
+    expectSeqMatchesDuty(seq, duty);
+  });
+});
+
 describe("periodForDate resolves the active period first when ranges overlap", () => {
   it("picks the active period, not an earlier archived one whose range still covers the date", () => {
     const archived = { id: "old", startDate: "2026-06-20", shifts: [], daysOff: [] }; // covers up to 2026-07-24

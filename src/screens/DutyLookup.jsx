@@ -20,7 +20,7 @@ export function DutyLookup({alerts, onLogShift, onOpenSettings}) {
   const duties = useMemo(()=>getDuties(zone,dayType),[zone,dayType]);
   const zoneAlerts = useMemo(() => alertsForZone(alerts||[], zone, today()), [alerts, zone]);
   const duty = rIdx>=0 ? duties[rIdx] : null;
-  const sequence = useMemo(()=> duty ? getSeq(duty.z, duty.t, duty.d2) : [], [duty]);
+  const sequence = useMemo(()=> duty ? getSeq(duty.z, duty.t, duty.r) : [], [duty]);
   // Today's a bank holiday: Sunday duties run across every route/garage, so
   // Mon–Fri/Saturday aren't real options — lock the picker to Sunday only.
   const todayIsHoliday = isBankHoliday(today());

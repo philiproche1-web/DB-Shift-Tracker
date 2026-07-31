@@ -10,7 +10,7 @@ import { RouteAlertBanner, WeatherChip, SettingsButton } from "../components/sha
 // ─── TODAY DUTY CARD ──────────────────────────────────────────────────────────
 export function TodayDutyCard({shift, label, accentColor, defaultExpanded=true}) {
   const [expanded, setExpanded] = useState(defaultExpanded);
-  const seq = useMemo(()=>getSeq(shift.zone, getDayType(shift.date), shift.duty||shift.roster),[shift]);
+  const seq = useMemo(()=>getSeq(shift.zone, getDayType(shift.date), shift.roster),[shift]);
   const duty = DUTIES.find(d=>d.r===shift.roster&&d.t===getDayType(shift.date)&&d.z===shift.zone);
   const spread = calcSpreadover(shift.reportTime, shift.signOffTime);
   const ac = accentColor;
