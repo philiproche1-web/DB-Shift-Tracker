@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { getDayType, isBankHoliday, addDays, fmtHrs, today, calcSpreadover } from "../lib/dutyMath.js";
+import { getDayType, isBankHoliday, addDays, fmtHrs, today, calcSpreadover, dutyNumber } from "../lib/dutyMath.js";
 import { alertsForZone } from "../lib/routeAlerts.js";
 import { ZONES, getDuties, getSeq } from "../lib/roster.js";
 import { BG, CARD, CARD2, BORDER, TEXT, MUTED, ACCENT, SUCCESS, btnStyle, tag } from "../lib/theme.js";
@@ -114,6 +114,7 @@ export function DutyLookup({alerts, onLogShift, onOpenSettings}) {
               <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
                 <span style={{color:ACCENT,fontSize:24,fontWeight:800,letterSpacing:"-0.5px"}}>{duty.r}</span>
                 <span style={{background:ACCENT+"22",color:ACCENT,borderRadius:6,padding:"2px 8px",fontSize:11,fontWeight:700,letterSpacing:1,textTransform:"uppercase"}}>{dayOpts.find(o=>o.v===dayType)?.l}</span>
+                {dutyNumber(duty.d2) && <span style={{color:MUTED,fontSize:12,fontWeight:600,marginLeft:"auto"}}>Duty No. {dutyNumber(duty.d2)}</span>}
               </div>
               <p style={{color:MUTED,fontSize:13,margin:"0 0 12px"}}>{duty.z}</p>
               <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8}}>

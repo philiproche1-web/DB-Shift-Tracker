@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { MAX_HOURS, MAX_SUNDAY, DAY_OFF_TYPES, getDayType, addDays, fmtDate, fmtShort, fmtHrs, today, calcSpreadover } from "../lib/dutyMath.js";
+import { MAX_HOURS, MAX_SUNDAY, DAY_OFF_TYPES, getDayType, addDays, fmtDate, fmtShort, fmtHrs, today, calcSpreadover, dutyNumber } from "../lib/dutyMath.js";
 import { pStats } from "../lib/roster.js";
 import { BG, BORDER, TEXT, MUTED, ACCENT, SUCCESS, DANGER, cardStyle, btnStyle, tag } from "../lib/theme.js";
 import { PageHeader, ComplianceBar, EmptyState, SettingsButton } from "../components/shared.jsx";
@@ -126,6 +126,7 @@ export function PeriodScreen({period, onEdit, onDelete, onEditDayOff, onDeleteDa
                         {item.isSpare&&<span style={tag(ACCENT)}>Spare</span>}
                         {item.isRestDay&&<span style={tag(DANGER)}>Rest day</span>}
                         {item.overtimeHours>0&&!item.isRestDay&&<span style={tag("#F59E0B")}>OT {fmtHrs(item.overtimeHours)}</span>}
+                        {dutyNumber(item.duty) && <span style={tag(MUTED)}>Duty No. {dutyNumber(item.duty)}</span>}
                       </div>
                       <p style={{color:MUTED,fontSize:12,margin:"0 0 1px"}}>{fmtDate(item.date)} · {item.zone}</p>
                       <p style={{color:MUTED,fontSize:12,margin:0}}>{item.reportTime} – {item.signOffTime} · Spread: {fmtHrs(calcSpreadover(item.reportTime,item.signOffTime))}</p>
