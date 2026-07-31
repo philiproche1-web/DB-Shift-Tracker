@@ -299,10 +299,12 @@ describe("weekHighlights", () => {
 
   it("uses the real next period's own data when it already exists, not just the synthesized pattern", () => {
     const p = { id: "wh1", startDate: "2026-07-19", shifts: [], daysOff: [] };
-    const nextP = { id: "wh2", startDate: "2026-08-23", shifts: [], daysOff: [] };
-    // Same expected result as the synthesized case above - confirms the
-    // isRestDayDate helper's "real next period" branch also works correctly.
-    expect(weekHighlights([p, nextP], "wh1", "2026-08-16")).toEqual(["Long weekend", "Off Wednesday"]);
+    // removedFixedRestDates removes 2026-08-24 (the next period's own Monday)
+    // from its real data - a synthesized fallback (which has no way to know
+    // about this override) would still include it, wrongly upgrading this to
+    // "Long weekend". Only reading the REAL next period's data gets this right.
+    const nextP = { id: "wh2", startDate: "2026-08-23", shifts: [], daysOff: [], removedFixedRestDates: ["2026-08-24"] };
+    expect(weekHighlights([p, nextP], "wh1", "2026-08-16")).toEqual(["Short weekend", "Off Wednesday"]);
   });
 
   it("reports the true total length of a leave block that spans a period boundary", () => {
