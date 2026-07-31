@@ -80,34 +80,57 @@ function joinWeekdayNames(names) {
 }
 
 // Summarizes the current week for the Home screen's "This Week" widget:
-// the rest-day pattern (named "Short weekend"/"Long weekend" when it matches
-// those exact shapes), any CPC/Training days, and the start of any special
-// day-off run (Annual Leave/Sick Day/Force Majeure/Self Cert). A run already
-// in progress before this week is silent - see the design spec
-// (docs/superpowers/specs/2026-07-30-home-week-highlights-design.md) for why.
-export function weekHighlights(period, weekStart) {
+// the rest-day pattern (named "Short weekend"/"Long weekend" when a real
+// Saturday+Sunday(+Monday) run is detected, even when it straddles two
+// weeks or a period boundary), any CPC/Training days, and the start of any
+// special day-off run (Annual Leave/Sick Day/Force Majeure/Self Cert),
+// scanning across all logged periods so a fully-logged multi-week block's
+// true length is always reported, never truncated at a period boundary.
+// See docs/superpowers/specs/2026-07-30-home-week-highlights-design.md.
+export function weekHighlights(periods, activePeriodId, weekStart) {
+  const period = periods.find(p => p.id === activePeriodId);
+  if (!period) return [];
   const weekEnd = addDays(weekStart, 6);
+  const periodEnd = addDays(period.startDate, 34);
   const mergedDaysOff = withFixedRestDays(period.startDate, period.daysOff || [], period.shifts || [], period.removedFixedRestDates);
   const lines = [];
 
+  // A Saturday+Sunday(+Monday) weekend always straddles two Sun-Sat weeks
+  // (Saturday=day6 of week N, Sunday=day0 of week N+1) - this checks whether
+  // a given date is a rest day, reaching into the next period's own data (or
+  // synthesizing it from the same deterministic fixed pattern, if that
+  // period doesn't exist yet) when the date falls beyond this period.
+  function isRestDayDate(date) {
+    if (date <= periodEnd) return mergedDaysOff.some(d => d.type === "Rest Day" && d.date === date);
+    const nextPeriod = periods.find(p => p.startDate === addDays(period.startDate, 35));
+    if (nextPeriod) {
+      const nextMerged = withFixedRestDays(nextPeriod.startDate, nextPeriod.daysOff || [], nextPeriod.shifts || [], nextPeriod.removedFixedRestDates);
+      return nextMerged.some(d => d.type === "Rest Day" && d.date === date);
+    }
+    return fixedRestDates(addDays(period.startDate, 35)).includes(date);
+  }
+
   // 1. Rest days this week
-  const restDates = mergedDaysOff
+  const restDatesThisWeek = mergedDaysOff
     .filter(d => d.type === "Rest Day" && d.date >= weekStart && d.date <= weekEnd)
     .map(d => d.date)
     .sort();
-  if (restDates.length > 0) {
-    const weekdaySet = new Set(restDates.map(d => new Date(d + "T12:00:00").getDay()));
-    if (weekdaySet.size === 2 && weekdaySet.has(0) && weekdaySet.has(6)) {
-      lines.push("Short weekend");
-    } else if (weekdaySet.size === 3 && weekdaySet.has(0) && weekdaySet.has(6) && weekdaySet.has(1)) {
-      lines.push("Long weekend");
+  if (restDatesThisWeek.length > 0) {
+    const saturdayIsRestDay = restDatesThisWeek.includes(weekEnd);
+    if (saturdayIsRestDay && isRestDayDate(addDays(weekEnd, 1))) {
+      lines.push(isRestDayDate(addDays(weekEnd, 2)) ? "Long weekend" : "Short weekend");
+      const otherDates = restDatesThisWeek.filter(d => d !== weekEnd);
+      if (otherDates.length > 0) lines.push(`Off ${joinWeekdayNames(otherDates.map(weekdayName))}`);
     } else {
-      lines.push(`Off ${joinWeekdayNames(restDates.map(weekdayName))}`);
+      lines.push(`Off ${joinWeekdayNames(restDatesThisWeek.map(weekdayName))}`);
     }
   }
 
-  // 2. Special day-off runs (contiguous same-type dates) starting this week
-  const special = mergedDaysOff
+  // 2. Special day-off runs (contiguous same-type dates) starting this week —
+  // scanned across ALL periods so a fully-logged multi-week block spanning a
+  // period boundary reports its true length, not just the active period's share.
+  const allDaysOff = periods.flatMap(p => p.daysOff || []);
+  const special = allDaysOff
     .filter(d => d.type !== "Rest Day")
     .sort((a, b) => a.date.localeCompare(b.date));
   special.forEach((d, i) => {

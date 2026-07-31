@@ -213,7 +213,7 @@ export function HomeScreen({period, periods, alerts, onViewAlerts, driverFirstNa
   const cwIdx = stats.weeks.findIndex(w => todayDate >= w.start && todayDate <= w.end);
   const wi = cwIdx >= 0 ? cwIdx : 0;
   const cw = stats.weeks[wi];
-  const thisWeekHighlights = useMemo(() => weekHighlights(period, cw.start), [period, cw.start]);
+  const thisWeekHighlights = useMemo(() => weekHighlights(periods, period.id, cw.start), [periods, period.id, cw.start]);
   const totalPct = Math.min((stats.total/MAX_HOURS)*100,100);
   const sunPct = Math.min((stats.sunday/MAX_SUNDAY)*100,100);
   const remainingHrs = Math.max(0, MAX_HOURS - stats.total);
