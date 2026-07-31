@@ -55,6 +55,17 @@ export function fmtHrs(h) {
   const hrs = Math.floor(h), mins = Math.round((h - hrs) * 60);
   return mins ? `${hrs}h ${mins}m` : `${hrs}h`;
 }
+// Every DUTIES catalog entry's `d2` (and a saved shift's `duty`, copied from
+// it at log time - see LogScreen.jsx's shiftFields()) already carries the
+// real duty number a driver keys into the in-cab machine, but only as an
+// internal SEQ-table lookup key. This extracts the driver-facing number:
+// the last 3 characters, leading zeros stripped. Returns null for anything
+// non-numeric (Spare, CPC/Training's fixedType key, or a data gap where d2
+// duplicates the roster label) - callers render nothing in that case.
+export function dutyNumber(code) {
+  if (!code || !/^\d+$/.test(code)) return null;
+  return String(parseInt(code.slice(-3), 10));
+}
 export function today() { return new Date().toISOString().slice(0, 10); }
 export function greetingTimeBand(date = new Date()) {
   const h = date.getHours();

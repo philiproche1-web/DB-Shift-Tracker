@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   MAX_HOURS, MAX_SUNDAY, DAY_OFF_TYPES, LOGGABLE_DAY_OFF_TYPES, getDayType, isBankHoliday, addDays, fmtHrs, calcSpreadover,
-  parseTimeToMins, addDuration, maxConsec, dayOffTally, inPeriod, wkStats, greetingTimeBand,
+  parseTimeToMins, addDuration, maxConsec, dayOffTally, inPeriod, wkStats, greetingTimeBand, dutyNumber,
 } from "./dutyMath.js";
 
 describe("MAX_HOURS / MAX_SUNDAY", () => {
@@ -159,5 +159,29 @@ describe("greetingTimeBand", () => {
     expect(greetingTimeBand(new Date(2026, 6, 26, 23, 59))).toBe("Good evening");
     expect(greetingTimeBand(new Date(2026, 6, 26, 0, 0))).toBe("Good evening");
     expect(greetingTimeBand(new Date(2026, 6, 26, 4, 59))).toBe("Good evening");
+  });
+});
+
+describe("dutyNumber", () => {
+  it("strips leading zeros from a 6-digit code", () => {
+    expect(dutyNumber("005068")).toBe("68");
+    expect(dutyNumber("005001")).toBe("1");
+  });
+  it("passes through an already-3-digit code unchanged", () => {
+    expect(dutyNumber("201")).toBe("201");
+    expect(dutyNumber("101")).toBe("101");
+  });
+  it("returns null for non-numeric shift.duty values (spare, fixed types)", () => {
+    expect(dutyNumber("spare")).toBe(null);
+    expect(dutyNumber("cpc")).toBe(null);
+  });
+  it("returns null for the pre-fix data-gap shape (d2 duplicating the roster label)", () => {
+    expect(dutyNumber("SZ1/01")).toBe(null);
+    expect(dutyNumber("SZ1/1X")).toBe(null);
+  });
+  it("returns null for null, undefined, or empty string", () => {
+    expect(dutyNumber(null)).toBe(null);
+    expect(dutyNumber(undefined)).toBe(null);
+    expect(dutyNumber("")).toBe(null);
   });
 });
