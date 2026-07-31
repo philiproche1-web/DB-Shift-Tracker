@@ -34,7 +34,7 @@ export function TodayDutyCard({shift, label, accentColor, defaultExpanded=true})
           <div>
             <p style={{color:ac,fontSize:11,textTransform:"uppercase",letterSpacing:2,fontWeight:700,margin:"0 0 4px"}}>{label}</p>
             <p style={{color:TEXT,fontSize:28,fontWeight:800,margin:0,letterSpacing:"-1px"}}>{shift.roster}</p>
-            {dutyNumber(shift.duty) && <p style={{color:MUTED,fontSize:12,margin:"2px 0 0",fontWeight:600}}>Duty No. {dutyNumber(shift.duty)}</p>}
+            {dutyNumber(shift.duty) && <span style={{...tag(ACCENT),display:"inline-block",marginTop:4}}>Duty No. {dutyNumber(shift.duty)}</span>}
             <p style={{color:MUTED,fontSize:13,margin:"3px 0 0"}}>{shift.zone}{shift.isSpare?" · Spare":""}{shift.isRestDay?" · Rest day":""}</p>
           </div>
           <div style={{textAlign:"right"}}>

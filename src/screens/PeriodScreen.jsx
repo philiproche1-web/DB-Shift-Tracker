@@ -126,7 +126,7 @@ export function PeriodScreen({period, onEdit, onDelete, onEditDayOff, onDeleteDa
                         {item.isSpare&&<span style={tag(ACCENT)}>Spare</span>}
                         {item.isRestDay&&<span style={tag(DANGER)}>Rest day</span>}
                         {item.overtimeHours>0&&!item.isRestDay&&<span style={tag("#F59E0B")}>OT {fmtHrs(item.overtimeHours)}</span>}
-                        {dutyNumber(item.duty) && <span style={tag(MUTED)}>Duty No. {dutyNumber(item.duty)}</span>}
+                        {dutyNumber(item.duty) && <span style={tag(ACCENT)}>Duty No. {dutyNumber(item.duty)}</span>}
                       </div>
                       <p style={{color:MUTED,fontSize:12,margin:"0 0 1px"}}>{fmtDate(item.date)} · {item.zone}</p>
                       <p style={{color:MUTED,fontSize:12,margin:0}}>{item.reportTime} – {item.signOffTime} · Spread: {fmtHrs(calcSpreadover(item.reportTime,item.signOffTime))}</p>
