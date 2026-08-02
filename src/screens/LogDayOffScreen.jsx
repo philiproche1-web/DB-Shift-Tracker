@@ -1,15 +1,12 @@
 import { useState, useMemo } from "react";
-import { DAY_OFF_TYPES, LOGGABLE_DAY_OFF_TYPES, addDays, fmtDate, today, uid } from "../lib/dutyMath.js";
+import { LOGGABLE_DAY_OFF_TYPES, addDays, fmtDate, today, uid } from "../lib/dutyMath.js";
 import { BG, CARD, BORDER, TEXT, MUTED, ACCENT, DANGER, btnStyle } from "../lib/theme.js";
 import { PageHeader, FieldLabel, DateInput, SettingsButton, ConfirmDialog } from "../components/shared.jsx";
 
 // ─── LOG DAY OFF SCREEN ───────────────────────────────────────────────────────
 export function LogDayOffScreen({periods, editDayOff, onSave, onCancel, onOpenSettings}) {
   const [type, setType] = useState(editDayOff?.type || LOGGABLE_DAY_OFF_TYPES[0]);
-  // Rest days are auto-generated from the fixed roster pattern and no longer
-  // manually logged — but an old manually-logged Rest Day entry being edited
-  // must still show its own type as a selectable option.
-  const typeOptions = editDayOff?.type === "Rest Day" ? DAY_OFF_TYPES : LOGGABLE_DAY_OFF_TYPES;
+  const typeOptions = LOGGABLE_DAY_OFF_TYPES;
   const [date, setDate] = useState(editDayOff?.date || today());
   // Range mode for Annual Leave
   const [rangeTo, setRangeTo] = useState(editDayOff?.date || today());
@@ -29,6 +26,11 @@ export function LogDayOffScreen({periods, editDayOff, onSave, onCancel, onOpenSe
   const rangeDays = isRange ? getDaysInRange(date, rangeTo < date ? date : rangeTo) : [];
   const rangeCount = rangeDays.length;
   const [pendingAction, setPendingAction] = useState(null);
+  // Guards against a duplicate entry from a double-tap or a mobile browser's
+  // touchend+click double-fire on one tap — onSave mutates App.jsx state
+  // synchronously, but two rapid clicks can both fire before React re-renders
+  // and disables this button, so track it locally too.
+  const [saving, setSaving] = useState(false);
 
   const allShifts = useMemo(()=>periods.flatMap(p=>p.shifts||[]), [periods]);
   // A day off replaces a shift already logged that date (a driver can't work
@@ -46,6 +48,8 @@ export function LogDayOffScreen({periods, editDayOff, onSave, onCancel, onOpenSe
     .filter(Boolean);
 
   function performSave() {
+    if (saving) return;
+    setSaving(true);
     const shiftIds = conflictShifts.map(s=>s.id);
     const dayOffIds = conflictDayOffs.map(o=>o.id);
     if (isRange && rangeCount > 0) {
@@ -56,6 +60,7 @@ export function LogDayOffScreen({periods, editDayOff, onSave, onCancel, onOpenSe
   }
 
   function handleSave() {
+    if (saving) return;
     if (conflictShifts.length > 0 || conflictDayOffs.length > 0) {
       const parts = [];
       if (conflictShifts.length > 0) parts.push(conflictShifts.length===1
@@ -70,7 +75,7 @@ export function LogDayOffScreen({periods, editDayOff, onSave, onCancel, onOpenSe
     performSave();
   }
 
-  const canSave = date && (isRange ? rangeCount > 0 : true);
+  const canSave = date && (isRange ? rangeCount > 0 : true) && !saving;
 
   return (
     <div style={{background:BG,minHeight:"100vh",paddingBottom:100}}>

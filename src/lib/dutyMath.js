@@ -6,10 +6,14 @@ export const MAX_HOURS = 190 + 4 / 60;
 export const MAX_SUNDAY = 14.5;
 export const DAY_OFF_TYPES = ["Annual Leave", "Sick Day", "Rest Day", "Force Majeure", "Self Cert"];
 // Rest Day is auto-generated from the fixed roster pattern (see
-// withFixedRestDays in roster.js) — it stays in DAY_OFF_TYPES for tallies/PDF
-// export, but drivers no longer manually log it, so the Log Day Off picker
-// offers this shorter list instead.
-export const LOGGABLE_DAY_OFF_TYPES = DAY_OFF_TYPES.filter(t => t !== "Rest Day");
+// withFixedRestDays in roster.js) for the normal case, but a driver can still
+// manually log one to override a specific date (swapping which day they rest,
+// covering a pattern exception) — withFixedRestDays already skips generating
+// the automatic one wherever a real entry exists for that date, so the two
+// never collide. Ordered (not DAY_OFF_TYPES' order) so the picker's 2-column
+// grid groups Annual Leave with Rest Day on one row, Sick Day/Force Majeure/
+// Self Cert on the next.
+export const LOGGABLE_DAY_OFF_TYPES = ["Annual Leave", "Rest Day", "Sick Day", "Force Majeure", "Self Cert"];
 
 // Republic of Ireland public holidays — Dublin Bus runs Sunday-service duties
 // on every one of these regardless of actual weekday. Literal calendar dates
@@ -36,6 +40,13 @@ export function getDayType(s) {
   if (isBankHoliday(s)) return "sunday";
   const day = new Date(s + "T12:00:00").getDay();
   return day === 0 ? "sunday" : day === 6 ? "saturday" : "weekday";
+}
+// Real calendar Sunday, ignoring the bank-holiday Sunday-duty override above.
+// Use this (not getDayType) anywhere "Sunday" means the actual weekday — the
+// 14h30m Sunday-hours compliance cap, and period-start-date validation (weeks
+// run calendar Sun-Sat) — as opposed to which duty roster runs that day.
+export function isCalendarSunday(s) {
+  return new Date(s + "T12:00:00").getDay() === 0;
 }
 export function addDays(s, n) {
   const d = new Date(s + "T12:00:00"); d.setDate(d.getDate() + n);
@@ -133,7 +144,7 @@ export function wkStats(shifts, daysOff, wStart) {
   return {
     shifts: ws, daysOff: wd, start: wStart, end: wEnd,
     total: +compliance.reduce((a,x) => a + (x.workHours||0), 0).toFixed(2),
-    sunday: +compliance.filter(s => getDayType(s.date)==="sunday").reduce((a,x) => a + (x.workHours||0), 0).toFixed(2),
+    sunday: +compliance.filter(s => isCalendarSunday(s.date)).reduce((a,x) => a + (x.workHours||0), 0).toFixed(2),
     overtime
   };
 }

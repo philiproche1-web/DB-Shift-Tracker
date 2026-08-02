@@ -4,14 +4,22 @@ import { BG, CARD, CARD2, BORDER, TEXT, MUTED, ACCENT, SUCCESS, DANGER, btnStyle
 import { SettingsButton } from "../components/shared.jsx";
 
 // ─── LEAVE SCREEN HELPERS ─────────────────────────────────────────────────────
-export function DayList({items, emptyMsg}) {
+export function DayList({items, emptyMsg, onEdit, onDelete}) {
   if(items.length===0) return <p style={{color:MUTED,fontSize:13,margin:"8px 0 0",lineHeight:1.5}}>{emptyMsg}</p>;
   return (
     <div style={{marginTop:10,display:"flex",flexDirection:"column",gap:4}}>
       {items.map((d,i)=>(
-        <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 0",borderBottom:i<items.length-1?`1px solid ${BORDER}`:undefined}}>
-          <span style={{color:TEXT,fontSize:13}}>{fmtDate(d.date)}</span>
-          <span style={{color:MUTED,fontSize:12}}>{new Date(d.date+"T00:00:00").toLocaleDateString("en-IE",{weekday:"short"})}</span>
+        <div key={d.id||i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 0",borderBottom:i<items.length-1?`1px solid ${BORDER}`:undefined}}>
+          <div>
+            <span style={{color:TEXT,fontSize:13}}>{fmtDate(d.date)}</span>
+            <span style={{color:MUTED,fontSize:12,marginLeft:8}}>{new Date(d.date+"T00:00:00").toLocaleDateString("en-IE",{weekday:"short"})}</span>
+          </div>
+          {onEdit && onDelete && (
+            <div style={{display:"flex",gap:6,flexShrink:0}}>
+              <button onClick={()=>onEdit(d)} style={{background:"none",border:`1px solid ${ACCENT}`,color:ACCENT,borderRadius:8,padding:"5px 10px",fontSize:12,fontWeight:600,cursor:"pointer"}}>Edit</button>
+              <button onClick={()=>onDelete(d.id)} style={{background:"none",border:`1px solid ${DANGER}`,color:DANGER,borderRadius:8,padding:"5px 10px",fontSize:12,fontWeight:600,cursor:"pointer"}}>Del</button>
+            </div>
+          )}
         </div>
       ))}
     </div>
@@ -55,7 +63,7 @@ export function LeaveCard({title, subtitle, color, used, total, remaining, child
 
 // Self Cert — same collapsible header/tap pattern as LeaveCard, but keeps its
 // own two-half-year body since it tracks two independent 2-day allowances.
-export function SelfCertCard({scH1, scH2, scColor}) {
+export function SelfCertCard({scH1, scH2, scColor, onEdit, onDelete}) {
   const [open, setOpen] = useState(false);
   const totalUsed = scH1.length + scH2.length;
   return (
@@ -87,7 +95,17 @@ export function SelfCertCard({scH1, scH2, scColor}) {
                 <p style={{color:scColor(items.length),fontSize:22,fontWeight:800,margin:"0 0 1px"}}>{2-items.length} <span style={{color:MUTED,fontSize:12,fontWeight:400}}>left</span></p>
                 <p style={{color:MUTED,fontSize:11,margin:0}}>{items.length} of 2 used</p>
                 {items.length>0&&<div style={{marginTop:8,borderTop:`1px solid ${BORDER}`,paddingTop:6}}>
-                  {items.map((d,i)=><p key={i} style={{color:MUTED,fontSize:12,margin:"2px 0"}}>{fmtDate(d.date)}</p>)}
+                  {items.map((d,i)=>(
+                    <div key={d.id||i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:6,padding:"3px 0"}}>
+                      <p style={{color:MUTED,fontSize:12,margin:0}}>{fmtDate(d.date)}</p>
+                      {onEdit && onDelete && (
+                        <div style={{display:"flex",gap:4,flexShrink:0}}>
+                          <button onClick={()=>onEdit(d)} style={{background:"none",border:`1px solid ${ACCENT}`,color:ACCENT,borderRadius:6,padding:"3px 7px",fontSize:11,fontWeight:600,cursor:"pointer"}}>Edit</button>
+                          <button onClick={()=>onDelete(d.id)} style={{background:"none",border:`1px solid ${DANGER}`,color:DANGER,borderRadius:6,padding:"3px 7px",fontSize:11,fontWeight:600,cursor:"pointer"}}>Del</button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
                 </div>}
               </div>
             ))}
@@ -99,7 +117,7 @@ export function SelfCertCard({scH1, scH2, scColor}) {
 }
 
 // ─── LEAVE SCREEN ─────────────────────────────────────────────────────────────
-export function LeaveScreen({periods, leaveSettings, onLogDayOff, onViewFAQ, onOpenSettings}) {
+export function LeaveScreen({periods, leaveSettings, onLogDayOff, onEditDayOff, onDeleteDayOff, onViewFAQ, onOpenSettings}) {
   const year = new Date().getFullYear();
   const [editTotal, setEditTotal] = useState(false);
   const [totalInput, setTotalInput] = useState(String(leaveSettings?.annualTotal||20));
@@ -143,19 +161,19 @@ export function LeaveScreen({periods, leaveSettings, onLogDayOff, onViewFAQ, onO
 
         <LeaveCard title="Annual Leave" subtitle={`${annualTotal} days entitlement · Jan–Dec`}
           color={annualColor} used={annualUsed} total={annualTotal} remaining={annualRem}>
-          <DayList items={annual} emptyMsg="No annual leave logged this year"/>
+          <DayList items={annual} emptyMsg="No annual leave logged this year" onEdit={onEditDayOff} onDelete={onDeleteDayOff}/>
         </LeaveCard>
 
         <LeaveCard title="Sick Leave" subtitle="Certified by doctor · Jan–Dec"
           color={sickColor} used={sick.length}>
-          <DayList items={sick} emptyMsg="No sick days logged this year"/>
+          <DayList items={sick} emptyMsg="No sick days logged this year" onEdit={onEditDayOff} onDelete={onDeleteDayOff}/>
         </LeaveCard>
 
-        <SelfCertCard scH1={scH1} scH2={scH2} scColor={scColor}/>
+        <SelfCertCard scH1={scH1} scH2={scH2} scColor={scColor} onEdit={onEditDayOff} onDelete={onDeleteDayOff}/>
 
         <LeaveCard title="Force Majeure" subtitle="No fixed limit · Jan–Dec"
           color={fm.length===0?MUTED:fm.length<=2?SUCCESS:"#F59E0B"} used={fm.length}>
-          <DayList items={fm} emptyMsg="No force majeure logged this year"/>
+          <DayList items={fm} emptyMsg="No force majeure logged this year" onEdit={onEditDayOff} onDelete={onDeleteDayOff}/>
         </LeaveCard>
 
         {onViewFAQ && (

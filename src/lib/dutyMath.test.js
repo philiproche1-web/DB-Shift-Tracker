@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  MAX_HOURS, MAX_SUNDAY, DAY_OFF_TYPES, LOGGABLE_DAY_OFF_TYPES, getDayType, isBankHoliday, addDays, fmtHrs, calcSpreadover,
+  MAX_HOURS, MAX_SUNDAY, DAY_OFF_TYPES, LOGGABLE_DAY_OFF_TYPES, getDayType, isCalendarSunday, isBankHoliday, addDays, fmtHrs, calcSpreadover,
   parseTimeToMins, addDuration, maxConsec, dayOffTally, inPeriod, wkStats, greetingTimeBand, dutyNumber,
 } from "./dutyMath.js";
 
@@ -12,10 +12,9 @@ describe("MAX_HOURS / MAX_SUNDAY", () => {
 });
 
 describe("LOGGABLE_DAY_OFF_TYPES", () => {
-  it("excludes Rest Day (auto-generated) but keeps it in DAY_OFF_TYPES for tallies", () => {
-    expect(LOGGABLE_DAY_OFF_TYPES).not.toContain("Rest Day");
+  it("includes Rest Day for manual override, grouped next to Annual Leave for the picker's 2-column grid", () => {
+    expect(LOGGABLE_DAY_OFF_TYPES).toEqual(["Annual Leave", "Rest Day", "Sick Day", "Force Majeure", "Self Cert"]);
     expect(DAY_OFF_TYPES).toContain("Rest Day");
-    expect(LOGGABLE_DAY_OFF_TYPES).toEqual(["Annual Leave", "Sick Day", "Force Majeure", "Self Cert"]);
   });
 });
 
@@ -30,6 +29,14 @@ describe("getDayType", () => {
     expect(getDayType("2026-03-17")).toBe("sunday"); // St. Patrick's Day, a Tuesday
     expect(getDayType("2026-08-03")).toBe("sunday"); // August bank holiday, a Monday
     expect(getDayType("2026-12-26")).toBe("sunday"); // St. Stephen's Day, a Saturday
+  });
+});
+
+describe("isCalendarSunday", () => {
+  it("only true for the real weekday, unlike getDayType's bank-holiday override", () => {
+    expect(isCalendarSunday("2026-07-26")).toBe(true); // real Sunday
+    expect(isCalendarSunday("2026-08-03")).toBe(false); // August bank holiday, a Monday
+    expect(isCalendarSunday("2026-03-17")).toBe(false); // St. Patrick's Day, a Tuesday
   });
 });
 
@@ -142,6 +149,17 @@ describe("wkStats", () => {
     const shifts = [{date:"2026-07-19", workHours:5, isRestDay:false}, {date:"2026-07-27", workHours:5, isRestDay:false}];
     const stats = wkStats(shifts, [], "2026-07-19");
     expect(stats.shifts).toHaveLength(1);
+  });
+
+  it("counts a bank-holiday Monday's hours toward the weekday total, not the Sunday cap", () => {
+    // 2026-08-03 is the August bank holiday — a Monday that runs a Sunday-service duty.
+    const shifts = [
+      {date:"2026-08-02", workHours:5, isRestDay:false}, // real Sunday, start of this week
+      {date:"2026-08-03", workHours:6, isRestDay:false}, // bank holiday Monday
+    ];
+    const stats = wkStats(shifts, [], "2026-08-02");
+    expect(stats.total).toBeCloseTo(11, 2);
+    expect(stats.sunday).toBeCloseTo(5, 2);
   });
 });
 

@@ -1,12 +1,12 @@
 import { useState } from "react";
-import { getDayType, addDays, fmtShort, thisSunday } from "../lib/dutyMath.js";
+import { isCalendarSunday, addDays, fmtShort, thisSunday } from "../lib/dutyMath.js";
 import { BG, CARD2, TEXT, MUTED, ACCENT, SUCCESS, DANGER, cardStyle, btnStyle } from "../lib/theme.js";
 import { BusLogo, FieldLabel, DateInput } from "../components/shared.jsx";
 
 // ─── SETUP SCREEN ─────────────────────────────────────────────────────────────
 export function SetupScreen({onCreate}) {
   const [date, setDate] = useState(thisSunday());
-  const isSun = getDayType(date) === "sunday";
+  const isSun = isCalendarSunday(date);
   return (
     <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minHeight:"100vh",background:`radial-gradient(circle at 50% 0%,${CARD2} 0%,${BG} 60%)`,padding:24}}>
       <div style={{marginBottom:20}}><BusLogo size={64}/></div>

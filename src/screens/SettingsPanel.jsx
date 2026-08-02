@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { getDayType, addDays, fmtShort } from "../lib/dutyMath.js";
+import { isCalendarSunday, addDays, fmtShort } from "../lib/dutyMath.js";
 import { ZONES } from "../lib/roster.js";
 import { garageOptions } from "../lib/garages.js";
 import { CARD, CARD2, BORDER, TEXT, MUTED, SUCCESS, DANGER, cardStyle, inputStyle, btnStyle } from "../lib/theme.js";
@@ -16,7 +16,7 @@ export function SettingsPanel({period, onClose, onThemeChange, leaveSettings, on
   const [scrolledToEnd, setScrolledToEnd] = useState(false);
   const [editingStartDate, setEditingStartDate] = useState(false);
   const [startDateInput, setStartDateInput] = useState(period?.startDate||"");
-  const startDateIsSunday = startDateInput && getDayType(startDateInput)==="sunday";
+  const startDateIsSunday = startDateInput && isCalendarSunday(startDateInput);
   const [breakMinInput, setBreakMinInput] = useState(String(settings.breakReminderMinutes ?? 10));
   const [breakMinError, setBreakMinError] = useState(null);
   const [editingGarage, setEditingGarage] = useState(false);

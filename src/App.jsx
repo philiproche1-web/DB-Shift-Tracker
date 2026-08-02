@@ -4,7 +4,7 @@ import { signOut, getSession, onAuthStateChange } from "./lib/auth.js";
 import { syncAll, migrateLocalDataIfNeeded } from "./lib/sync.js";
 import { hasLiveRoster } from "./lib/garages.js";
 import { fetchRouteAlerts } from "./lib/routeAlerts.js";
-import { getDayType, addDays, fmtShort, uid } from "./lib/dutyMath.js";
+import { isCalendarSunday, addDays, fmtShort, uid } from "./lib/dutyMath.js";
 import { loadRosterData, applyRosterData, periodForDate } from "./lib/roster.js";
 import { BG, TEXT, MUTED, ACCENT, DANGER, applyTheme, btnStyle } from "./lib/theme.js";
 import {
@@ -232,7 +232,7 @@ export default function App() {
   }
 
   function editActivePeriodStartDate(newDate) {
-    if(getDayType(newDate)!=="sunday") return;
+    if(!isCalendarSunday(newDate)) return;
     const updated=periods.map(p=>p.id!==activePeriodId?p:{...p,startDate:newDate});
     persist(updated,activePeriodId);
   }
@@ -282,8 +282,15 @@ export default function App() {
         if (ei>=0) return {...p, daysOff: daysOff.map(d=>d.id===dayOff.id?dayOff:d)};
         // New entry (multi-day path): skip if another day off already owns
         // this date and wasn't in the replace list — the same race guard
-        // saveShift already has for its own multi-day path.
-        if (daysOff.some(d=>d.date===dayOff.date)) return p;
+        // saveShift already has for its own multi-day path. Checked across
+        // ALL periods, not just this one — a date belongs to exactly one
+        // period, but a stale conflict-check on the caller's side (e.g. a
+        // double-submit) could otherwise let a second entry land in a
+        // different period than the first, invisible to this same-period-only
+        // check while still showing up in Leave's cross-period tally.
+        const dateTakenElsewhere = updated.some(op => op.id!==p.id
+          && (op.daysOff||[]).some(d => d.date===dayOff.date && !replaceDayOffIds?.includes(d.id)));
+        if (daysOff.some(d=>d.date===dayOff.date) || dateTakenElsewhere) return p;
         return {...p, daysOff:[...daysOff, dayOff]};
       });
     });
@@ -314,7 +321,11 @@ export default function App() {
       return;
     }
     setConfirm({msg:"Remove this day off record?",yesLabel:"Remove",onYes:()=>{
-      const updated=periods.map(p=>p.id!==activePeriodId?p:{...p,daysOff:(p.daysOff||[]).filter(d=>d.id!==did)});
+      // The Leave screen lists entries from every period, not just the active
+      // one, so this must find the entry's actual owning period rather than
+      // assuming activePeriodId — same reasoning as saveDayOff's edit branch.
+      const owner = periods.find(p=>(p.daysOff||[]).some(d=>d.id===did));
+      const updated=periods.map(p=>p.id!==owner?.id?p:{...p,daysOff:(p.daysOff||[]).filter(d=>d.id!==did)});
       persist(updated,activePeriodId); setConfirm(null);
     }});
   }
@@ -390,7 +401,7 @@ export default function App() {
         onSave={saveShift} onCancel={()=>{setEditShift(null);setLookupDuty(null);setLogInitDate(null);setLogInitRestDay(false);setScreen(editShift?"period":lookupDuty?"lookup":"home");}}
         onOpenSettings={()=>setShowSettings(true)}/>}
       {screen==="dayoff"&&<LogDayOffScreen periods={periods} editDayOff={editDayOff}
-        onSave={saveDayOff} onCancel={()=>{setEditDayOff(null);setScreen(editDayOff?"period":dayOffFrom);}}
+        onSave={saveDayOff} onCancel={()=>{setEditDayOff(null);setScreen(dayOffFrom);}}
         onOpenSettings={()=>setShowSettings(true)}/>}
       {screen==="lookup"&&<DutyLookup alerts={routeAlerts} onLogShift={(d,dt,date)=>{setLookupDuty({d,dt,date});setScreen("log");}} onOpenSettings={()=>setShowSettings(true)}/>}
       {screen==="home"&&<HomeScreen period={activePeriod} periods={periods}
@@ -411,6 +422,8 @@ export default function App() {
         onViewFAQ={cat=>setViewingFAQ(cat)}
         onOpenSettings={()=>setShowSettings(true)}/>}
       {screen==="leave"&&<LeaveScreen periods={periods} leaveSettings={leaveSettings} onLogDayOff={()=>{setEditDayOff(null);setDayOffFrom("leave");setScreen("dayoff");}}
+        onEditDayOff={d=>{setEditDayOff(d);setDayOffFrom("leave");setScreen("dayoff");}}
+        onDeleteDayOff={deleteDayOff}
         onViewFAQ={cat=>setViewingFAQ(cat)}
         onOpenSettings={()=>setShowSettings(true)}/>}
       {screen==="archive"&&<ArchiveScreen periods={periods} activePeriodId={activePeriodId}
