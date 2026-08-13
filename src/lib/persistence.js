@@ -19,6 +19,23 @@ export async function saveData(data) {
   if (ok) markDirty("app_data");
   return ok;
 }
+
+// ─── HOURS-LIMIT WARNINGS (opt-in, foreground-only) ────────────────────────────
+// Shift-not-logged and break-end reminders now go out as real web push, so
+// they reach a driver who doesn't have the app open. These two hours-limit
+// warnings stay foreground-only by design — they're not time-sensitive like
+// a break ending, they just fire when period stats recompute while a driver
+// is already looking at Home, deduped per period so they don't repeat every
+// time the app is reopened.
+export function notifyOnce(dedupeKey, title, body) {
+  try {
+    if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
+    if (localStorage.getItem(dedupeKey)) return;
+    new Notification(title, {body, icon:"/icon-192.png"});
+    localStorage.setItem(dedupeKey, "1");
+  } catch {}
+}
+
 export const APP_VERSION = "1.7";
 export const WHATS_NEW = {
   version: "1.7",

@@ -3,7 +3,7 @@ import { MAX_HOURS, MAX_SUNDAY, getDayType, addDays, fmtShort, fmtHrs, today, ca
 import { isLiveNow } from "../lib/routeAlerts.js";
 import { DUTIES, shiftDepartLocation, pStats, periodForDate, dayInfo, getSeq, greetingDutyContext, computeShiftStreak, weekHighlights } from "../lib/roster.js";
 import { BG, CARD, BORDER, CARD2, TEXT, MUTED, ACCENT, SUCCESS, DANGER, btnStyle, tag } from "../lib/theme.js";
-import { loadSettings, saveSettings } from "../lib/persistence.js";
+import { notifyOnce, loadSettings, saveSettings } from "../lib/persistence.js";
 import { fetchWeather, weatherIconKind } from "../lib/weather.js";
 import { RouteAlertBanner, NewPeriodBanner, WeatherChip, SettingsButton } from "../components/shared.jsx";
 
@@ -234,6 +234,25 @@ export function HomeScreen({period, periods, alerts, onViewAlerts, driverFirstNa
   const shiftStreak = useMemo(() => computeShiftStreak(periods, period.id, todayDate), [periods, period.id, todayDate]);
 
   const activeAlerts = useMemo(() => (alerts||[]).filter(a => isLiveNow(a)), [alerts, todayDate]);
+
+  useEffect(() => {
+    if (!loadSettings().notificationsEnabled) return;
+    // Reminders default to on, so a driver who never touched the toggle still
+    // needs the OS permission requested at least once — do it here rather
+    // than only from the Settings toggle, which they may never open.
+    if (typeof Notification !== "undefined" && Notification.permission === "default") {
+      Notification.requestPermission().then(perm => {
+        if (perm !== "granted") saveSettings({...loadSettings(), notificationsEnabled:false});
+      });
+      return;
+    }
+    if (stats.total >= MAX_HOURS*0.9) {
+      notifyOnce(`dbus_notified_total90_${period.id}`, "Approaching your period limit", `You're at ${fmtHrs(stats.total)} of your 190h 4m limit.`);
+    }
+    if (stats.sunday >= MAX_SUNDAY*0.9) {
+      notifyOnce(`dbus_notified_sun90_${period.id}`, "Approaching your Sunday hours limit", `You're at ${fmtHrs(stats.sunday)} of your 14h 30m Sunday limit.`);
+    }
+  }, [period.id, stats.total, stats.sunday]);
 
   return (
     <div style={{background:BG,minHeight:"100vh",paddingBottom:100}}>
