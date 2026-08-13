@@ -151,7 +151,7 @@ export function weekHighlights(periods, activePeriodId, weekStart) {
   // period boundary reports its true length, not just the active period's share.
   const allDaysOff = periods.flatMap(p => p.daysOff || []);
   const special = allDaysOff
-    .filter(d => d.type !== "Rest Day")
+    .filter(d => d.type !== "Rest Day" && d.type !== "Bank Holiday In Lieu")
     .sort((a, b) => a.date.localeCompare(b.date));
   special.forEach((d, i) => {
     const prev = special[i - 1];
