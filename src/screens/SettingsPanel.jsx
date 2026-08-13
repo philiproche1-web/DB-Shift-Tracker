@@ -4,12 +4,13 @@ import { ZONES } from "../lib/roster.js";
 import { garageOptions } from "../lib/garages.js";
 import { CARD, CARD2, BORDER, TEXT, MUTED, SUCCESS, DANGER, ACCENT, cardStyle, inputStyle, btnStyle } from "../lib/theme.js";
 import { loadSettings, saveSettings, APP_VERSION } from "../lib/persistence.js";
+import { subscribeToPush, unsubscribeFromPush } from "../lib/push.js";
 import { SegGroup, DateInput, ConfirmDialog } from "../components/shared.jsx";
 
 const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]; // index = Date.getDay(), matches roster.js's convention
 
 // ─── SETTINGS PANEL ───────────────────────────────────────────────────────────
-export function SettingsPanel({period, onClose, onThemeChange, leaveSettings, onLeaveSettingsChange, onReplayTour, onViewTerms, onViewFAQ, onEditStartDate, driverGarage, onChangeGarage, driverFirstName, onChangeFirstName, driverCustomRestDays, onChangeCustomRestDays, onSendFeedback}) {
+export function SettingsPanel({period, onClose, onThemeChange, leaveSettings, onLeaveSettingsChange, onReplayTour, onViewTerms, onViewFAQ, onEditStartDate, driverGarage, onChangeGarage, driverFirstName, onChangeFirstName, driverCustomRestDays, onChangeCustomRestDays, userId, onSendFeedback}) {
   const [settings, setSettings] = useState(loadSettings);
   const [annualInput, setAnnualInput] = useState(String(leaveSettings?.annualTotal||20));
   const [annualError, setAnnualError] = useState(null);
@@ -57,6 +58,7 @@ export function SettingsPanel({period, onClose, onThemeChange, leaveSettings, on
     if (settings.notificationsEnabled) {
       const next = {...settings, notificationsEnabled:false};
       setSettings(next); saveSettings(next);
+      unsubscribeFromPush(userId);
       return;
     }
     if (typeof Notification === "undefined") { setToast("Notifications aren't supported in this browser."); return; }
@@ -65,6 +67,9 @@ export function SettingsPanel({period, onClose, onThemeChange, leaveSettings, on
         const next = {...settings, notificationsEnabled:true};
         setSettings(next); saveSettings(next);
         setToast("Reminders on.");
+        subscribeToPush(userId).then((result) => {
+          if (!result.ok) setToast(result.error || "Couldn't enable push notifications.");
+        });
       } else {
         setToast("Notifications blocked — allow them for this site in your phone's settings to use reminders.");
       }

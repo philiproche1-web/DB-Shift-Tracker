@@ -491,6 +491,7 @@ export default function App() {
           driverGarage={driverGarage} onChangeGarage={handleChangeGarage}
           driverFirstName={driverFirstName} onChangeFirstName={handleChangeFirstName}
           driverCustomRestDays={driverCustomRestDays} onChangeCustomRestDays={handleChangeCustomRestDays}
+          userId={session?.user?.id}
           onSendFeedback={()=>setConfirmFeedback(true)}/>
       )}
       {confirmFeedback && (
