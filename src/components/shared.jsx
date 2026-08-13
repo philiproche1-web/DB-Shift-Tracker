@@ -181,7 +181,7 @@ export function NewPeriodBanner({period, onDismiss}) {
         <p style={{color:TEXT,fontSize:13.5,fontWeight:700,margin:"0 0 2px"}}>New 5-week period started</p>
         <p style={{color:MUTED,fontSize:12,margin:0}}>{fmtShort(period.startDate)} – {fmtShort(addDays(period.startDate,34))} · your last one's been archived</p>
       </div>
-      <button onClick={onDismiss} style={{background:"none",border:"none",color:MUTED,fontSize:18,cursor:"pointer",padding:"0 4px",flexShrink:0}}>×</button>
+      <button onClick={onDismiss} aria-label="Dismiss" style={{background:"none",border:"none",color:MUTED,fontSize:18,cursor:"pointer",padding:"10px",flexShrink:0}}>×</button>
     </div>
   );
 }

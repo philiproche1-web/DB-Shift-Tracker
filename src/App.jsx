@@ -60,6 +60,7 @@ export default function App() {
   const [logInitDate, setLogInitDate] = useState(null);
   const [logInitRestDay, setLogInitRestDay] = useState(false);
   const [session, setSession] = useState(undefined); // undefined = not checked yet, null = signed out
+  const [syncedOnce, setSyncedOnce] = useState(false);
   const [passwordRecovery, setPasswordRecovery] = useState(false);
   const [driverGarage, setDriverGarage] = useState(undefined); // undefined = not fetched yet, null = fetch failed
   const [driverFirstName, setDriverFirstName] = useState(null);
@@ -99,11 +100,13 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    setSyncedOnce(false);
     if (!session) return;
     let cancelled = false;
     async function runInitialSync() {
       await migrateLocalDataIfNeeded(supabase, session.user.id, tableConfigs);
       if (!cancelled) await syncAll(supabase, session.user.id, tableConfigs);
+      if (!cancelled) setSyncedOnce(true);
     }
     runInitialSync();
 
@@ -118,6 +121,26 @@ export default function App() {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [session?.user?.id]);
+
+  // Only attempt an automatic period rollover once the initial multi-device
+  // sync has resolved — rolling forward a stale local copy and persisting it
+  // immediately could win a last-write-wins race against a device that
+  // already pushed newer shifts into the new period. rollPeriodsForward is
+  // idempotent (a second call on its own output returns rolled:false), so
+  // this is safe even if periods/activePeriodId update again after this
+  // runs. See docs/superpowers/specs/2026-08-13-auto-period-rollover-design.md.
+  useEffect(() => {
+    if (!syncedOnce) return;
+    try {
+      const rolled = rollPeriodsForward(periods, activePeriodId);
+      if (rolled.rolled) {
+        persist(rolled.periods, rolled.activePeriodId);
+        setJustRolledPeriod(rolled.periods.find(p => p.id === rolled.activePeriodId));
+      }
+    } catch (e) {
+      console.error("Period rollover check failed:", e);
+    }
+  }, [syncedOnce]);
 
   useEffect(() => {
     if (!session) { setDriverGarage(undefined); setDriverFirstName(null); setCustomRestConfig(null); return; }
@@ -166,15 +189,7 @@ export default function App() {
     });
     loadData().then(({data,corrupted})=>{
       if(corrupted) { setLoadCorrupted(true); setLoading(false); return; }
-      if(data){
-        const rolled = rollPeriodsForward(data.periods||[], data.activePeriodId||null);
-        if (rolled.rolled) {
-          persist(rolled.periods, rolled.activePeriodId);
-          setJustRolledPeriod(rolled.periods.find(p => p.id === rolled.activePeriodId));
-        } else {
-          setPeriods(rolled.periods); setActivePeriodId(rolled.activePeriodId);
-        }
-      }
+      if(data){setPeriods(data.periods||[]);setActivePeriodId(data.activePeriodId||null);}
       const terms = localStorage.getItem("dbus_terms");
       if(!terms) { setTermsAccepted(false); setLoading(false); return; }
       const seenVersion = localStorage.getItem("dbus_version");

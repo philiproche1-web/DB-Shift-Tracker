@@ -1,5 +1,4 @@
-import { describe, it, expect, afterEach } from "vitest";
-import { vi } from "vitest";
+import { describe, it, expect, afterEach, vi } from "vitest";
 import { greetingDutyContext, computeShiftStreak, dayInfo, periodForDate, weekHighlights, getSeq, DUTIES, setCustomRestConfig, rollPeriodsForward } from "./roster.js";
 import { addDays, isBankHoliday } from "./dutyMath.js";
 
@@ -586,5 +585,14 @@ describe("rollPeriodsForward (automatic period rollover)", () => {
     // Grid-aligned 35-day steps from 2026-07-19: 07-19 -> 08-23 -> 09-27 (..10-31) -> 11-01.
     // 2026-10-15 falls inside the 09-27..10-31 block, so that's the one that becomes active.
     expect(next.startDate).toBe("2026-09-27");
+  });
+
+  it("is idempotent — a second call on the already-rolled result does not roll again", () => {
+    setToday("2026-08-23");
+    const first = rollPeriodsForward([ACTIVE], "a1");
+    const second = rollPeriodsForward(first.periods, first.activePeriodId);
+    expect(second.rolled).toBe(false);
+    expect(second.periods).toBe(first.periods);
+    expect(second.activePeriodId).toBe(first.activePeriodId);
   });
 });
