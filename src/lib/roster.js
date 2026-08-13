@@ -1,4 +1,4 @@
-import { addDays, fmtHrs, maxConsec, dayOffTally, inPeriod, wkStats } from "./dutyMath.js";
+import { addDays, fmtHrs, maxConsec, dayOffTally, inPeriod, wkStats, today, uid } from "./dutyMath.js";
 
 // DUTIES/SEQ/FIXED_REST_PATTERN are the bundled fallback baked into this
 // file — always available offline, from the moment the app first loads.
@@ -212,6 +212,26 @@ export function periodForDate(periods, date, activePeriodId) {
   const active = activePeriodId && periods.find(p => p.id === activePeriodId);
   if (active && inPeriod(date, active)) return active;
   return periods.find(p => inPeriod(date, p)) || null;
+}
+// Auto-advances the active period once it's ended, so drivers don't have to
+// remember to manually end one (see
+// docs/superpowers/specs/2026-08-13-auto-period-rollover-design.md). Called
+// once from App.jsx right after periods load. Silently catches up to
+// whichever grid-aligned 35-day block contains today if the driver's been
+// away more than one period — no empty periods are manufactured for the
+// gap, since nothing was ever logged there. `rolled: true` only on the
+// exact call where the boundary was actually crossed, which doubles as the
+// one-shot signal for showing the "new period started" banner.
+export function rollPeriodsForward(periods, activePeriodId) {
+  const active = periods.find(p => p.id === activePeriodId);
+  if (!active) return { periods, activePeriodId, rolled: false };
+  const now = today();
+  if (now <= addDays(active.startDate, 34)) return { periods, activePeriodId, rolled: false };
+  let start = active.startDate;
+  while (now > addDays(start, 34)) start = addDays(start, 35);
+  const archived = periods.map(p => p.id === activePeriodId ? { ...p, archived: true } : p);
+  const next = { id: uid(), startDate: start, shifts: [], daysOff: [], createdAt: new Date().toISOString() };
+  return { periods: [...archived, next], activePeriodId: next.id, rolled: true };
 }
 // Resolves what (if anything) is logged for a single date within a period —
 // a shift, a day off (including auto-merged fixed rest days), or nothing.

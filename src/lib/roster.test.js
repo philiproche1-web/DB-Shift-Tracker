@@ -1,5 +1,6 @@
 import { describe, it, expect, afterEach } from "vitest";
-import { greetingDutyContext, computeShiftStreak, dayInfo, periodForDate, weekHighlights, getSeq, DUTIES, setCustomRestConfig } from "./roster.js";
+import { vi } from "vitest";
+import { greetingDutyContext, computeShiftStreak, dayInfo, periodForDate, weekHighlights, getSeq, DUTIES, setCustomRestConfig, rollPeriodsForward } from "./roster.js";
 import { addDays, isBankHoliday } from "./dutyMath.js";
 
 const PERIOD = {
@@ -539,4 +540,51 @@ describe("getSeq label lookup sweeps every Zone 1 Saturday/Sunday X duty affecte
       expectSeqMatchesDuty(seq, duty);
     });
   }
+});
+
+describe("rollPeriodsForward (automatic period rollover)", () => {
+  const ACTIVE = { id: "a1", startDate: "2026-07-19", shifts: [], daysOff: [] }; // ends 2026-08-22
+
+  afterEach(() => { vi.useRealTimers(); });
+  function setToday(dateStr) {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(dateStr + "T12:00:00"));
+  }
+
+  it("no-ops when there is no active period", () => {
+    const result = rollPeriodsForward([], null);
+    expect(result).toEqual({ periods: [], activePeriodId: null, rolled: false });
+  });
+
+  it("no-ops when the active period has not ended yet", () => {
+    setToday("2026-08-22"); // the period's last day
+    const result = rollPeriodsForward([ACTIVE], "a1");
+    expect(result.rolled).toBe(false);
+    expect(result.periods).toEqual([ACTIVE]);
+    expect(result.activePeriodId).toBe("a1");
+  });
+
+  it("archives the old period and starts the next one the day after it ends", () => {
+    setToday("2026-08-23"); // one day past the period's end
+    const result = rollPeriodsForward([ACTIVE], "a1");
+    expect(result.rolled).toBe(true);
+    expect(result.periods).toHaveLength(2);
+    expect(result.periods[0]).toMatchObject({ id: "a1", archived: true });
+    const next = result.periods[1];
+    expect(next.startDate).toBe("2026-08-23");
+    expect(next.id).toBe(result.activePeriodId);
+    expect(next.shifts).toEqual([]);
+    expect(next.daysOff).toEqual([]);
+  });
+
+  it("catches up across multiple skipped periods, staying grid-aligned, with no periods manufactured in between", () => {
+    setToday("2026-10-15"); // several periods past 2026-07-19
+    const result = rollPeriodsForward([ACTIVE], "a1");
+    expect(result.rolled).toBe(true);
+    expect(result.periods).toHaveLength(2); // still just the old (archived) + the new one — no intermediate periods
+    const next = result.periods[1];
+    // Grid-aligned 35-day steps from 2026-07-19: 07-19 -> 08-23 -> 09-27 (..10-31) -> 11-01.
+    // 2026-10-15 falls inside the 09-27..10-31 block, so that's the one that becomes active.
+    expect(next.startDate).toBe("2026-09-27");
+  });
 });
