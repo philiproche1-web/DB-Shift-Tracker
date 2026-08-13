@@ -88,12 +88,33 @@ export function dayInfo(period, date, restConfig, restPattern = FIXED_REST_PATTE
   return { status: "unlogged", date };
 }
 
+// Converts a Europe/Dublin wall-clock date+time (as used by duty break-end
+// times in roster-data.json) into the true UTC instant, regardless of the
+// runtime's own timezone. Needed because this function is called both from
+// a driver's browser (implicitly Europe/Dublin) and from a Supabase Edge
+// Function (UTC) — without this, a UTC runtime misreads Dublin wall-clock
+// times as UTC and computes break-end ~1 hour late during IST (summer).
+export function dublinWallClockToUTC(dateStr, hh, mm) {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  // Probe Dublin's offset using UTC noon on the same date, avoiding any
+  // ambiguity right at a DST transition that happens near midnight.
+  const probeUTC = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Europe/Dublin",
+    hour12: false,
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", second: "2-digit",
+  }).formatToParts(probeUTC);
+  const get = (type) => Number(parts.find((p) => p.type === type).value);
+  const dublinAtProbe = Date.UTC(get("year"), get("month") - 1, get("day"), get("hour") % 24, get("minute"), get("second"));
+  const offsetMs = dublinAtProbe - probeUTC.getTime();
+  return new Date(Date.UTC(y, m - 1, d, hh, mm, 0) - offsetMs);
+}
+
 export function shiftBreakEnd(shift, duties) {
   if (!shift || shift.isSpare || shift.fixedType) return null;
   const duty = duties.find((d) => d.z === shift.zone && d.t === shift.dayType && d.r === shift.roster);
   if (!duty || !duty.be) return null;
   const [h, m] = duty.be.split(":").map(Number);
-  const dt = new Date(shift.date + "T00:00:00");
-  dt.setMinutes(h * 60 + m);
-  return dt;
+  return dublinWallClockToUTC(shift.date, h, m);
 }

@@ -83,11 +83,29 @@ describe("shiftBreakEnd", () => {
   it("computes the break-end Date from the matching duty", () => {
     const shift = { date: "2026-07-21", zone: "Zone 1", dayType: "weekday", roster: "SZ1/01" };
     const be = shiftBreakEnd(shift, duties);
-    expect(be.getHours()).toBe(7);
-    expect(be.getMinutes()).toBe(15);
+    // Asserted as an absolute instant, not getHours()/getMinutes() — those
+    // read back in the *runtime's* timezone and so pass everywhere, which is
+    // exactly why the Dublin-wall-clock-vs-UTC bug went unnoticed. 07:15
+    // Dublin on 2026-07-21 (IST, UTC+1) is 06:15 UTC.
+    expect(be.getTime()).toBe(new Date("2026-07-21T06:15:00.000Z").getTime());
   });
   it("returns null when the shift is a spare or has no break", () => {
     expect(shiftBreakEnd({ date: "2026-07-21", isSpare: true }, duties)).toBeNull();
     expect(shiftBreakEnd({ date: "2026-07-21", zone: "Zone 1", dayType: "weekday", roster: "NOPE" }, duties)).toBeNull();
+  });
+});
+
+describe("dublinWallClockToUTC / shiftBreakEnd timezone correctness", () => {
+  it("converts a summer (IST, UTC+1) Dublin wall-clock time to the correct UTC instant", () => {
+    const duties = [{ z: "Zone 1", t: "weekday", r: "SZ1/01", be: "13:00" }];
+    const shift = { date: "2026-07-21", zone: "Zone 1", dayType: "weekday", roster: "SZ1/01" };
+    const result = shiftBreakEnd(shift, duties);
+    expect(result.getTime()).toBe(new Date("2026-07-21T12:00:00.000Z").getTime());
+  });
+  it("converts a winter (GMT, UTC+0) Dublin wall-clock time to the correct UTC instant", () => {
+    const duties = [{ z: "Zone 1", t: "weekday", r: "SZ1/01", be: "13:00" }];
+    const shift = { date: "2026-01-21", zone: "Zone 1", dayType: "weekday", roster: "SZ1/01" };
+    const result = shiftBreakEnd(shift, duties);
+    expect(result.getTime()).toBe(new Date("2026-01-21T13:00:00.000Z").getTime());
   });
 });
