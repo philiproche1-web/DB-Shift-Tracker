@@ -20,6 +20,11 @@ export async function subscribeToPush(userId) {
   try {
     const reg = await navigator.serviceWorker.ready;
     const vapidKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
+    // Vite inlines this at BUILD time — a build made before the key was added
+    // to .env ships `undefined` here, and urlBase64ToUint8Array would throw a
+    // cryptic atob TypeError that ends up in a toast verbatim. Fail with
+    // something a driver can actually read instead.
+    if (!vapidKey) return { ok: false, error: "Push isn't set up for this app yet." };
     const sub = await reg.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: urlBase64ToUint8Array(vapidKey),

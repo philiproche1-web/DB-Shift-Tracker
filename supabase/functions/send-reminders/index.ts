@@ -252,7 +252,11 @@ Deno.serve(async (req) => {
     const { data, error } = await supabase
       .from("push_scheduler_runs")
       .select("ran_at")
-      .order("ran_at", { ascending: false })
+      // Ordered by the primary key, not ran_at: id is monotonic with insert
+      // order (identity column, rows only ever appended) so it gives the same
+      // latest row, but it's already indexed — ran_at isn't, and this endpoint
+      // is polled against a table that grows every 2 minutes forever.
+      .order("id", { ascending: false })
       .limit(1)
       .maybeSingle();
     // A failed query yields null data, which reads identically to "no runs

@@ -4,8 +4,25 @@ import { isLiveNow } from "../lib/routeAlerts.js";
 import { DUTIES, shiftDepartLocation, pStats, periodForDate, dayInfo, getSeq, greetingDutyContext, computeShiftStreak, weekHighlights } from "../lib/roster.js";
 import { BG, CARD, BORDER, CARD2, TEXT, MUTED, ACCENT, SUCCESS, DANGER, btnStyle, tag } from "../lib/theme.js";
 import { notifyOnce, loadSettings, saveSettings } from "../lib/persistence.js";
+import { isPushSubscribed, subscribeToPush } from "../lib/push.js";
 import { fetchWeather, weatherIconKind } from "../lib/weather.js";
 import { RouteAlertBanner, NewPeriodBanner, WeatherChip, SettingsButton } from "../components/shared.jsx";
+
+// Makes sure this device actually has a push subscription registered, given
+// the driver already has reminders on and OS permission granted. The Settings
+// toggle is the only other caller of subscribeToPush, so without this an
+// existing driver — who has notificationsEnabled defaulted to true and granted
+// permission long before push existed — would have zero rows in
+// push_subscriptions and silently receive nothing. Safe to call repeatedly:
+// the Supabase upsert is keyed onConflict:"endpoint", so a redundant call is a
+// no-op and doubles as self-healing if the browser rotates its endpoint.
+async function ensurePushSubscription(userId) {
+  if (!userId) return;
+  try {
+    if (await isPushSubscribed()) return;
+    await subscribeToPush(userId);
+  } catch { /* best effort — the Settings toggle stays the explicit path */ }
+}
 
 // ─── TODAY DUTY CARD ──────────────────────────────────────────────────────────
 export function TodayDutyCard({shift, label, accentColor, defaultExpanded=true}) {
@@ -202,7 +219,7 @@ export function UpcomingCarousel({periods, activePeriodId, todayDate, onLogDate}
 }
 
 // ─── HOME SCREEN ──────────────────────────────────────────────────────────────
-export function HomeScreen({period, periods, alerts, onViewAlerts, driverFirstName, onLog, onLogDate, onGoWeek, justRolledPeriod, onDismissRolloverBanner, onOpenSettings}) {
+export function HomeScreen({period, periods, alerts, onViewAlerts, driverFirstName, userId, onLog, onLogDate, onGoWeek, justRolledPeriod, onDismissRolloverBanner, onOpenSettings}) {
   const stats = useMemo(() => pStats(period), [period]);
   const [weather, setWeather] = useState(null);
   useEffect(() => {
@@ -242,9 +259,17 @@ export function HomeScreen({period, periods, alerts, onViewAlerts, driverFirstNa
     // than only from the Settings toggle, which they may never open.
     if (typeof Notification !== "undefined" && Notification.permission === "default") {
       Notification.requestPermission().then(perm => {
-        if (perm !== "granted") saveSettings({...loadSettings(), notificationsEnabled:false});
+        if (perm !== "granted") { saveSettings({...loadSettings(), notificationsEnabled:false}); return; }
+        ensurePushSubscription(userId);
       });
       return;
+    }
+    // Permission was already granted on an earlier visit — including every
+    // existing driver, who granted it to a build that had no push at all.
+    // They'd otherwise never get subscribed without toggling reminders off
+    // and back on in Settings, which nothing tells them to do.
+    if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+      ensurePushSubscription(userId);
     }
     if (stats.total >= MAX_HOURS*0.9) {
       notifyOnce(`dbus_notified_total90_${period.id}`, "Approaching your period limit", `You're at ${fmtHrs(stats.total)} of your 190h 4m limit.`);
@@ -252,7 +277,7 @@ export function HomeScreen({period, periods, alerts, onViewAlerts, driverFirstNa
     if (stats.sunday >= MAX_SUNDAY*0.9) {
       notifyOnce(`dbus_notified_sun90_${period.id}`, "Approaching your Sunday hours limit", `You're at ${fmtHrs(stats.sunday)} of your 14h 30m Sunday limit.`);
     }
-  }, [period.id, stats.total, stats.sunday]);
+  }, [period.id, stats.total, stats.sunday, userId]);
 
   return (
     <div style={{background:BG,minHeight:"100vh",paddingBottom:100}}>

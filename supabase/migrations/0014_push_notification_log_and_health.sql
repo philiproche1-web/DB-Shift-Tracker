@@ -1,8 +1,13 @@
 -- Server-side dedup for push reminders — replaces the client's per-device
 -- localStorage notifyOnce keys, which can't dedupe across a driver's
--- multiple devices. One row per (driver, date, reminder type) sent;
--- the Edge Function checks for an existing row before sending and inserts
--- one right after a successful send. Only the Edge Function (service_role)
+-- multiple devices. One row per (driver, date, reminder type) sent.
+-- The Edge Function CLAIMS the slot before sending: it inserts the row
+-- first and only sends if that insert succeeded, treating a unique
+-- violation on (user_id, shift_date, reminder_type) as "another
+-- invocation already has it, skip". Check-then-send would let two
+-- overlapping cron passes both pass the check and both send, so the
+-- constraint below is the actual dedup mechanism, not just a backstop.
+-- Only the Edge Function (service_role)
 -- writes here — no driver-facing insert/update policy needed, drivers can
 -- read their own history same as audit_log.
 create table public.push_notification_log (

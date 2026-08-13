@@ -317,7 +317,7 @@ export function SettingsPanel({period, onClose, onThemeChange, leaveSettings, on
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",cursor:"pointer"}} onClick={toggleNotifications}>
             <div>
               <p style={{color:TEXT,fontSize:14,fontWeight:600,margin:0}}>Notify me</p>
-              <p style={{color:MUTED,fontSize:12,margin:"2px 0 0"}}>A nudge if today's shift isn't logged, or you're close to a limit — only while the app is open.</p>
+              <p style={{color:MUTED,fontSize:12,margin:"2px 0 0"}}>A nudge if today's shift isn't logged, even with the app closed. Hours-limit warnings still need the app open.</p>
             </div>
             <div style={{width:44,height:26,borderRadius:13,background:settings.notificationsEnabled?SUCCESS:BORDER,position:"relative",transition:"background 0.2s",flexShrink:0}}>
               <div style={{width:20,height:20,borderRadius:"50%",background:"#fff",position:"absolute",top:3,left:settings.notificationsEnabled?21:3,transition:"left 0.2s"}}/>

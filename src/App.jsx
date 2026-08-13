@@ -450,6 +450,7 @@ export default function App() {
         alerts={routeAlerts}
         onViewAlerts={()=>setScreen("alerts")}
         driverFirstName={driverFirstName}
+        userId={session?.user?.id}
         onLog={()=>{setEditShift(null);setLogInitDate(null);setLogInitRestDay(false);setScreen("log");}}
         onLogDate={(date,opts)=>{setEditShift(null);setLookupDuty(null);setLogInitDate(date);setLogInitRestDay(!!opts?.isRestDay);setScreen("log");}}
         onGoWeek={i=>{setOpenWeek(i);setScreen("period");}}
