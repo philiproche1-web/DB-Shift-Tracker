@@ -168,9 +168,11 @@ export default function App() {
       if(corrupted) { setLoadCorrupted(true); setLoading(false); return; }
       if(data){
         const rolled = rollPeriodsForward(data.periods||[], data.activePeriodId||null);
-        persist(rolled.periods, rolled.activePeriodId);
         if (rolled.rolled) {
+          persist(rolled.periods, rolled.activePeriodId);
           setJustRolledPeriod(rolled.periods.find(p => p.id === rolled.activePeriodId));
+        } else {
+          setPeriods(rolled.periods); setActivePeriodId(rolled.activePeriodId);
         }
       }
       const terms = localStorage.getItem("dbus_terms");
