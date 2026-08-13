@@ -195,10 +195,15 @@ export function LeaveScreen({periods, leaveSettings, onLogDayOff, onEditDayOff, 
   const scAll  = allDaysOff.filter(d=>d.type==="Self Cert").sort((a,b)=>a.date.localeCompare(b.date));
   const scH1   = scAll.filter(d=>{ const m=parseInt(d.date.slice(5,7)); return m>=1&&m<=6; });
   const scH2   = scAll.filter(d=>{ const m=parseInt(d.date.slice(5,7)); return m>=7&&m<=12; });
+  const bhil   = allDaysOff.filter(d=>d.type==="Bank Holiday In Lieu").sort((a,b)=>a.date.localeCompare(b.date));
 
   const annualUsed = annual.length;
-  const annualTotal = leaveSettings.annualTotal;
+  const annualBase = leaveSettings.annualTotal;
+  const annualTotal = annualBase + bhil.length * 1.25;
   const annualRem = annualTotal - annualUsed;
+  const annualSubtitle = bhil.length > 0
+    ? `${annualBase} + ${bhil.length}×1¼ in lieu = ${annualTotal} days entitlement · Jan–Dec`
+    : `${annualBase} days entitlement · Jan–Dec`;
   const annualColor = annualRem>=8?SUCCESS:annualRem>=4?"#F59E0B":DANGER;
   const sickColor = sick.length<=7?SUCCESS:sick.length<=9?"#F59E0B":DANGER;
   const scColor = n => n===0?SUCCESS:n===1?"#F59E0B":DANGER;
@@ -223,7 +228,7 @@ export function LeaveScreen({periods, leaveSettings, onLogDayOff, onEditDayOff, 
           Log Day Off
         </button>
 
-        <LeaveCard title="Annual Leave" subtitle={`${annualTotal} days entitlement · Jan–Dec`}
+        <LeaveCard title="Annual Leave" subtitle={annualSubtitle}
           color={annualColor} used={annualUsed} total={annualTotal} remaining={annualRem}>
           <DayList items={annual} emptyMsg="No annual leave logged this year" onEdit={onEditDayOff} onDelete={onDeleteDayOff}/>
         </LeaveCard>
@@ -241,6 +246,11 @@ export function LeaveScreen({periods, leaveSettings, onLogDayOff, onEditDayOff, 
         <SelfCertCard scH1={scH1} scH2={scH2} scColor={scColor} onEdit={onEditDayOff} onDelete={onDeleteDayOff}/>
 
         <ForceMajeureCard fm12={fm12} fm36={fm36} fmColor={fmColor} onEdit={onEditDayOff} onDelete={onDeleteDayOff}/>
+
+        <LeaveCard title="Bank Holiday In Lieu" subtitle="Added automatically when you log a bank holiday shift as day in lieu"
+          color={bhil.length>0?SUCCESS:MUTED} used={bhil.length}>
+          <DayList items={bhil} emptyMsg="No bank holiday in lieu days logged this year" onEdit={onEditDayOff} onDelete={onDeleteDayOff}/>
+        </LeaveCard>
 
         {onViewFAQ && (
           <button onClick={()=>onViewFAQ("leave")} style={{background:"none",border:"none",color:ACCENT,fontSize:13,fontWeight:600,cursor:"pointer",padding:"8px 0",width:"100%",textAlign:"center"}}>
