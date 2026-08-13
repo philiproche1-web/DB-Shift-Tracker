@@ -25,7 +25,9 @@ This is a pair of keys that proves push messages come from this app.
    ```bash
    curl -X POST https://<project-ref>.supabase.co/functions/v1/send-reminders -H "Authorization: Bearer <service_role_key>"
    ```
-   You should get back something like `{"ok":true}`. If instead you see an error about a module or file not being found, the deploy didn't bundle everything it needed — flag that back to Claude rather than moving on, because the function will not work even though the deploy "succeeded."
+   **What to expect here:** you haven't run the migrations from step 3 yet, so the database table this function needs doesn't exist yet. That means an error mentioning `push_subscriptions` or "relation ... does not exist" is completely EXPECTED at this point — it just means step 3 hasn't happened, nothing is wrong. The only error that actually matters here is one about a missing module, file, or import — that means the deploy didn't bundle correctly, and that's the one to flag back to Claude rather than moving on. Anything else (including `{"ok":true}` if the table happens to already exist) means the deploy itself is fine.
+
+   One more thing: this curl is a *live* call, not a dry run. If you (or anyone) runs it again later, once step 3's migrations are done, it will genuinely try to send a real push notification to any driver mid-break at that moment — so treat it as a real action once the tables exist, not something to re-run casually.
 
 ## 3. Set the cron secrets and run the migration (5 min)
 
@@ -43,7 +45,17 @@ This is a pair of keys that proves push messages come from this app.
 2. URL: `https://<project-ref>.supabase.co/functions/v1/send-reminders?status=1`
 3. Add header `Authorization: Bearer <anon key, from dashboard Settings > API>`.
 4. Check interval: 15 minutes. Alert if the response doesn't contain `"lastRunAgoSeconds"` with a value under 600 (10 min) — UptimeRobot's "Keyword" monitor type with an assertion on the JSON is the simplest way to do this; if that's fiddly in the UI, a plain "up/down" HTTP check that just confirms the endpoint responds 200 is an acceptable first cut, you can tighten it later.
-5. **Don't just trust that it's set up — watch it actually work once.** A monitor you've never seen catch a real problem hasn't really been proven. Once everything above is live, open that same URL yourself in a browser (or re-run the curl from step 2) and check the `lastRunAgoSeconds` number in the response — it should be well under 120 seconds, since the background job behind this runs every 2 minutes. If it's low like that, the whole chain (cron → function → health number) is genuinely working end to end, not just switched on and hoped for.
+5. **Don't just trust that it's set up — watch it actually work once.** A monitor you've never seen catch a real problem hasn't really been proven. Once everything above is live, open this exact URL yourself in a browser (the `?status=1` on the end is what makes it return health info instead of actually sending reminders):
+   ```
+   https://<project-ref>.supabase.co/functions/v1/send-reminders?status=1
+   ```
+   (or `curl` it with the same `Authorization: Bearer <anon key>` header from step 3 above — do NOT reuse the plain curl from step 2, that one doesn't have `?status=1` and won't return `lastRunAgoSeconds`). Check the `lastRunAgoSeconds` number in the response — it should be well under 120 seconds, since the background job behind this runs every 2 minutes. If it's low like that, the whole chain (cron → function → health number) is genuinely working end to end, not just switched on and hoped for.
+6. **Optional but worth doing: prove the alert actually fires, not just that the green check passes.** A monitor that's never seen a real failure hasn't really been tested — feel free to skip this if steps 1-5 already feel like enough, but it only takes a few minutes:
+   - In the SQL Editor, run `select cron.unschedule('send-reminders-every-2-min');` — this pauses the background job that keeps the health number fresh, without touching anything else.
+   - Wait about 15-20 minutes (past the 10-minute alert threshold you set above).
+   - Confirm you actually get an UptimeRobot alert (email or app notification, whichever you set up).
+   - Turn it back on by re-running migration `0015`'s SQL again in the SQL Editor — that recreates the same scheduled job.
+   Seeing a real alert land is the only way to know the alarm actually works, not just that it's switched on.
 
 ## 5. Confirm on a real shift (whenever your next break is)
 
