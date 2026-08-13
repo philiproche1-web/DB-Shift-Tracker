@@ -48,13 +48,42 @@ export let FIXED_REST_PATTERN = [
   [5, 0], // Week 4: Friday, Sunday
   [3, 6], // Week 5: Wednesday, Saturday
 ];
+// Per-driver override for the global 5-week FIXED_REST_PATTERN above — a
+// driver on a fixed weekly schedule can set the same weekday(s) off every
+// week instead. Set once via setCustomRestConfig() after the driver's
+// profile loads (see App.jsx); fixedRestDates() below checks it. Default
+// (enabled: false) leaves every driver on the standard pattern, unchanged.
+// See docs/superpowers/specs/2026-08-13-custom-rest-days-design.md.
+let CUSTOM_REST_CONFIG = { enabled: false, weekdays: new Set(), since: null };
+export function setCustomRestConfig(profile) {
+  CUSTOM_REST_CONFIG = {
+    enabled: !!profile?.custom_rest_days_enabled,
+    weekdays: new Set(profile?.custom_rest_weekdays || []),
+    since: profile?.custom_rest_days_since || null,
+  };
+}
 export function fixedRestDates(periodStartDate) {
-  const dates = [];
+  const standard = [];
   FIXED_REST_PATTERN.forEach((weekdays, wIdx) => {
     const weekStart = addDays(periodStartDate, wIdx * 7);
-    weekdays.forEach(wd => dates.push(addDays(weekStart, wd)));
+    weekdays.forEach(wd => standard.push(addDays(weekStart, wd)));
   });
-  return dates;
+  if (!CUSTOM_REST_CONFIG.enabled) return standard;
+
+  // Forward-only: dates before `since` keep whatever the standard pattern
+  // already gave them; only dates on/after `since` switch to the driver's
+  // custom weekly weekday(s), replacing (not adding to) the standard
+  // pattern for those dates.
+  const since = CUSTOM_REST_CONFIG.since;
+  const kept = since ? standard.filter(d => d < since) : [];
+  const custom = [];
+  for (let i = 0; i < 35; i++) {
+    const d = addDays(periodStartDate, i);
+    if (since && d < since) continue;
+    const weekday = new Date(d + "T12:00:00").getDay();
+    if (CUSTOM_REST_CONFIG.weekdays.has(weekday)) custom.push(d);
+  }
+  return [...kept, ...custom];
 }
 // Merges the fixed rest days into daysOff — skipped for any date that already
 // has a real shift or day-off logged (a swap), or was explicitly removed.
