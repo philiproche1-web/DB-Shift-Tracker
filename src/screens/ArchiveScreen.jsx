@@ -1,22 +1,21 @@
 import { addDays, fmtShort, fmtHrs } from "../lib/dutyMath.js";
 import { pStats } from "../lib/roster.js";
-import { BG, BORDER, TEXT, MUTED, ACCENT, SUCCESS, cardStyle, btnStyle } from "../lib/theme.js";
+import { BG, BORDER, TEXT, MUTED, ACCENT, SUCCESS, cardStyle } from "../lib/theme.js";
 import { PageHeader, EmptyState, SettingsButton } from "../components/shared.jsx";
 import { exportPDF } from "../lib/pdfExport.js";
 
 // ─── ARCHIVE SCREEN ────────────────────────────────────────────────────────────
-export function ArchiveScreen({periods, activePeriodId, onStartNew, onView, onOpenSettings}) {
+export function ArchiveScreen({periods, activePeriodId, onView, onOpenSettings}) {
   const archived = [...periods].filter(p=>p.id!==activePeriodId).reverse();
   return (
     <div style={{background:BG,minHeight:"100vh",paddingBottom:100}}>
       <PageHeader eyebrow="Past periods" title="Archive" subtitle={archived.length>0?`${archived.length} archived period${archived.length!==1?"s":""}`:undefined} right={<SettingsButton onClick={onOpenSettings}/>}/>
       <div style={{padding:"4px 16px 0"}}>
-      <button style={{...btnStyle,marginBottom:20}} onClick={onStartNew}>Start New Period</button>
       {archived.length===0?(
         <EmptyState
           icon={<svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke={MUTED} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7l1.5-4h15L21 7"/><rect x="3" y="7" width="18" height="14" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/></svg>}
           title="No archived periods yet"
-          body="When you start a new period, the current one moves here for safe keeping."
+          body="Once your 5-week period ends, the previous one moves here automatically."
         />
       ):archived.map(p=>{
         const st=pStats(p);

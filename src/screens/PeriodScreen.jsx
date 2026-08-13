@@ -6,7 +6,7 @@ import { PageHeader, ComplianceBar, EmptyState, SettingsButton } from "../compon
 import { exportPDF } from "../lib/pdfExport.js";
 
 // ─── PERIOD SCREEN ────────────────────────────────────────────────────────────
-export function PeriodScreen({period, onEdit, onDelete, onEditDayOff, onDeleteDayOff, onViewArchive, onEndPeriod, onViewFAQ, onOpenSettings, initWeek=null, readOnly=false}) {
+export function PeriodScreen({period, onEdit, onDelete, onEditDayOff, onDeleteDayOff, onViewArchive, onViewFAQ, onOpenSettings, initWeek=null, readOnly=false}) {
   const stats = useMemo(() => pStats(period), [period]);
   // Default to current week, fallback to week 0
   const defaultWeek = useMemo(() => {
@@ -176,11 +176,6 @@ export function PeriodScreen({period, onEdit, onDelete, onEditDayOff, onDeleteDa
           </div>
         );
       })}
-      {!readOnly && (
-        <button onClick={onEndPeriod} style={{...btnStyle,marginTop:4,marginBottom:12}}>
-          {today() > addDays(period.startDate,34) ? "This period has ended — start a new one" : "End period & start new"}
-        </button>
-      )}
       </div>
     </div>
   );

@@ -4,8 +4,8 @@ import { signOut, getSession, onAuthStateChange } from "./lib/auth.js";
 import { syncAll, migrateLocalDataIfNeeded } from "./lib/sync.js";
 import { hasLiveRoster } from "./lib/garages.js";
 import { fetchRouteAlerts } from "./lib/routeAlerts.js";
-import { isCalendarSunday, addDays, fmtShort, uid, today } from "./lib/dutyMath.js";
-import { loadRosterData, applyRosterData, periodForDate, setCustomRestConfig } from "./lib/roster.js";
+import { isCalendarSunday, uid, today } from "./lib/dutyMath.js";
+import { loadRosterData, applyRosterData, periodForDate, setCustomRestConfig, rollPeriodsForward } from "./lib/roster.js";
 import { BG, TEXT, MUTED, ACCENT, DANGER, applyTheme, btnStyle } from "./lib/theme.js";
 import {
   loadData, writeDataLocally, saveData, APP_VERSION, WHATS_NEW,
@@ -60,6 +60,7 @@ export default function App() {
   const [logInitDate, setLogInitDate] = useState(null);
   const [logInitRestDay, setLogInitRestDay] = useState(false);
   const [session, setSession] = useState(undefined); // undefined = not checked yet, null = signed out
+  const [syncedOnce, setSyncedOnce] = useState(false);
   const [passwordRecovery, setPasswordRecovery] = useState(false);
   const [driverGarage, setDriverGarage] = useState(undefined); // undefined = not fetched yet, null = fetch failed
   const [driverFirstName, setDriverFirstName] = useState(null);
@@ -67,6 +68,7 @@ export default function App() {
   const [routeAlerts, setRouteAlerts] = useState([]);
   const [showSettings, setShowSettings] = useState(false);
   const [confirmFeedback, setConfirmFeedback] = useState(false);
+  const [justRolledPeriod, setJustRolledPeriod] = useState(null);
 
   const activePeriod = periods.find(p=>p.id===activePeriodId);
 
@@ -98,11 +100,14 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    setSyncedOnce(false);
     if (!session) return;
     let cancelled = false;
     async function runInitialSync() {
       await migrateLocalDataIfNeeded(supabase, session.user.id, tableConfigs);
-      if (!cancelled) await syncAll(supabase, session.user.id, tableConfigs);
+      if (cancelled) return;
+      const results = await syncAll(supabase, session.user.id, tableConfigs);
+      if (!cancelled && results.app_data?.ok) setSyncedOnce(true);
     }
     runInitialSync();
 
@@ -117,6 +122,26 @@ export default function App() {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [session?.user?.id]);
+
+  // Only attempt an automatic period rollover once the initial multi-device
+  // sync has resolved — rolling forward a stale local copy and persisting it
+  // immediately could win a last-write-wins race against a device that
+  // already pushed newer shifts into the new period. rollPeriodsForward is
+  // idempotent (a second call on its own output returns rolled:false), so
+  // this is safe even if periods/activePeriodId update again after this
+  // runs. See docs/superpowers/specs/2026-08-13-auto-period-rollover-design.md.
+  useEffect(() => {
+    if (!syncedOnce) return;
+    try {
+      const rolled = rollPeriodsForward(periods, activePeriodId);
+      if (rolled.rolled) {
+        persist(rolled.periods, rolled.activePeriodId);
+        setJustRolledPeriod(rolled.periods.find(p => p.id === rolled.activePeriodId));
+      }
+    } catch (e) {
+      console.error("Period rollover check failed:", e);
+    }
+  }, [syncedOnce]);
 
   useEffect(() => {
     if (!session) { setDriverGarage(undefined); setDriverFirstName(null); setCustomRestConfig(null); return; }
@@ -361,20 +386,6 @@ export default function App() {
     }});
   }
 
-  function startNewPeriod() {
-    const currentEnd = addDays(activePeriod.startDate,34);
-    const nextStart = addDays(activePeriod.startDate,35);
-    setConfirm({
-      msg:`Start a new 5-week period beginning ${fmtShort(nextStart)}? The period ending ${fmtShort(currentEnd)} will be archived.`,
-      yesLabel:"Start New Period", danger:false,
-      onYes:()=>{
-        const np={id:uid(),startDate:nextStart,shifts:[],daysOff:[],createdAt:new Date().toISOString()};
-        const updated=periods.map(p=>p.id===activePeriodId?{...p,archived:true}:p);
-        persist([...updated,np],np.id); setConfirm(null); setArchiveViewId(null); setScreen("home");
-      }
-    });
-  }
-
   if (session === undefined) {
     return <div style={{ background: BG, minHeight: "100vh" }} />; // brief blank frame while session check resolves
   }
@@ -442,6 +453,7 @@ export default function App() {
         onLog={()=>{setEditShift(null);setLogInitDate(null);setLogInitRestDay(false);setScreen("log");}}
         onLogDate={(date,opts)=>{setEditShift(null);setLookupDuty(null);setLogInitDate(date);setLogInitRestDay(!!opts?.isRestDay);setScreen("log");}}
         onGoWeek={i=>{setOpenWeek(i);setScreen("period");}}
+        justRolledPeriod={justRolledPeriod} onDismissRolloverBanner={()=>setJustRolledPeriod(null)}
         onOpenSettings={()=>setShowSettings(true)}/>}
       {screen==="period"&&<PeriodScreen period={activePeriod} initWeek={openWeek}
         onEdit={s=>{setEditShift(s);setScreen("log");}}
@@ -449,7 +461,6 @@ export default function App() {
         onEditDayOff={d=>{setEditDayOff(d);setDayOffFrom("period");setScreen("dayoff");}}
         onDeleteDayOff={deleteDayOff}
         onViewArchive={()=>setScreen("archive")}
-        onEndPeriod={startNewPeriod}
         onViewFAQ={cat=>setViewingFAQ(cat)}
         onOpenSettings={()=>setShowSettings(true)}/>}
       {screen==="leave"&&<LeaveScreen periods={periods} leaveSettings={leaveSettings} onLogDayOff={()=>{setEditDayOff(null);setDayOffFrom("leave");setScreen("dayoff");}}
@@ -458,7 +469,7 @@ export default function App() {
         onViewFAQ={cat=>setViewingFAQ(cat)}
         onOpenSettings={()=>setShowSettings(true)}/>}
       {screen==="archive"&&<ArchiveScreen periods={periods} activePeriodId={activePeriodId}
-        onStartNew={startNewPeriod} onView={id=>setArchiveViewId(id)}
+        onView={id=>setArchiveViewId(id)}
         onOpenSettings={()=>setShowSettings(true)}/>}
       <BottomNav active={screen==="log"?"log":["archive"].includes(screen)?"leave":screen} onChange={tab=>{
         // Navigating away from an in-progress shift/day-off edit discards it,
