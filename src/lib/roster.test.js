@@ -98,6 +98,31 @@ describe("custom rest-day config (per-driver weekly override)", () => {
     setCustomRestConfig({ custom_rest_days_enabled: true, custom_rest_weekdays: [1], custom_rest_days_since: "2026-07-19" }); // Monday
     expect(dayInfo(CUSTOM_PERIOD, "2026-08-03")).toMatchObject({ status: "dayoff", dayOff: { type: "Rest Day" } });
   });
+
+  it("does not regenerate a custom rest day the driver explicitly removed", () => {
+    setCustomRestConfig({ custom_rest_days_enabled: true, custom_rest_weekdays: [2], custom_rest_days_since: "2026-07-19" }); // Tuesday
+    const withRemoval = { ...CUSTOM_PERIOD, removedFixedRestDates: ["2026-07-21"] }; // a Tuesday
+    expect(dayInfo(withRemoval, "2026-07-21")).toMatchObject({ status: "unlogged" });
+  });
+
+  it("skips a custom rest day on/after `since` where a real shift is already logged", () => {
+    setCustomRestConfig({ custom_rest_days_enabled: true, custom_rest_weekdays: [2], custom_rest_days_since: "2026-07-24" }); // Tuesday, from 2026-07-24
+    const swapped = { ...CUSTOM_PERIOD, shifts: [{ id: "sw2", date: "2026-07-28", roster: "SZ1/10" }] }; // a Tuesday on/after `since`
+    expect(dayInfo(swapped, "2026-07-28")).toMatchObject({ status: "shift" });
+  });
+
+  it("generates rest days for every selected weekday when multiple are chosen", () => {
+    setCustomRestConfig({ custom_rest_days_enabled: true, custom_rest_weekdays: [1, 4], custom_rest_days_since: "2026-07-19" }); // Monday + Thursday
+    expect(dayInfo(CUSTOM_PERIOD, "2026-07-20")).toMatchObject({ status: "dayoff", dayOff: { type: "Rest Day" } }); // Monday
+    expect(dayInfo(CUSTOM_PERIOD, "2026-07-23")).toMatchObject({ status: "dayoff", dayOff: { type: "Rest Day" } }); // Thursday
+    expect(dayInfo(CUSTOM_PERIOD, "2026-07-21")).toMatchObject({ status: "unlogged" }); // Tuesday, not selected
+  });
+
+  it("applies the custom weekday across the whole period when `since` is null", () => {
+    setCustomRestConfig({ custom_rest_days_enabled: true, custom_rest_weekdays: [2], custom_rest_days_since: null }); // Tuesday, no cutoff
+    expect(dayInfo(CUSTOM_PERIOD, "2026-07-21")).toMatchObject({ status: "dayoff", dayOff: { type: "Rest Day" } }); // Tuesday, week 1
+    expect(dayInfo(CUSTOM_PERIOD, "2026-07-19")).toMatchObject({ status: "unlogged" }); // Sunday — was a standard-pattern day, but since is null so custom applies from the start, replacing it
+  });
 });
 
 describe("greetingDutyContext", () => {

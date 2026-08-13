@@ -100,7 +100,7 @@ export function SettingsPanel({period, onClose, onThemeChange, leaveSettings, on
     else setToast("Couldn't update your garage — try again.");
   }
   function toggleCustomWeekday(idx) {
-    setCustomRestWeekdays(prev => prev.includes(idx) ? prev.filter(d => d !== idx) : [...prev, idx].sort());
+    setCustomRestWeekdays(prev => prev.includes(idx) ? prev.filter(d => d !== idx) : [...prev, idx].sort((a,b)=>a-b));
   }
   async function saveCustomRestDays() {
     if (customRestEnabled && customRestWeekdays.length === 0) { setToast("Pick at least one day before saving."); return; }
@@ -226,6 +226,9 @@ export function SettingsPanel({period, onClose, onThemeChange, leaveSettings, on
                 })}
               </div>
             </>
+          )}
+          {customRestEnabled && driverCustomRestDays?.since && (
+            <p style={{color:MUTED,fontSize:12,margin:"0 0 12px"}}>Applies from {fmtShort(driverCustomRestDays.since)} onward — earlier dates keep the standard pattern.</p>
           )}
           <button onClick={saveCustomRestDays} disabled={customRestSaving} style={{...btnStyle,padding:"10px 8px",fontSize:13,borderRadius:10,opacity:customRestSaving?0.6:1,marginTop:customRestEnabled?0:12}}>
             {customRestSaving?"Saving…":"Save"}
