@@ -4,8 +4,8 @@ import { signOut, getSession, onAuthStateChange } from "./lib/auth.js";
 import { syncAll, migrateLocalDataIfNeeded } from "./lib/sync.js";
 import { hasLiveRoster } from "./lib/garages.js";
 import { fetchRouteAlerts } from "./lib/routeAlerts.js";
-import { isCalendarSunday, addDays, fmtShort, uid } from "./lib/dutyMath.js";
-import { loadRosterData, applyRosterData, periodForDate } from "./lib/roster.js";
+import { isCalendarSunday, addDays, fmtShort, uid, today } from "./lib/dutyMath.js";
+import { loadRosterData, applyRosterData, periodForDate, setCustomRestConfig } from "./lib/roster.js";
 import { BG, TEXT, MUTED, ACCENT, DANGER, applyTheme, btnStyle } from "./lib/theme.js";
 import {
   loadData, writeDataLocally, saveData, APP_VERSION, WHATS_NEW,
@@ -63,6 +63,7 @@ export default function App() {
   const [passwordRecovery, setPasswordRecovery] = useState(false);
   const [driverGarage, setDriverGarage] = useState(undefined); // undefined = not fetched yet, null = fetch failed
   const [driverFirstName, setDriverFirstName] = useState(null);
+  const [driverCustomRestDays, setDriverCustomRestDays] = useState({ enabled: false, weekdays: [], since: null });
   const [routeAlerts, setRouteAlerts] = useState([]);
   const [showSettings, setShowSettings] = useState(false);
   const [confirmFeedback, setConfirmFeedback] = useState(false);
@@ -118,13 +119,21 @@ export default function App() {
   }, [session?.user?.id]);
 
   useEffect(() => {
-    if (!session) { setDriverGarage(undefined); setDriverFirstName(null); return; }
+    if (!session) { setDriverGarage(undefined); setDriverFirstName(null); setCustomRestConfig(null); return; }
     let cancelled = false;
-    supabase.from("profiles").select("garage, first_name").eq("id", session.user.id).single()
+    supabase.from("profiles")
+      .select("garage, first_name, custom_rest_days_enabled, custom_rest_weekdays, custom_rest_days_since")
+      .eq("id", session.user.id).single()
       .then(({ data, error }) => {
         if (cancelled) return;
         setDriverGarage(error ? null : data?.garage ?? null);
         setDriverFirstName(error ? null : data?.first_name ?? null);
+        setCustomRestConfig(error ? null : data);
+        setDriverCustomRestDays({
+          enabled: !!data?.custom_rest_days_enabled,
+          weekdays: data?.custom_rest_weekdays || [],
+          since: data?.custom_rest_days_since || null,
+        });
       });
     return () => { cancelled = true; };
   }, [session?.user?.id]);
@@ -185,6 +194,28 @@ export default function App() {
   async function handleChangeFirstName(newName) {
     const { error } = await supabase.from("profiles").update({ first_name: newName }).eq("id", session.user.id);
     if (!error) setDriverFirstName(newName);
+    return !error;
+  }
+
+  // Stamps `since` to today only on the OFF -> ON transition — editing the
+  // weekday selection while already enabled must not reset it. See
+  // docs/superpowers/specs/2026-08-13-custom-rest-days-design.md.
+  async function handleChangeCustomRestDays(enabled, weekdays) {
+    const since = (enabled && !driverCustomRestDays.enabled) ? today() : driverCustomRestDays.since;
+    const { error } = await supabase.from("profiles").update({
+      custom_rest_days_enabled: enabled,
+      custom_rest_weekdays: weekdays,
+      custom_rest_days_since: since,
+    }).eq("id", session.user.id);
+    if (!error) {
+      const next = { enabled, weekdays, since };
+      setDriverCustomRestDays(next);
+      setCustomRestConfig({
+        custom_rest_days_enabled: enabled,
+        custom_rest_weekdays: weekdays,
+        custom_rest_days_since: since,
+      });
+    }
     return !error;
   }
 
@@ -448,6 +479,7 @@ export default function App() {
           onEditStartDate={editActivePeriodStartDate}
           driverGarage={driverGarage} onChangeGarage={handleChangeGarage}
           driverFirstName={driverFirstName} onChangeFirstName={handleChangeFirstName}
+          driverCustomRestDays={driverCustomRestDays} onChangeCustomRestDays={handleChangeCustomRestDays}
           onSendFeedback={()=>setConfirmFeedback(true)}/>
       )}
       {confirmFeedback && (

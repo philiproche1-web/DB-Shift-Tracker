@@ -1,6 +1,6 @@
-import { describe, it, expect } from "vitest";
-import { greetingDutyContext, computeShiftStreak, dayInfo, periodForDate, weekHighlights, getSeq, DUTIES } from "./roster.js";
-import { addDays } from "./dutyMath.js";
+import { describe, it, expect, afterEach } from "vitest";
+import { greetingDutyContext, computeShiftStreak, dayInfo, periodForDate, weekHighlights, getSeq, DUTIES, setCustomRestConfig } from "./roster.js";
+import { addDays, isBankHoliday } from "./dutyMath.js";
 
 const PERIOD = {
   id: "p1",
@@ -15,6 +15,11 @@ const PERIOD = {
     { id: "d2", date: "2026-07-24", type: "Annual Leave" },
   ],
 };
+
+// A clean period (no logged shifts/days off) for exercising the custom
+// rest-day generator in isolation, without PERIOD's own fixture data
+// colliding with the dates under test.
+const CUSTOM_PERIOD = { id: "cp1", startDate: "2026-07-19", shifts: [], daysOff: [] };
 
 // Root cause of the "Self Cert never shows in Period or the carousel" report:
 // App.jsx's saveDayOff() resolved which period to write into with its own
@@ -53,6 +58,70 @@ describe("dayInfo after a same-date shift is deleted out from under a day off", 
     // deleteShift(sid) in App.jsx only ever filters p.shifts — daysOff is untouched.
     const afterShiftDeleted = { ...withBoth, shifts: withBoth.shifts.filter(s => s.id !== "s4") };
     expect(dayInfo(afterShiftDeleted, "2026-07-25")).toMatchObject({ status: "dayoff", dayOff: { type: "Self Cert" } });
+  });
+});
+
+// Per-driver override for the global 5-week pattern (see
+// docs/superpowers/specs/2026-08-13-custom-rest-days-design.md). Period
+// starts 2026-07-19 (Sunday). Standard FIXED_REST_PATTERN week 1 is
+// [Sunday, Monday] -> 2026-07-19 and 2026-07-20; week 2 is [Thursday,
+// Sunday] with week-2 starting 2026-07-26 -> 2026-07-26 and 2026-07-30.
+describe("custom rest-day config (per-driver weekly override)", () => {
+  afterEach(() => { setCustomRestConfig(null); }); // reset to disabled so later tests aren't affected
+
+  it("keeps the standard pattern before `since`, and replaces it with the weekly custom weekday from `since` onward", () => {
+    setCustomRestConfig({ custom_rest_days_enabled: true, custom_rest_weekdays: [2], custom_rest_days_since: "2026-07-24" }); // Tuesday, from 2026-07-24
+    // Before `since`: standard week-1 pattern days are preserved unchanged.
+    expect(dayInfo(CUSTOM_PERIOD, "2026-07-19")).toMatchObject({ status: "dayoff", dayOff: { type: "Rest Day" } });
+    expect(dayInfo(CUSTOM_PERIOD, "2026-07-20")).toMatchObject({ status: "dayoff", dayOff: { type: "Rest Day" } });
+    // On/after `since`: the standard pattern's week-2 Sunday (2026-07-26) no
+    // longer applies — replaced, not additive.
+    expect(dayInfo(CUSTOM_PERIOD, "2026-07-26")).toMatchObject({ status: "unlogged" });
+    // Instead, every Tuesday on/after `since` is a rest day.
+    expect(dayInfo(CUSTOM_PERIOD, "2026-07-28")).toMatchObject({ status: "dayoff", dayOff: { type: "Rest Day" } });
+  });
+
+  it("skips generating a custom rest day where a real shift is already logged (a swap)", () => {
+    setCustomRestConfig({ custom_rest_days_enabled: true, custom_rest_weekdays: [2], custom_rest_days_since: "2026-07-19" });
+    const swapped = { ...CUSTOM_PERIOD, shifts: [{ id: "sw1", date: "2026-07-21", roster: "SZ1/09" }] }; // a Tuesday
+    expect(dayInfo(swapped, "2026-07-21")).toMatchObject({ status: "shift" });
+  });
+
+  it("leaves the standard 5-week pattern unchanged when the config is disabled", () => {
+    setCustomRestConfig({ custom_rest_days_enabled: false, custom_rest_weekdays: [2], custom_rest_days_since: "2026-07-19" });
+    expect(dayInfo(CUSTOM_PERIOD, "2026-07-19")).toMatchObject({ status: "dayoff", dayOff: { type: "Rest Day" } });
+    expect(dayInfo(CUSTOM_PERIOD, "2026-07-21")).toMatchObject({ status: "unlogged" }); // Tuesday isn't a pattern day, and custom is off
+  });
+
+  it("a custom rest day on a bank holiday still resolves as a day off, not a forced Sunday duty", () => {
+    expect(isBankHoliday("2026-08-03")).toBe(true); // sanity: August bank holiday, a Monday
+    setCustomRestConfig({ custom_rest_days_enabled: true, custom_rest_weekdays: [1], custom_rest_days_since: "2026-07-19" }); // Monday
+    expect(dayInfo(CUSTOM_PERIOD, "2026-08-03")).toMatchObject({ status: "dayoff", dayOff: { type: "Rest Day" } });
+  });
+
+  it("does not regenerate a custom rest day the driver explicitly removed", () => {
+    setCustomRestConfig({ custom_rest_days_enabled: true, custom_rest_weekdays: [2], custom_rest_days_since: "2026-07-19" }); // Tuesday
+    const withRemoval = { ...CUSTOM_PERIOD, removedFixedRestDates: ["2026-07-21"] }; // a Tuesday
+    expect(dayInfo(withRemoval, "2026-07-21")).toMatchObject({ status: "unlogged" });
+  });
+
+  it("skips a custom rest day on/after `since` where a real shift is already logged", () => {
+    setCustomRestConfig({ custom_rest_days_enabled: true, custom_rest_weekdays: [2], custom_rest_days_since: "2026-07-24" }); // Tuesday, from 2026-07-24
+    const swapped = { ...CUSTOM_PERIOD, shifts: [{ id: "sw2", date: "2026-07-28", roster: "SZ1/10" }] }; // a Tuesday on/after `since`
+    expect(dayInfo(swapped, "2026-07-28")).toMatchObject({ status: "shift" });
+  });
+
+  it("generates rest days for every selected weekday when multiple are chosen", () => {
+    setCustomRestConfig({ custom_rest_days_enabled: true, custom_rest_weekdays: [1, 4], custom_rest_days_since: "2026-07-19" }); // Monday + Thursday
+    expect(dayInfo(CUSTOM_PERIOD, "2026-07-20")).toMatchObject({ status: "dayoff", dayOff: { type: "Rest Day" } }); // Monday
+    expect(dayInfo(CUSTOM_PERIOD, "2026-07-23")).toMatchObject({ status: "dayoff", dayOff: { type: "Rest Day" } }); // Thursday
+    expect(dayInfo(CUSTOM_PERIOD, "2026-07-21")).toMatchObject({ status: "unlogged" }); // Tuesday, not selected
+  });
+
+  it("applies the custom weekday across the whole period when `since` is null", () => {
+    setCustomRestConfig({ custom_rest_days_enabled: true, custom_rest_weekdays: [2], custom_rest_days_since: null }); // Tuesday, no cutoff
+    expect(dayInfo(CUSTOM_PERIOD, "2026-07-21")).toMatchObject({ status: "dayoff", dayOff: { type: "Rest Day" } }); // Tuesday, week 1
+    expect(dayInfo(CUSTOM_PERIOD, "2026-07-19")).toMatchObject({ status: "unlogged" }); // Sunday — was a standard-pattern day, but since is null so custom applies from the start, replacing it
   });
 });
 

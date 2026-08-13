@@ -2,12 +2,14 @@ import { useState, useEffect } from "react";
 import { isCalendarSunday, addDays, fmtShort } from "../lib/dutyMath.js";
 import { ZONES } from "../lib/roster.js";
 import { garageOptions } from "../lib/garages.js";
-import { CARD, CARD2, BORDER, TEXT, MUTED, SUCCESS, DANGER, cardStyle, inputStyle, btnStyle } from "../lib/theme.js";
+import { CARD, CARD2, BORDER, TEXT, MUTED, SUCCESS, DANGER, ACCENT, cardStyle, inputStyle, btnStyle } from "../lib/theme.js";
 import { loadSettings, saveSettings, APP_VERSION } from "../lib/persistence.js";
 import { SegGroup, DateInput, ConfirmDialog } from "../components/shared.jsx";
 
+const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]; // index = Date.getDay(), matches roster.js's convention
+
 // ─── SETTINGS PANEL ───────────────────────────────────────────────────────────
-export function SettingsPanel({period, onClose, onThemeChange, leaveSettings, onLeaveSettingsChange, onReplayTour, onViewTerms, onViewFAQ, onEditStartDate, driverGarage, onChangeGarage, driverFirstName, onChangeFirstName, onSendFeedback}) {
+export function SettingsPanel({period, onClose, onThemeChange, leaveSettings, onLeaveSettingsChange, onReplayTour, onViewTerms, onViewFAQ, onEditStartDate, driverGarage, onChangeGarage, driverFirstName, onChangeFirstName, driverCustomRestDays, onChangeCustomRestDays, onSendFeedback}) {
   const [settings, setSettings] = useState(loadSettings);
   const [annualInput, setAnnualInput] = useState(String(leaveSettings?.annualTotal||20));
   const [annualError, setAnnualError] = useState(null);
@@ -25,6 +27,9 @@ export function SettingsPanel({period, onClose, onThemeChange, leaveSettings, on
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState(driverFirstName || "");
   const [nameSaving, setNameSaving] = useState(false);
+  const [customRestEnabled, setCustomRestEnabled] = useState(driverCustomRestDays?.enabled || false);
+  const [customRestWeekdays, setCustomRestWeekdays] = useState(driverCustomRestDays?.weekdays || []);
+  const [customRestSaving, setCustomRestSaving] = useState(false);
   const appearances = [{v:"system",l:"📱 System"},{v:"light",l:"☀️ Light"},{v:"dark",l:"🌙 Dark"}];
 
   useEffect(()=>{
@@ -93,6 +98,16 @@ export function SettingsPanel({period, onClose, onThemeChange, leaveSettings, on
     setGarageSaving(false);
     if (ok) { setEditingGarage(false); setToast(`Garage changed to ${garageInput}.`); }
     else setToast("Couldn't update your garage — try again.");
+  }
+  function toggleCustomWeekday(idx) {
+    setCustomRestWeekdays(prev => prev.includes(idx) ? prev.filter(d => d !== idx) : [...prev, idx].sort((a,b)=>a-b));
+  }
+  async function saveCustomRestDays() {
+    if (customRestEnabled && customRestWeekdays.length === 0) { setToast("Pick at least one day before saving."); return; }
+    setCustomRestSaving(true);
+    const ok = await onChangeCustomRestDays(customRestEnabled, customRestWeekdays);
+    setCustomRestSaving(false);
+    setToast(ok ? "Fixed rest days saved." : "Couldn't save — try again.");
   }
   function saveAnnual() {
     const n = parseInt(annualInput,10);
@@ -184,6 +199,41 @@ export function SettingsPanel({period, onClose, onThemeChange, leaveSettings, on
             </div>
           </div>
         )}
+
+        {/* Fixed Rest Days */}
+        <p style={{color:MUTED,fontSize:11,textTransform:"uppercase",letterSpacing:1.5,fontWeight:700,margin:"0 0 10px"}}>Fixed rest days</p>
+        <p style={{color:MUTED,fontSize:12,margin:"0 0 10px"}}>On a set weekly schedule? Turn this on and pick your days off — they'll repeat every week instead of the standard 5-week pattern.</p>
+        <div style={{...cardStyle,marginBottom:20,padding:"14px 16px"}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",cursor:"pointer"}} onClick={()=>setCustomRestEnabled(e=>!e)}>
+            <p style={{color:TEXT,fontSize:14,fontWeight:600,margin:0}}>Use fixed rest days</p>
+            <div style={{width:44,height:26,borderRadius:13,background:customRestEnabled?SUCCESS:BORDER,position:"relative",transition:"background 0.2s",flexShrink:0}}>
+              <div style={{width:20,height:20,borderRadius:"50%",background:"#fff",position:"absolute",top:3,left:customRestEnabled?21:3,transition:"left 0.2s"}}/>
+            </div>
+          </div>
+          {customRestEnabled && (
+            <>
+              <div style={{borderTop:`1px solid ${BORDER}`,margin:"14px 0"}}/>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:6,marginBottom:12}}>
+                {WEEKDAY_LABELS.map((label,idx)=>{
+                  const sel = customRestWeekdays.includes(idx);
+                  return (
+                    <button key={idx} onClick={()=>toggleCustomWeekday(idx)} style={{
+                      background: sel?ACCENT:CARD2, color: sel?"#07090F":MUTED,
+                      border: sel?"none":`1px solid ${BORDER}`, borderRadius:8,
+                      padding:"9px 2px", fontSize:12, fontWeight: sel?800:500, cursor:"pointer"
+                    }}>{label}</button>
+                  );
+                })}
+              </div>
+            </>
+          )}
+          {customRestEnabled && driverCustomRestDays?.since && (
+            <p style={{color:MUTED,fontSize:12,margin:"0 0 12px"}}>Applies from {fmtShort(driverCustomRestDays.since)} onward — earlier dates keep the standard pattern.</p>
+          )}
+          <button onClick={saveCustomRestDays} disabled={customRestSaving} style={{...btnStyle,padding:"10px 8px",fontSize:13,borderRadius:10,opacity:customRestSaving?0.6:1,marginTop:customRestEnabled?0:12}}>
+            {customRestSaving?"Saving…":"Save"}
+          </button>
+        </div>
 
         {/* Default Zone */}
         <p style={{color:MUTED,fontSize:11,textTransform:"uppercase",letterSpacing:1.5,fontWeight:700,margin:"0 0 10px"}}>Default zone</p>
