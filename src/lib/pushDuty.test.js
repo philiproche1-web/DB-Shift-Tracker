@@ -43,6 +43,20 @@ describe("fixedRestDates", () => {
     // On/after `since`, every Wednesday shows up
     expect(dates).toContain("2026-07-29"); // a Wednesday on/after since
   });
+  it("respects a custom restPattern parameter when provided", () => {
+    // Custom pattern: Tuesday (2) and Wednesday (3) every week
+    const customPattern = [[2, 3], [2, 3], [2, 3], [2, 3], [2, 3]];
+    const defaultDates = fixedRestDates(NO_CUSTOM, "2026-07-19");
+    const customDates = fixedRestDates(NO_CUSTOM, "2026-07-19", customPattern);
+    // The two sets should be different (default has Sun/Mon in week 1, custom has Tue/Wed)
+    expect(customDates).not.toEqual(defaultDates);
+    // Verify the custom pattern includes Tuesday (2) of week 1: 2026-07-19 + 2 days = 2026-07-21
+    expect(customDates).toContain("2026-07-21"); // Tuesday of week 1
+    expect(customDates).toContain("2026-07-22"); // Wednesday of week 1
+    // Verify default pattern doesn't have these
+    expect(defaultDates).not.toContain("2026-07-21");
+    expect(defaultDates).not.toContain("2026-07-22");
+  });
 });
 
 describe("dayInfo", () => {

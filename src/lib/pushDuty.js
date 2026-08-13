@@ -39,9 +39,9 @@ const FIXED_REST_PATTERN = [
   [3, 6], // Week 5: Wednesday, Saturday
 ];
 
-export function fixedRestDates(restConfig, periodStartDate) {
+export function fixedRestDates(restConfig, periodStartDate, restPattern = FIXED_REST_PATTERN) {
   const standard = [];
-  FIXED_REST_PATTERN.forEach((weekdays, wIdx) => {
+  restPattern.forEach((weekdays, wIdx) => {
     const weekStart = addDays(periodStartDate, wIdx * 7);
     weekdays.forEach((wd) => standard.push(addDays(weekStart, wd)));
   });
@@ -59,19 +59,19 @@ export function fixedRestDates(restConfig, periodStartDate) {
   return [...kept, ...custom];
 }
 
-function withFixedRestDays(startDate, daysOff, shifts, removedFixed, restConfig) {
+function withFixedRestDays(startDate, daysOff, shifts, removedFixed, restConfig, restPattern = FIXED_REST_PATTERN) {
   const removed = new Set(removedFixed || []);
   const taken = new Set([
     ...(daysOff || []).map((d) => d.date),
     ...(shifts || []).map((s) => s.date),
   ]);
-  const virtual = fixedRestDates(restConfig, startDate)
+  const virtual = fixedRestDates(restConfig, startDate, restPattern)
     .filter((d) => !taken.has(d) && !removed.has(d))
     .map((d) => ({ id: `fixed-${d}`, date: d, type: "Rest Day", fixed: true }));
   return [...(daysOff || []), ...virtual];
 }
 
-export function dayInfo(period, date, restConfig) {
+export function dayInfo(period, date, restConfig, restPattern = FIXED_REST_PATTERN) {
   if (!period || !inPeriod(date, period)) return { status: "unlogged", date };
   const shift = (period.shifts || []).find((s) => s.date === date);
   if (shift) return { status: "shift", date, shift };
@@ -80,7 +80,8 @@ export function dayInfo(period, date, restConfig) {
     period.daysOff || [],
     period.shifts || [],
     period.removedFixedRestDates,
-    restConfig
+    restConfig,
+    restPattern
   );
   const dayOff = mergedDaysOff.find((d) => d.date === date);
   if (dayOff) return { status: "dayoff", date, dayOff };
