@@ -5,7 +5,7 @@ import { syncAll, migrateLocalDataIfNeeded } from "./lib/sync.js";
 import { hasLiveRoster } from "./lib/garages.js";
 import { fetchRouteAlerts } from "./lib/routeAlerts.js";
 import { isCalendarSunday, addDays, fmtShort, uid, today } from "./lib/dutyMath.js";
-import { loadRosterData, applyRosterData, periodForDate, setCustomRestConfig } from "./lib/roster.js";
+import { loadRosterData, applyRosterData, periodForDate, setCustomRestConfig, rollPeriodsForward } from "./lib/roster.js";
 import { BG, TEXT, MUTED, ACCENT, DANGER, applyTheme, btnStyle } from "./lib/theme.js";
 import {
   loadData, writeDataLocally, saveData, APP_VERSION, WHATS_NEW,
@@ -67,6 +67,7 @@ export default function App() {
   const [routeAlerts, setRouteAlerts] = useState([]);
   const [showSettings, setShowSettings] = useState(false);
   const [confirmFeedback, setConfirmFeedback] = useState(false);
+  const [justRolledPeriod, setJustRolledPeriod] = useState(null);
 
   const activePeriod = periods.find(p=>p.id===activePeriodId);
 
@@ -165,7 +166,14 @@ export default function App() {
     });
     loadData().then(({data,corrupted})=>{
       if(corrupted) { setLoadCorrupted(true); setLoading(false); return; }
-      if(data){setPeriods(data.periods||[]);setActivePeriodId(data.activePeriodId||null);}
+      if(data){
+        const rolled = rollPeriodsForward(data.periods||[], data.activePeriodId||null);
+        setPeriods(rolled.periods); setActivePeriodId(rolled.activePeriodId);
+        if (rolled.rolled) {
+          saveData({periods: rolled.periods, activePeriodId: rolled.activePeriodId});
+          setJustRolledPeriod(rolled.periods.find(p => p.id === rolled.activePeriodId));
+        }
+      }
       const terms = localStorage.getItem("dbus_terms");
       if(!terms) { setTermsAccepted(false); setLoading(false); return; }
       const seenVersion = localStorage.getItem("dbus_version");
@@ -361,20 +369,6 @@ export default function App() {
     }});
   }
 
-  function startNewPeriod() {
-    const currentEnd = addDays(activePeriod.startDate,34);
-    const nextStart = addDays(activePeriod.startDate,35);
-    setConfirm({
-      msg:`Start a new 5-week period beginning ${fmtShort(nextStart)}? The period ending ${fmtShort(currentEnd)} will be archived.`,
-      yesLabel:"Start New Period", danger:false,
-      onYes:()=>{
-        const np={id:uid(),startDate:nextStart,shifts:[],daysOff:[],createdAt:new Date().toISOString()};
-        const updated=periods.map(p=>p.id===activePeriodId?{...p,archived:true}:p);
-        persist([...updated,np],np.id); setConfirm(null); setArchiveViewId(null); setScreen("home");
-      }
-    });
-  }
-
   if (session === undefined) {
     return <div style={{ background: BG, minHeight: "100vh" }} />; // brief blank frame while session check resolves
   }
@@ -442,6 +436,7 @@ export default function App() {
         onLog={()=>{setEditShift(null);setLogInitDate(null);setLogInitRestDay(false);setScreen("log");}}
         onLogDate={(date,opts)=>{setEditShift(null);setLookupDuty(null);setLogInitDate(date);setLogInitRestDay(!!opts?.isRestDay);setScreen("log");}}
         onGoWeek={i=>{setOpenWeek(i);setScreen("period");}}
+        justRolledPeriod={justRolledPeriod} onDismissRolloverBanner={()=>setJustRolledPeriod(null)}
         onOpenSettings={()=>setShowSettings(true)}/>}
       {screen==="period"&&<PeriodScreen period={activePeriod} initWeek={openWeek}
         onEdit={s=>{setEditShift(s);setScreen("log");}}
@@ -449,7 +444,6 @@ export default function App() {
         onEditDayOff={d=>{setEditDayOff(d);setDayOffFrom("period");setScreen("dayoff");}}
         onDeleteDayOff={deleteDayOff}
         onViewArchive={()=>setScreen("archive")}
-        onEndPeriod={startNewPeriod}
         onViewFAQ={cat=>setViewingFAQ(cat)}
         onOpenSettings={()=>setShowSettings(true)}/>}
       {screen==="leave"&&<LeaveScreen periods={periods} leaveSettings={leaveSettings} onLogDayOff={()=>{setEditDayOff(null);setDayOffFrom("leave");setScreen("dayoff");}}
@@ -458,7 +452,7 @@ export default function App() {
         onViewFAQ={cat=>setViewingFAQ(cat)}
         onOpenSettings={()=>setShowSettings(true)}/>}
       {screen==="archive"&&<ArchiveScreen periods={periods} activePeriodId={activePeriodId}
-        onStartNew={startNewPeriod} onView={id=>setArchiveViewId(id)}
+        onView={id=>setArchiveViewId(id)}
         onOpenSettings={()=>setShowSettings(true)}/>}
       <BottomNav active={screen==="log"?"log":["archive"].includes(screen)?"leave":screen} onChange={tab=>{
         // Navigating away from an in-progress shift/day-off edit discards it,
