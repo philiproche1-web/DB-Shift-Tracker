@@ -75,6 +75,7 @@ export function SelfCertCard({scH1, scH2, scColor, onEdit, onDelete}) {
             <div>
               <p style={{color:TEXT,fontSize:15,fontWeight:700,margin:0}}>Self Cert</p>
               <p style={{color:MUTED,fontSize:12,margin:"2px 0 0"}}>2 days per half-year · resets 1 Jan &amp; 1 Jul</p>
+              <p style={{color:MUTED,fontSize:11,margin:"2px 0 0"}}>Can't be combined with rest days to create more than 2 consecutive days off (e.g. not the day before or after a weekend).</p>
             </div>
           </div>
           <div style={{textAlign:"right"}}>
@@ -199,7 +200,7 @@ export function LeaveScreen({periods, leaveSettings, onLogDayOff, onEditDayOff, 
   const annualTotal = leaveSettings.annualTotal;
   const annualRem = annualTotal - annualUsed;
   const annualColor = annualRem>=8?SUCCESS:annualRem>=4?"#F59E0B":DANGER;
-  const sickColor = sick.length<=3?SUCCESS:sick.length<=7?"#F59E0B":DANGER;
+  const sickColor = sick.length<=7?SUCCESS:sick.length<=9?"#F59E0B":DANGER;
   const scColor = n => n===0?SUCCESS:n===1?"#F59E0B":DANGER;
   const fmColor = (n, cap) => n===0?SUCCESS:n<cap?"#F59E0B":DANGER;
 
@@ -227,8 +228,13 @@ export function LeaveScreen({periods, leaveSettings, onLogDayOff, onEditDayOff, 
           <DayList items={annual} emptyMsg="No annual leave logged this year" onEdit={onEditDayOff} onDelete={onDeleteDayOff}/>
         </LeaveCard>
 
-        <LeaveCard title="Sick Leave" subtitle="Certified by doctor · Jan–Dec"
-          color={sickColor} used={sick.length}>
+        <LeaveCard title="Sick Leave" subtitle="Certified by doctor · Jan–Dec" color={sickColor} used={sick.length}>
+          <p style={{color:MUTED,fontSize:12,margin:"0 0 8px"}}>13+ certified sick days in a calendar year triggers ACP.</p>
+          {sick.length>=13 && (
+            <div style={{background:`${DANGER}18`,border:`1px solid ${DANGER}44`,borderRadius:10,padding:"10px 12px",marginBottom:10}}>
+              <p style={{color:DANGER,fontSize:13,fontWeight:700,margin:0}}>You've hit the ACP threshold — 13+ certified sick days in a calendar year.</p>
+            </div>
+          )}
           <DayList items={sick} emptyMsg="No sick days logged this year" onEdit={onEditDayOff} onDelete={onDeleteDayOff}/>
         </LeaveCard>
 
