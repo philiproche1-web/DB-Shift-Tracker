@@ -4,7 +4,7 @@ import { isLiveNow } from "../lib/routeAlerts.js";
 import { DUTIES, shiftDepartLocation, pStats, periodForDate, dayInfo, getSeq, greetingDutyContext, computeShiftStreak, weekHighlights } from "../lib/roster.js";
 import { BG, CARD, BORDER, CARD2, TEXT, MUTED, ACCENT, SUCCESS, DANGER, btnStyle, tag } from "../lib/theme.js";
 import { notifyOnce, loadSettings, saveSettings } from "../lib/persistence.js";
-import { isPushSubscribed, subscribeToPush } from "../lib/push.js";
+import { subscribeToPush } from "../lib/push.js";
 import { fetchWeather, weatherIconKind } from "../lib/weather.js";
 import { RouteAlertBanner, NewPeriodBanner, WeatherChip, SettingsButton } from "../components/shared.jsx";
 
@@ -13,13 +13,20 @@ import { RouteAlertBanner, NewPeriodBanner, WeatherChip, SettingsButton } from "
 // toggle is the only other caller of subscribeToPush, so without this an
 // existing driver — who has notificationsEnabled defaulted to true and granted
 // permission long before push existed — would have zero rows in
-// push_subscriptions and silently receive nothing. Safe to call repeatedly:
-// the Supabase upsert is keyed onConflict:"endpoint", so a redundant call is a
-// no-op and doubles as self-healing if the browser rotates its endpoint.
+// push_subscriptions and silently receive nothing. Called unconditionally on
+// every mount (no "already subscribed" guard) rather than short-circuiting on
+// isPushSubscribed(), which only reflects browser-side subscription state —
+// if the Supabase upsert ever failed after a successful browser subscribe,
+// that check would report "subscribed" forever with no way to retry. Safe to
+// call every time: pushManager.subscribe() with the same applicationServerKey
+// resolves with the existing subscription instead of creating a new one
+// (browser-native idempotency), and the Supabase upsert is keyed
+// onConflict:"endpoint", so a redundant call is just a cheap no-op rewrite of
+// the same row — and it's how the browser rotating its push endpoint actually
+// gets picked up.
 async function ensurePushSubscription(userId) {
   if (!userId) return;
   try {
-    if (await isPushSubscribed()) return;
     await subscribeToPush(userId);
   } catch { /* best effort — the Settings toggle stays the explicit path */ }
 }
