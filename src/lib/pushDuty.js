@@ -96,9 +96,14 @@ export function dayInfo(period, date, restConfig, restPattern = FIXED_REST_PATTE
 // times as UTC and computes break-end ~1 hour late during IST (summer).
 export function dublinWallClockToUTC(dateStr, hh, mm) {
   const [y, m, d] = dateStr.split("-").map(Number);
-  // Probe Dublin's offset using UTC noon on the same date, avoiding any
+  // Compute the naive instant first (Date.UTC correctly rolls hh >= 24 into
+  // the next calendar day), then probe Dublin's offset using noon on THAT
+  // day — not the original dateStr's day — so overnight rollover times
+  // (roster convention: be up to "27:24") get the correct offset even when
+  // the rollover crosses a DST transition. Probing at noon also avoids any
   // ambiguity right at a DST transition that happens near midnight.
-  const probeUTC = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
+  const naive = new Date(Date.UTC(y, m - 1, d, hh, mm, 0));
+  const probeUTC = new Date(Date.UTC(naive.getUTCFullYear(), naive.getUTCMonth(), naive.getUTCDate(), 12, 0, 0));
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: "Europe/Dublin",
     hour12: false,
@@ -108,7 +113,7 @@ export function dublinWallClockToUTC(dateStr, hh, mm) {
   const get = (type) => Number(parts.find((p) => p.type === type).value);
   const dublinAtProbe = Date.UTC(get("year"), get("month") - 1, get("day"), get("hour") % 24, get("minute"), get("second"));
   const offsetMs = dublinAtProbe - probeUTC.getTime();
-  return new Date(Date.UTC(y, m - 1, d, hh, mm, 0) - offsetMs);
+  return new Date(naive.getTime() - offsetMs);
 }
 
 export function shiftBreakEnd(shift, duties) {

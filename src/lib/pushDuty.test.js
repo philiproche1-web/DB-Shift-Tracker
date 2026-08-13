@@ -108,4 +108,30 @@ describe("dublinWallClockToUTC / shiftBreakEnd timezone correctness", () => {
     const result = shiftBreakEnd(shift, duties);
     expect(result.getTime()).toBe(new Date("2026-01-21T13:00:00.000Z").getTime());
   });
+
+  // The roster uses an overnight-rollover convention where `be` can exceed
+  // "24:00" ("26:24" = 02:24 the NEXT calendar day). Probing Dublin's offset
+  // on the shift's OWN date is wrong whenever that rollover lands on a DST
+  // transition day — the offset that applies is the one on the day the break
+  // actually ends, not the day the duty started.
+  it("uses the rolled-over day's offset for an overnight break-end on the spring-forward weekend", () => {
+    // Duty dated Sat 2026-03-28 with be "26:24" ends at Dublin wall-clock
+    // 02:24 on Sun 2026-03-29. Dublin springs forward at 01:00 UTC that day,
+    // so 02:24 local is IST (UTC+1) => 01:24 UTC. Probing 2026-03-28 (still
+    // GMT) would have given 02:24 UTC — an hour late.
+    const duties = [{ z: "Zone 1", t: "saturday", r: "SZ1/94", be: "26:24" }];
+    const shift = { date: "2026-03-28", zone: "Zone 1", dayType: "saturday", roster: "SZ1/94" };
+    const result = shiftBreakEnd(shift, duties);
+    expect(result.toISOString()).toBe("2026-03-29T01:24:00.000Z");
+  });
+  it("uses the rolled-over day's offset for an overnight break-end on the fall-back weekend", () => {
+    // Duty dated Sat 2026-10-24 with be "26:24" ends at Dublin wall-clock
+    // 02:24 on Sun 2026-10-25. Dublin falls back at 01:00 UTC that day, so
+    // 02:24 local is GMT (UTC+0) => 02:24 UTC. Probing 2026-10-24 (still IST)
+    // would have given 01:24 UTC — an hour early.
+    const duties = [{ z: "Zone 1", t: "saturday", r: "SZ1/94", be: "26:24" }];
+    const shift = { date: "2026-10-24", zone: "Zone 1", dayType: "saturday", roster: "SZ1/94" };
+    const result = shiftBreakEnd(shift, duties);
+    expect(result.toISOString()).toBe("2026-10-25T02:24:00.000Z");
+  });
 });

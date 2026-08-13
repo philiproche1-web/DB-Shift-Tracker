@@ -6,9 +6,11 @@
 // today) or the break-end reminder (N minutes before today's shift's
 // break ends, N = their own breakReminderMinutes setting), sends via
 // web-push, dedupes against push_notification_log, and removes dead
-// subscriptions (410/404 from the push service) as it goes. Always stamps
-// push_scheduler_runs so a stale heartbeat is externally detectable even
-// if zero reminders were due this pass.
+// subscriptions (410/404 from the push service) as it goes. Stamps
+// push_scheduler_runs on every pass that completes — including passes where
+// zero reminders were due — so a stale heartbeat is externally detectable.
+// A pass that throws before finishing deliberately leaves no stamp: that is
+// exactly the "scheduler is broken" case the health check exists to catch.
 //
 // fixedRestPattern note: roster-data.json carries a top-level
 // `fixedRestPattern` field (sibling to `duties`) that Phil can edit
@@ -20,7 +22,7 @@
 // See docs/superpowers/specs/2026-08-13-web-push-notifications-design.md.
 import { createClient } from "npm:@supabase/supabase-js@2";
 import webpush from "npm:web-push@3.6.7";
-import { today, periodForDate, dayInfo, shiftBreakEnd } from "../../../src/lib/pushDuty.js";
+import { today, addDays, periodForDate, dayInfo, shiftBreakEnd } from "../../../src/lib/pushDuty.js";
 
 const ROSTER_REMOTE_URL = "https://raw.githubusercontent.com/philiproche1-web/DB-Shift-Tracker/main/public/roster-data.json";
 const SHIFT_NOT_LOGGED_HOUR_UTC = 19;
@@ -119,104 +121,136 @@ async function tryClaimReminder(userId: string, shiftDate: string, reminderType:
 const BREAK_END_WINDOW_GRACE_MS = 30 * 60000;
 
 async function runScheduler() {
-  try {
-    const { duties, fixedRestPattern } = await fetchRosterData();
-    const now = new Date();
-    const todayDate = today();
-    const hourUtc = now.getUTCHours();
+  const { duties, fixedRestPattern } = await fetchRosterData();
+  const now = new Date();
+  const todayDate = today();
+  // Overnight duties are dated by the day they START but their break can end
+  // after midnight (roster convention: `be` up to "27:24"). By the time that
+  // instant arrives, today() has already rolled to the next date, so looking
+  // only at "today's" shift would never evaluate them — the ~10 overnight
+  // duties in the roster could structurally never fire a break-end reminder.
+  const yesterdayDate = addDays(todayDate, -1);
+  const hourUtc = now.getUTCHours();
 
-    const { data: driverIds, error: driverIdsError } = await supabase.from("push_subscriptions").select("user_id");
-    // Must not be swallowed: a failed query yields null, which would look
-    // exactly like "zero drivers, nothing to do" while the heartbeat still
-    // reported green to UptimeRobot.
-    if (driverIdsError) {
-      console.error("[send-reminders] failed to load driver subscription list:", driverIdsError);
-      throw new Error("Could not load driver subscription list: " + driverIdsError.message);
-    }
-    const uniqueDrivers = [...new Set((driverIds || []).map((r: { user_id: string }) => r.user_id))];
+  const { data: driverIds, error: driverIdsError } = await supabase.from("push_subscriptions").select("user_id");
+  // Must not be swallowed: a failed query yields null, which would look
+  // exactly like "zero drivers, nothing to do" — and (before the heartbeat
+  // moved out of a finally block) still reported green to UptimeRobot.
+  if (driverIdsError) {
+    console.error("[send-reminders] failed to load driver subscription list:", driverIdsError);
+    throw new Error("Could not load driver subscription list: " + driverIdsError.message);
+  }
+  const uniqueDrivers = [...new Set((driverIds || []).map((r: { user_id: string }) => r.user_id))];
 
-    for (const userId of uniqueDrivers) {
-      // Per-driver isolation: one driver's malformed app_data (e.g. periods
-      // explicitly null, so the `= []` default doesn't apply) must not abort
-      // the pass for every driver after them.
-      try {
-        const [{ data: appDataRow }, { data: settingsRow }, { data: profileRow }] = await Promise.all([
-          supabase.from("app_data").select("data").eq("user_id", userId).maybeSingle(),
-          supabase.from("settings").select("data").eq("user_id", userId).maybeSingle(),
-          supabase.from("profiles").select("*").eq("id", userId).maybeSingle(),
-        ]);
-        if (!appDataRow?.data || !settingsRow?.data) continue;
-        const settings = settingsRow.data;
-        if (settings.notificationsEnabled === false) continue;
+  for (const userId of uniqueDrivers) {
+    // Per-driver isolation: one driver's malformed app_data (e.g. periods
+    // explicitly null, so the `= []` default doesn't apply) must not abort
+    // the pass for every driver after them.
+    try {
+      const [{ data: appDataRow }, { data: settingsRow }, { data: profileRow }] = await Promise.all([
+        supabase.from("app_data").select("data").eq("user_id", userId).maybeSingle(),
+        supabase.from("settings").select("data").eq("user_id", userId).maybeSingle(),
+        supabase.from("profiles").select("*").eq("id", userId).maybeSingle(),
+      ]);
+      if (!appDataRow?.data || !settingsRow?.data) continue;
+      const settings = settingsRow.data;
+      if (settings.notificationsEnabled === false) continue;
 
-        const { periods = [], activePeriodId = null } = appDataRow.data;
-        const period = periodForDate(periods, todayDate, activePeriodId);
-        if (!period) continue;
+      const { periods = [], activePeriodId = null } = appDataRow.data;
+      const restConfig = {
+        enabled: !!profileRow?.custom_rest_days_enabled,
+        weekdays: new Set(profileRow?.custom_rest_weekdays || []),
+        since: profileRow?.custom_rest_days_since || null,
+      };
 
-        const restConfig = {
-          enabled: !!profileRow?.custom_rest_days_enabled,
-          weekdays: new Set(profileRow?.custom_rest_weekdays || []),
-          since: profileRow?.custom_rest_days_since || null,
-        };
-        const info = dayInfo(period, todayDate, restConfig, fixedRestPattern);
+      const period = periodForDate(periods, todayDate, activePeriodId);
+      const info = period ? dayInfo(period, todayDate, restConfig, fixedRestPattern) : null;
 
-        // Shift-not-logged nudge — once, at SHIFT_NOT_LOGGED_HOUR_UTC, only if
-        // still unlogged (not a shift, not a real or auto rest day).
-        if (hourUtc >= SHIFT_NOT_LOGGED_HOUR_UTC && info.status === "unlogged") {
-          if (await tryClaimReminder(userId, todayDate, "shift_not_logged")) {
-            await sendToDriver(userId, "Log today's shift", "Nothing logged yet for today in Shift Tracker.");
-          }
+      // Shift-not-logged nudge — once, at SHIFT_NOT_LOGGED_HOUR_UTC, only if
+      // still unlogged (not a shift, not a real or auto rest day).
+      if (info && hourUtc >= SHIFT_NOT_LOGGED_HOUR_UTC && info.status === "unlogged") {
+        if (await tryClaimReminder(userId, todayDate, "shift_not_logged")) {
+          await sendToDriver(userId, "Log today's shift", "Nothing logged yet for today in Shift Tracker.");
         }
-
-        // Break-end reminder — fires in the lead-time window before today's
-        // shift's break ends.
-        if (settings.breakReminderEnabled !== false && info.status === "shift") {
-          const breakEnd = shiftBreakEnd(info.shift, duties);
-          if (breakEnd) {
-            const leadMins = settings.breakReminderMinutes || 10;
-            const fireAt = new Date(breakEnd.getTime() - leadMins * 60000);
-            if (now >= fireAt && now < new Date(breakEnd.getTime() + BREAK_END_WINDOW_GRACE_MS)) {
-              if (await tryClaimReminder(userId, todayDate, "break_end")) {
-                await sendToDriver(userId, "Break ending soon", `Your break ends in about ${leadMins} minutes.`);
-              }
-            }
-          }
-        }
-      } catch (e: any) {
-        console.error(`[send-reminders] skipping driver ${userId} after error:`, e?.message || e);
       }
+
+      // Break-end reminder — fires in the lead-time window before the shift's
+      // break ends. `claimDate` is the SHIFT's own date, not necessarily
+      // today's, because push_notification_log's unique constraint is
+      // (user_id, shift_date, reminder_type) and an overnight shift must
+      // dedupe against the date it was logged under.
+      const maybeSendBreakEnd = async (shift: any, claimDate: string) => {
+        if (!shift) return;
+        const breakEnd = shiftBreakEnd(shift, duties);
+        if (!breakEnd) return;
+        const leadMins = settings.breakReminderMinutes || 10;
+        const fireAt = new Date(breakEnd.getTime() - leadMins * 60000);
+        if (now < fireAt || now >= new Date(breakEnd.getTime() + BREAK_END_WINDOW_GRACE_MS)) return;
+        if (await tryClaimReminder(userId, claimDate, "break_end")) {
+          await sendToDriver(userId, "Break ending soon", `Your break ends in about ${leadMins} minutes.`);
+        }
+      };
+
+      if (settings.breakReminderEnabled !== false) {
+        if (info?.status === "shift") {
+          await maybeSendBreakEnd(info.shift, todayDate);
+        }
+        // Yesterday's shift, for the overnight case. The window check above
+        // rejects ordinary daytime shifts from yesterday on its own — their
+        // break-end is many hours past the 30-minute grace cap — so this only
+        // ever fires for a break that genuinely rolls past midnight. Uses the
+        // raw shift rather than dayInfo(): we only care whether a shift exists
+        // and when its break ends, not its logged/rest-day status.
+        const yPeriod = periodForDate(periods, yesterdayDate, activePeriodId);
+        const yShift = yPeriod ? (yPeriod.shifts || []).find((s: any) => s.date === yesterdayDate) : null;
+        if (yShift) {
+          await maybeSendBreakEnd(yShift, yesterdayDate);
+        }
+      }
+    } catch (e: any) {
+      console.error(`[send-reminders] skipping driver ${userId} after error:`, e?.message || e);
     }
-  } finally {
-    // Always stamp the heartbeat, even if the run aborted — a stale heartbeat
-    // means "the function isn't running at all", which is a different failure
-    // from "it ran and threw" (that surfaces as a 500 + logged error).
-    const { error: heartbeatError } = await supabase
-      .from("push_scheduler_runs")
-      .insert({ ran_at: new Date().toISOString() });
-    if (heartbeatError) {
-      console.error("[send-reminders] heartbeat insert failed:", heartbeatError);
-    }
+  }
+
+  // Heartbeat, stamped only once the pass has actually completed. Per-driver
+  // failures are caught inside the loop and still count as a completed pass;
+  // a top-level throw (roster fetch, driver-list query) skips this entirely
+  // so UptimeRobot's staleness check can see a genuinely broken scheduler —
+  // which is the whole reason push_scheduler_runs exists (see migration 0014).
+  const { error: heartbeatError } = await supabase
+    .from("push_scheduler_runs")
+    .insert({ ran_at: new Date().toISOString() });
+  if (heartbeatError) {
+    console.error("[send-reminders] heartbeat insert failed:", heartbeatError);
   }
 }
 
 Deno.serve(async (req) => {
   const url = new URL(req.url);
   if (url.searchParams.get("status") === "1") {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("push_scheduler_runs")
       .select("ran_at")
       .order("ran_at", { ascending: false })
       .limit(1)
       .maybeSingle();
+    // A failed query yields null data, which reads identically to "no runs
+    // yet" in the response. Both leave lastRunAgoSeconds null, which fails
+    // toward alerting (the monitor's numeric threshold won't match) — the
+    // safe direction — but the error itself must still be visible in the
+    // logs, and the response says which of the two it was.
+    if (error) {
+      console.error("[send-reminders] status query failed:", error);
+    }
     const lastRunAgoSeconds = data ? (Date.now() - new Date(data.ran_at).getTime()) / 1000 : null;
-    return new Response(JSON.stringify({ lastRunAgoSeconds }), { headers: { "Content-Type": "application/json" } });
+    const status = error ? "query_failed" : data ? "ok" : "no_runs_recorded";
+    return new Response(JSON.stringify({ lastRunAgoSeconds, status }), { headers: { "Content-Type": "application/json" } });
   }
   try {
     await runScheduler();
   } catch (e: any) {
-    // The heartbeat was still written (runScheduler's finally), so a stale
-    // heartbeat stays a distinct signal from "ran but failed" — which shows
-    // up here as a non-200 plus a logged error.
+    // No heartbeat is written on this path — the pass did not complete, so
+    // the stamp must stay stale and let the health check go red.
     console.error("[send-reminders] run aborted:", e?.message || e);
     return new Response(JSON.stringify({ ok: false, error: String(e?.message || e) }), {
       status: 500,
