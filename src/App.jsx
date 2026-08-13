@@ -4,7 +4,7 @@ import { signOut, getSession, onAuthStateChange } from "./lib/auth.js";
 import { syncAll, migrateLocalDataIfNeeded } from "./lib/sync.js";
 import { hasLiveRoster } from "./lib/garages.js";
 import { fetchRouteAlerts } from "./lib/routeAlerts.js";
-import { isCalendarSunday, addDays, fmtShort, uid, today } from "./lib/dutyMath.js";
+import { isCalendarSunday, uid, today } from "./lib/dutyMath.js";
 import { loadRosterData, applyRosterData, periodForDate, setCustomRestConfig, rollPeriodsForward } from "./lib/roster.js";
 import { BG, TEXT, MUTED, ACCENT, DANGER, applyTheme, btnStyle } from "./lib/theme.js";
 import {
@@ -168,9 +168,8 @@ export default function App() {
       if(corrupted) { setLoadCorrupted(true); setLoading(false); return; }
       if(data){
         const rolled = rollPeriodsForward(data.periods||[], data.activePeriodId||null);
-        setPeriods(rolled.periods); setActivePeriodId(rolled.activePeriodId);
+        persist(rolled.periods, rolled.activePeriodId);
         if (rolled.rolled) {
-          saveData({periods: rolled.periods, activePeriodId: rolled.activePeriodId});
           setJustRolledPeriod(rolled.periods.find(p => p.id === rolled.activePeriodId));
         }
       }
