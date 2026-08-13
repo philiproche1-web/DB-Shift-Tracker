@@ -58,7 +58,9 @@ export function SettingsPanel({period, onClose, onThemeChange, leaveSettings, on
     if (settings.notificationsEnabled) {
       const next = {...settings, notificationsEnabled:false};
       setSettings(next); saveSettings(next);
-      unsubscribeFromPush(userId);
+      unsubscribeFromPush(userId).then((result) => {
+        if (!result.ok) setToast("Couldn't fully turn off push notifications — try again.");
+      });
       return;
     }
     if (typeof Notification === "undefined") { setToast("Notifications aren't supported in this browser."); return; }
@@ -68,7 +70,11 @@ export function SettingsPanel({period, onClose, onThemeChange, leaveSettings, on
         setSettings(next); saveSettings(next);
         setToast("Reminders on.");
         subscribeToPush(userId).then((result) => {
-          if (!result.ok) setToast(result.error || "Couldn't enable push notifications.");
+          if (!result.ok) {
+            setToast(result.error || "Couldn't enable push notifications.");
+            const reverted = {...next, notificationsEnabled:false};
+            setSettings(reverted); saveSettings(reverted);
+          }
         });
       } else {
         setToast("Notifications blocked — allow them for this site in your phone's settings to use reminders.");
