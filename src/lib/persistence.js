@@ -19,23 +19,6 @@ export async function saveData(data) {
   if (ok) markDirty("app_data");
   return ok;
 }
-
-// ─── SHIFT REMINDERS (opt-in, foreground-only) ─────────────────────────────────
-// There's no backend here, so there's no way to notify a driver who hasn't
-// opened the app — these fire the moment a relevant condition is true on a
-// screen they're already looking at, deduped per day/period so they don't
-// repeat every time the app is reopened. Settings copy is upfront that this
-// only works while the app is open; a real "notify while closed" feature
-// would need a small push-capable backend, which doesn't exist yet.
-export function notifyOnce(dedupeKey, title, body) {
-  try {
-    if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
-    if (localStorage.getItem(dedupeKey)) return;
-    new Notification(title, {body, icon:"/icon-192.png"});
-    localStorage.setItem(dedupeKey, "1");
-  } catch {}
-}
-
 export const APP_VERSION = "1.7";
 export const WHATS_NEW = {
   version: "1.7",

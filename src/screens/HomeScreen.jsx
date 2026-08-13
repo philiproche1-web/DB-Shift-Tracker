@@ -1,9 +1,9 @@
 import { useState, useEffect, useMemo, useRef, useLayoutEffect } from "react";
 import { MAX_HOURS, MAX_SUNDAY, getDayType, addDays, fmtShort, fmtHrs, today, calcSpreadover, greetingTimeBand, dutyNumber } from "../lib/dutyMath.js";
 import { isLiveNow } from "../lib/routeAlerts.js";
-import { DUTIES, shiftDepartLocation, shiftBreakEnd, pStats, periodForDate, dayInfo, getSeq, greetingDutyContext, computeShiftStreak, weekHighlights } from "../lib/roster.js";
+import { DUTIES, shiftDepartLocation, pStats, periodForDate, dayInfo, getSeq, greetingDutyContext, computeShiftStreak, weekHighlights } from "../lib/roster.js";
 import { BG, CARD, BORDER, CARD2, TEXT, MUTED, ACCENT, SUCCESS, DANGER, btnStyle, tag } from "../lib/theme.js";
-import { notifyOnce, loadSettings, saveSettings } from "../lib/persistence.js";
+import { loadSettings, saveSettings } from "../lib/persistence.js";
 import { fetchWeather, weatherIconKind } from "../lib/weather.js";
 import { RouteAlertBanner, NewPeriodBanner, WeatherChip, SettingsButton } from "../components/shared.jsx";
 
@@ -234,49 +234,6 @@ export function HomeScreen({period, periods, alerts, onViewAlerts, driverFirstNa
   const shiftStreak = useMemo(() => computeShiftStreak(periods, period.id, todayDate), [periods, period.id, todayDate]);
 
   const activeAlerts = useMemo(() => (alerts||[]).filter(a => isLiveNow(a)), [alerts, todayDate]);
-
-  useEffect(() => {
-    if (!loadSettings().notificationsEnabled) return;
-    // Reminders default to on, so a driver who never touched the toggle still
-    // needs the OS permission requested at least once — do it here rather
-    // than only from the Settings toggle, which they may never open.
-    if (typeof Notification !== "undefined" && Notification.permission === "default") {
-      Notification.requestPermission().then(perm => {
-        if (perm !== "granted") saveSettings({...loadSettings(), notificationsEnabled:false});
-      });
-      return;
-    }
-    if (!todayShift && !todayDayOff) {
-      notifyOnce(`dbus_notified_log_${todayDate}`, "Log today's shift", "Nothing logged yet for today in Shift Tracker.");
-    }
-    if (stats.total >= MAX_HOURS*0.9) {
-      notifyOnce(`dbus_notified_total90_${period.id}`, "Approaching your period limit", `You're at ${fmtHrs(stats.total)} of your 190h 4m limit.`);
-    }
-    if (stats.sunday >= MAX_SUNDAY*0.9) {
-      notifyOnce(`dbus_notified_sun90_${period.id}`, "Approaching your Sunday hours limit", `You're at ${fmtHrs(stats.sunday)} of your 14h 30m Sunday limit.`);
-    }
-  }, [period.id, stats.total, stats.sunday, todayShift, todayDayOff, todayDate]);
-
-  // Break-end reminder — unlike the checks above (which fire once whenever
-  // their state changes), this needs to fire at a specific real-world
-  // moment, so it's checked on a 60s tick rather than only on render.
-  useEffect(() => {
-    function check() {
-      const s = loadSettings();
-      if (!s.notificationsEnabled || !s.breakReminderEnabled) return;
-      const breakEnd = shiftBreakEnd(todayShift);
-      if (!breakEnd) return;
-      const leadMins = s.breakReminderMinutes || 10;
-      const fireAt = new Date(breakEnd.getTime() - leadMins*60000);
-      const now = new Date();
-      if (now >= fireAt && now < breakEnd) {
-        notifyOnce(`dbus_notified_breakend_${todayShift.id}`, "Break ending soon", `Your break ends in about ${leadMins} minutes.`);
-      }
-    }
-    check();
-    const id = setInterval(check, 60000);
-    return () => clearInterval(id);
-  }, [todayShift]);
 
   return (
     <div style={{background:BG,minHeight:"100vh",paddingBottom:100}}>
