@@ -147,11 +147,32 @@ async function runScheduler() {
     // explicitly null, so the `= []` default doesn't apply) must not abort
     // the pass for every driver after them.
     try {
-      const [{ data: appDataRow }, { data: settingsRow }, { data: profileRow }] = await Promise.all([
+      const [
+        { data: appDataRow, error: appDataError },
+        { data: settingsRow, error: settingsError },
+        { data: profileRow, error: profileError },
+      ] = await Promise.all([
         supabase.from("app_data").select("data").eq("user_id", userId).maybeSingle(),
         supabase.from("settings").select("data").eq("user_id", userId).maybeSingle(),
         supabase.from("profiles").select("*").eq("id", userId).maybeSingle(),
       ]);
+      // A failed read comes back as { data: null, error }, not a throw — without
+      // checking error here it's indistinguishable from "this driver genuinely
+      // has no data yet" and gets silently skipped by the check below. Throwing
+      // surfaces it to the catch at the bottom of this loop, which logs it with
+      // the user id while still isolating the failure to this one driver.
+      if (appDataError) throw new Error(`app_data query failed: ${appDataError.message}`);
+      if (settingsError) throw new Error(`settings query failed: ${settingsError.message}`);
+      // profileRow only feeds restConfig below, and every field there is read
+      // through `?.` with a falsy/empty default — a missing or errored profile
+      // row already degrades to "no custom rest-day override", which is the
+      // same, intentionally-supported default as a driver who never set one up.
+      // So this is logged for visibility but not thrown: it doesn't block
+      // reminders for this driver, it just means rest-day info falls back to
+      // the roster's own FIXED_REST_PATTERN default, same as no profile row.
+      if (profileError) {
+        console.error(`[send-reminders] profile lookup failed for ${userId}, continuing with default rest config:`, profileError);
+      }
       if (!appDataRow?.data || !settingsRow?.data) continue;
       const settings = settingsRow.data;
       if (settings.notificationsEnabled === false) continue;
