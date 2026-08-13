@@ -1,11 +1,35 @@
 import { useState, useEffect, useMemo, useRef, useLayoutEffect } from "react";
 import { MAX_HOURS, MAX_SUNDAY, getDayType, addDays, fmtShort, fmtHrs, today, calcSpreadover, greetingTimeBand, dutyNumber } from "../lib/dutyMath.js";
 import { isLiveNow } from "../lib/routeAlerts.js";
-import { DUTIES, shiftDepartLocation, shiftBreakEnd, pStats, periodForDate, dayInfo, getSeq, greetingDutyContext, computeShiftStreak, weekHighlights } from "../lib/roster.js";
+import { DUTIES, shiftDepartLocation, pStats, periodForDate, dayInfo, getSeq, greetingDutyContext, computeShiftStreak, weekHighlights } from "../lib/roster.js";
 import { BG, CARD, BORDER, CARD2, TEXT, MUTED, ACCENT, SUCCESS, DANGER, btnStyle, tag } from "../lib/theme.js";
 import { notifyOnce, loadSettings, saveSettings } from "../lib/persistence.js";
+import { subscribeToPush } from "../lib/push.js";
 import { fetchWeather, weatherIconKind } from "../lib/weather.js";
 import { RouteAlertBanner, NewPeriodBanner, WeatherChip, SettingsButton } from "../components/shared.jsx";
+
+// Makes sure this device actually has a push subscription registered, given
+// the driver already has reminders on and OS permission granted. The Settings
+// toggle is the only other caller of subscribeToPush, so without this an
+// existing driver — who has notificationsEnabled defaulted to true and granted
+// permission long before push existed — would have zero rows in
+// push_subscriptions and silently receive nothing. Called unconditionally on
+// every mount (no "already subscribed" guard) rather than short-circuiting on
+// isPushSubscribed(), which only reflects browser-side subscription state —
+// if the Supabase upsert ever failed after a successful browser subscribe,
+// that check would report "subscribed" forever with no way to retry. Safe to
+// call every time: pushManager.subscribe() with the same applicationServerKey
+// resolves with the existing subscription instead of creating a new one
+// (browser-native idempotency), and the Supabase upsert is keyed
+// onConflict:"endpoint", so a redundant call is just a cheap no-op rewrite of
+// the same row — and it's how the browser rotating its push endpoint actually
+// gets picked up.
+async function ensurePushSubscription(userId) {
+  if (!userId) return;
+  try {
+    await subscribeToPush(userId);
+  } catch { /* best effort — the Settings toggle stays the explicit path */ }
+}
 
 // ─── TODAY DUTY CARD ──────────────────────────────────────────────────────────
 export function TodayDutyCard({shift, label, accentColor, defaultExpanded=true}) {
@@ -202,7 +226,7 @@ export function UpcomingCarousel({periods, activePeriodId, todayDate, onLogDate}
 }
 
 // ─── HOME SCREEN ──────────────────────────────────────────────────────────────
-export function HomeScreen({period, periods, alerts, onViewAlerts, driverFirstName, onLog, onLogDate, onGoWeek, justRolledPeriod, onDismissRolloverBanner, onOpenSettings}) {
+export function HomeScreen({period, periods, alerts, onViewAlerts, driverFirstName, userId, onLog, onLogDate, onGoWeek, justRolledPeriod, onDismissRolloverBanner, onOpenSettings}) {
   const stats = useMemo(() => pStats(period), [period]);
   const [weather, setWeather] = useState(null);
   useEffect(() => {
@@ -242,12 +266,17 @@ export function HomeScreen({period, periods, alerts, onViewAlerts, driverFirstNa
     // than only from the Settings toggle, which they may never open.
     if (typeof Notification !== "undefined" && Notification.permission === "default") {
       Notification.requestPermission().then(perm => {
-        if (perm !== "granted") saveSettings({...loadSettings(), notificationsEnabled:false});
+        if (perm !== "granted") { saveSettings({...loadSettings(), notificationsEnabled:false}); return; }
+        ensurePushSubscription(userId);
       });
       return;
     }
-    if (!todayShift && !todayDayOff) {
-      notifyOnce(`dbus_notified_log_${todayDate}`, "Log today's shift", "Nothing logged yet for today in Shift Tracker.");
+    // Permission was already granted on an earlier visit — including every
+    // existing driver, who granted it to a build that had no push at all.
+    // They'd otherwise never get subscribed without toggling reminders off
+    // and back on in Settings, which nothing tells them to do.
+    if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+      ensurePushSubscription(userId);
     }
     if (stats.total >= MAX_HOURS*0.9) {
       notifyOnce(`dbus_notified_total90_${period.id}`, "Approaching your period limit", `You're at ${fmtHrs(stats.total)} of your 190h 4m limit.`);
@@ -255,28 +284,7 @@ export function HomeScreen({period, periods, alerts, onViewAlerts, driverFirstNa
     if (stats.sunday >= MAX_SUNDAY*0.9) {
       notifyOnce(`dbus_notified_sun90_${period.id}`, "Approaching your Sunday hours limit", `You're at ${fmtHrs(stats.sunday)} of your 14h 30m Sunday limit.`);
     }
-  }, [period.id, stats.total, stats.sunday, todayShift, todayDayOff, todayDate]);
-
-  // Break-end reminder — unlike the checks above (which fire once whenever
-  // their state changes), this needs to fire at a specific real-world
-  // moment, so it's checked on a 60s tick rather than only on render.
-  useEffect(() => {
-    function check() {
-      const s = loadSettings();
-      if (!s.notificationsEnabled || !s.breakReminderEnabled) return;
-      const breakEnd = shiftBreakEnd(todayShift);
-      if (!breakEnd) return;
-      const leadMins = s.breakReminderMinutes || 10;
-      const fireAt = new Date(breakEnd.getTime() - leadMins*60000);
-      const now = new Date();
-      if (now >= fireAt && now < breakEnd) {
-        notifyOnce(`dbus_notified_breakend_${todayShift.id}`, "Break ending soon", `Your break ends in about ${leadMins} minutes.`);
-      }
-    }
-    check();
-    const id = setInterval(check, 60000);
-    return () => clearInterval(id);
-  }, [todayShift]);
+  }, [period.id, stats.total, stats.sunday, userId]);
 
   return (
     <div style={{background:BG,minHeight:"100vh",paddingBottom:100}}>

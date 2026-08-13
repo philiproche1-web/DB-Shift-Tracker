@@ -27,19 +27,10 @@ export function shiftDepartLocation(shift) {
   const duty = DUTIES.find(d => d.z === shift.zone && d.t === shift.dayType && d.r === shift.roster);
   return duty ? duty.rl : null;
 }
-// Real Date/time the shift's break ends, for the break-end reminder — null if
-// the shift has no roster duty or that duty has no break. duty.be can exceed
-// "24:00" for a break ending after midnight; setMinutes rolls the Date over
-// to the next day correctly, so no manual day-math is needed here.
-export function shiftBreakEnd(shift) {
-  if (!shift || shift.isSpare || shift.fixedType) return null;
-  const duty = DUTIES.find(d => d.z === shift.zone && d.t === shift.dayType && d.r === shift.roster);
-  if (!duty || !duty.be) return null;
-  const [h, m] = duty.be.split(":").map(Number);
-  const dt = new Date(shift.date + "T00:00:00");
-  dt.setMinutes(h * 60 + m);
-  return dt;
-}
+// (shiftBreakEnd used to live here, for the old foreground-only break-end
+// reminder on Home. That reminder is now a real push notification sent from
+// the Edge Function, which uses its own timezone-correct copy in
+// src/lib/pushDuty.js — this one had no callers left.)
 export function dutyLabel(d) { return `${d.r} · ${d.s}–${d.e} (${fmtHrs(d.w)})`; }
 export let FIXED_REST_PATTERN = [
   [0, 1], // Week 1: Sunday, Monday

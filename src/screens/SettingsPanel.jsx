@@ -4,12 +4,13 @@ import { ZONES } from "../lib/roster.js";
 import { garageOptions } from "../lib/garages.js";
 import { CARD, CARD2, BORDER, TEXT, MUTED, SUCCESS, DANGER, ACCENT, cardStyle, inputStyle, btnStyle } from "../lib/theme.js";
 import { loadSettings, saveSettings, APP_VERSION } from "../lib/persistence.js";
+import { subscribeToPush, unsubscribeFromPush } from "../lib/push.js";
 import { SegGroup, DateInput, ConfirmDialog } from "../components/shared.jsx";
 
 const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]; // index = Date.getDay(), matches roster.js's convention
 
 // ─── SETTINGS PANEL ───────────────────────────────────────────────────────────
-export function SettingsPanel({period, onClose, onThemeChange, leaveSettings, onLeaveSettingsChange, onReplayTour, onViewTerms, onViewFAQ, onEditStartDate, driverGarage, onChangeGarage, driverFirstName, onChangeFirstName, driverCustomRestDays, onChangeCustomRestDays, onSendFeedback}) {
+export function SettingsPanel({period, onClose, onThemeChange, leaveSettings, onLeaveSettingsChange, onReplayTour, onViewTerms, onViewFAQ, onEditStartDate, driverGarage, onChangeGarage, driverFirstName, onChangeFirstName, driverCustomRestDays, onChangeCustomRestDays, userId, onSendFeedback}) {
   const [settings, setSettings] = useState(loadSettings);
   const [annualInput, setAnnualInput] = useState(String(leaveSettings?.annualTotal||20));
   const [annualError, setAnnualError] = useState(null);
@@ -57,6 +58,9 @@ export function SettingsPanel({period, onClose, onThemeChange, leaveSettings, on
     if (settings.notificationsEnabled) {
       const next = {...settings, notificationsEnabled:false};
       setSettings(next); saveSettings(next);
+      unsubscribeFromPush(userId).then((result) => {
+        if (!result.ok) setToast("Couldn't fully turn off push notifications — try again.");
+      });
       return;
     }
     if (typeof Notification === "undefined") { setToast("Notifications aren't supported in this browser."); return; }
@@ -65,6 +69,13 @@ export function SettingsPanel({period, onClose, onThemeChange, leaveSettings, on
         const next = {...settings, notificationsEnabled:true};
         setSettings(next); saveSettings(next);
         setToast("Reminders on.");
+        subscribeToPush(userId).then((result) => {
+          if (!result.ok) {
+            setToast(result.error || "Couldn't enable push notifications.");
+            const reverted = {...next, notificationsEnabled:false};
+            setSettings(reverted); saveSettings(reverted);
+          }
+        });
       } else {
         setToast("Notifications blocked — allow them for this site in your phone's settings to use reminders.");
       }
@@ -306,7 +317,7 @@ export function SettingsPanel({period, onClose, onThemeChange, leaveSettings, on
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",cursor:"pointer"}} onClick={toggleNotifications}>
             <div>
               <p style={{color:TEXT,fontSize:14,fontWeight:600,margin:0}}>Notify me</p>
-              <p style={{color:MUTED,fontSize:12,margin:"2px 0 0"}}>A nudge if today's shift isn't logged, or you're close to a limit — only while the app is open.</p>
+              <p style={{color:MUTED,fontSize:12,margin:"2px 0 0"}}>A nudge if today's shift isn't logged, even with the app closed. Hours-limit warnings still need the app open.</p>
             </div>
             <div style={{width:44,height:26,borderRadius:13,background:settings.notificationsEnabled?SUCCESS:BORDER,position:"relative",transition:"background 0.2s",flexShrink:0}}>
               <div style={{width:20,height:20,borderRadius:"50%",background:"#fff",position:"absolute",top:3,left:settings.notificationsEnabled?21:3,transition:"left 0.2s"}}/>

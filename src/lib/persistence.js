@@ -20,13 +20,13 @@ export async function saveData(data) {
   return ok;
 }
 
-// ─── SHIFT REMINDERS (opt-in, foreground-only) ─────────────────────────────────
-// There's no backend here, so there's no way to notify a driver who hasn't
-// opened the app — these fire the moment a relevant condition is true on a
-// screen they're already looking at, deduped per day/period so they don't
-// repeat every time the app is reopened. Settings copy is upfront that this
-// only works while the app is open; a real "notify while closed" feature
-// would need a small push-capable backend, which doesn't exist yet.
+// ─── HOURS-LIMIT WARNINGS (opt-in, foreground-only) ────────────────────────────
+// Shift-not-logged and break-end reminders now go out as real web push, so
+// they reach a driver who doesn't have the app open. These two hours-limit
+// warnings stay foreground-only by design — they're not time-sensitive like
+// a break ending, they just fire when period stats recompute while a driver
+// is already looking at Home, deduped per period so they don't repeat every
+// time the app is reopened.
 export function notifyOnce(dedupeKey, title, body) {
   try {
     if (typeof Notification === "undefined" || Notification.permission !== "granted") return;

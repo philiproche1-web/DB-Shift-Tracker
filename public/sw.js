@@ -73,3 +73,33 @@ self.addEventListener("fetch", (event) => {
     })
   );
 });
+
+// Web push — fires even when the app is fully closed, unlike the old
+// setInterval-based in-app reminders. Payload is JSON set by the
+// send-reminders Edge Function: {title, body, url}. See
+// docs/superpowers/specs/2026-08-13-web-push-notifications-design.md.
+self.addEventListener("push", (event) => {
+  let payload = { title: "Shift Tracker", body: "" };
+  try {
+    if (event.data) payload = { ...payload, ...event.data.json() };
+  } catch {}
+  event.waitUntil(
+    self.registration.showNotification(payload.title, {
+      body: payload.body,
+      icon: "/icon-192.png",
+      data: { url: payload.url || "/" },
+    })
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = event.notification.data?.url || "/";
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
+      const existing = clients.find((c) => c.url.includes(self.location.origin));
+      if (existing) return existing.focus();
+      return self.clients.openWindow(url);
+    })
+  );
+});
