@@ -5,6 +5,21 @@ import { ZONES, FIXED_DUTY_TYPES, getDuties } from "../lib/roster.js";
 import { BG, CARD, BORDER, CARD2, TEXT, MUTED, ACCENT, SUCCESS, DANGER, cardStyle, inputStyle, btnStyle, tag } from "../lib/theme.js";
 import { PageHeader, FieldLabel, DateInput, SegGroup, DutyPicker, RouteAlertCard, ConfirmDialog, SettingsButton } from "../components/shared.jsx";
 
+function BankHolidayChoiceDialog({date, onChoose}) {
+  return (
+    <div style={{position:"fixed",inset:0,background:"#00000099",display:"flex",alignItems:"flex-end",justifyContent:"center",zIndex:200,padding:16}}>
+      <div style={{...cardStyle,width:"100%",maxWidth:420,padding:24}}>
+        <p style={{color:TEXT,textAlign:"center",margin:"0 0 4px",fontSize:16,fontWeight:700}}>You worked a bank holiday</p>
+        <p style={{color:MUTED,textAlign:"center",margin:"0 0 20px",fontSize:14}}>{fmtDate(date)} — how's it being paid?</p>
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          <button onClick={()=>onChoose("pay")} style={{background:"none",border:`1px solid ${BORDER}`,color:TEXT,borderRadius:10,padding:"13px 0",fontSize:15,fontWeight:600,cursor:"pointer"}}>Bank Holiday Pay</button>
+          <button onClick={()=>onChoose("lieu")} style={{background:ACCENT,border:"none",color:"#07090F",borderRadius:10,padding:"13px 0",fontSize:15,fontWeight:700,cursor:"pointer"}}>Day in Lieu (+1¼ annual leave)</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── LOG SHIFT SCREEN ─────────────────────────────────────────────────────────
 export function LogScreen({period, editShift, lookupDuty, initialDate, initialRestDay, alerts, onSave, onCancel, onOpenSettings}) {
   // lookupDuty = {d: dutyObj, dt: dayType} from the Lookup screen
@@ -46,6 +61,9 @@ export function LogScreen({period, editShift, lookupDuty, initialDate, initialRe
   const [overtimeNote, setOvertimeNote] = useState(editShift?.overtimeNote || "");
   const [pendingAction, setPendingAction] = useState(null); // {msg, run} — confirm before wiping entered times
   const [extraDays, setExtraDays] = useState([]); // additional dates (same week as `date`) to also log this duty on
+  const [bhQueue, setBhQueue] = useState(null); // null = not prompting; array of pending bank-holiday dates still needing a choice
+  const [bhChoices, setBhChoices] = useState({}); // date -> "pay" | "lieu", accumulated across the queue
+  const [pendingOverwriteId, setPendingOverwriteId] = useState(undefined);
   // "More options" (Rest day + Overtime) — closed by default on a new entry,
   // auto-expanded when editing a shift that already has either set, or when
   // a rest-day carousel card launch pre-sets isRestDay, so nothing already-saved
@@ -159,17 +177,45 @@ export function LogScreen({period, editShift, lookupDuty, initialDate, initialRe
     };
   }
 
-  function performSave(overwriteId) {
+  function performSave(overwriteId, bhChoicesMap) {
+    const bhilEntries = Object.entries(bhChoicesMap || {})
+      .filter(([, choice]) => choice === "lieu")
+      .map(([d]) => ({ id: uid(), date: d, type: "Bank Holiday In Lieu" }));
     if (extraDays.length > 0) {
       const fields = shiftFields();
       const allDates = [date, ...extraDays];
       onSave(allDates.map(d => ({
         id: d === date ? (overwriteId || editShift?.id || uid()) : uid(),
         date: d, dayType: getDayType(d), ...fields
-      })));
+      })), bhilEntries);
       return;
     }
-    onSave({ id: overwriteId || editShift?.id || uid(), date, dayType: getDayType(date), ...shiftFields() });
+    onSave({ id: overwriteId || editShift?.id || uid(), date, dayType: getDayType(date), ...shiftFields() }, bhilEntries);
+  }
+
+  // Only fires for a brand-new shift (never when editing one already logged —
+  // the real-world payroll choice was already made once, via the depot form,
+  // and shouldn't be disturbed by an unrelated later edit). Checks every date
+  // in this save (the primary date plus any `extraDays`) for a worked bank
+  // holiday and, if any, queues a mandatory choice prompt per date before the
+  // actual save proceeds. See
+  // docs/superpowers/specs/2026-08-13-bank-holiday-in-lieu-design.md.
+  function maybeStartBankHolidaySave(overwriteId) {
+    if (editShift) { performSave(overwriteId); return; }
+    const allDates = extraDays.length > 0 ? [date, ...extraDays] : [date];
+    const bhDates = allDates.filter(d => isBankHoliday(d) && !isRestDay);
+    if (bhDates.length === 0) { performSave(overwriteId); return; }
+    setBhQueue(bhDates);
+    setBhChoices({});
+    setPendingOverwriteId(overwriteId);
+  }
+
+  function handleBankHolidayChoice(choice) {
+    const [current, ...rest] = bhQueue;
+    const nextChoices = { ...bhChoices, [current]: choice };
+    if (rest.length > 0) { setBhQueue(rest); setBhChoices(nextChoices); return; }
+    setBhQueue(null);
+    performSave(pendingOverwriteId, nextChoices);
   }
 
   function handleSave() {
@@ -183,17 +229,17 @@ export function LogScreen({period, editShift, lookupDuty, initialDate, initialRe
       const msg = extraDays.length>0
         ? `This will replace the shift already logged for ${fmtDate(date)} (${conflictShift.roster}), and log ${dutyName} on ${extraDays.length} more day${extraDays.length!==1?"s":""}: ${extraDays.map(fmtDate).join(", ")} — continue?`
         : `This will replace the shift already logged for ${fmtDate(date)} (${conflictShift.roster}) — continue?`;
-      setPendingAction({ msg, run: () => performSave(conflictShift.id) });
+      setPendingAction({ msg, run: () => maybeStartBankHolidaySave(conflictShift.id) });
       return;
     }
     if (extraDays.length > 0) {
       setPendingAction({
         msg: `Log ${(rIdx>=0 && duties[rIdx]) ? duties[rIdx].r : ""} on ${1+extraDays.length} days: ${[date, ...extraDays].map(fmtDate).join(", ")}?`,
-        run: () => performSave()
+        run: () => maybeStartBankHolidaySave()
       });
       return;
     }
-    performSave();
+    maybeStartBankHolidaySave();
   }
 
   return (
@@ -461,6 +507,9 @@ export function LogScreen({period, editShift, lookupDuty, initialDate, initialRe
           <ConfirmDialog msg={pendingAction.msg} yesLabel="Continue" danger={false}
             onYes={()=>{pendingAction.run();setPendingAction(null);}}
             onNo={()=>setPendingAction(null)}/>
+        )}
+        {bhQueue && bhQueue.length > 0 && (
+          <BankHolidayChoiceDialog date={bhQueue[0]} onChoose={handleBankHolidayChoice}/>
         )}
       </div>
     </div>

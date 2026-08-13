@@ -293,7 +293,7 @@ export default function App() {
     persist(updated,activePeriodId);
   }
 
-  function saveShift(shiftOrArray) {
+  function saveShift(shiftOrArray, bankHolidayInLieuEntries) {
     const items = Array.isArray(shiftOrArray) ? shiftOrArray : [shiftOrArray];
     const updated=periods.map(p=>{
       if(p.id!==activePeriodId)return p;
@@ -308,7 +308,13 @@ export default function App() {
         if (shifts.some(s=>s.date===shift.date)) return;
         shifts = [...shifts, shift];
       });
-      return{...p,shifts};
+      // Merged in the same update as the shift(s) above so a Bank Holiday In
+      // Lieu choice and its shift always save atomically — see
+      // docs/superpowers/specs/2026-08-13-bank-holiday-in-lieu-design.md.
+      const daysOff = (bankHolidayInLieuEntries && bankHolidayInLieuEntries.length > 0)
+        ? [...(p.daysOff || []), ...bankHolidayInLieuEntries]
+        : p.daysOff;
+      return{...p,shifts,daysOff};
     });
     persist(updated,activePeriodId); setEditShift(null); setLookupDuty(null); setLogInitDate(null); setLogInitRestDay(false); setScreen("home");
   }
