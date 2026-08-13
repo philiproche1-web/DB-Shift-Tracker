@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { fmtHrs } from "../lib/dutyMath.js";
+import { fmtHrs, addDays, fmtShort } from "../lib/dutyMath.js";
 import { dutyLabel } from "../lib/roster.js";
 import { compColor, BG, CARD, CARD2, BORDER, TEXT, MUTED, ACCENT, DANGER, cardStyle, inputStyle } from "../lib/theme.js";
 import { alertWindowLabel } from "../lib/routeAlerts.js";
@@ -170,6 +170,18 @@ export function ComplianceBar({label, current, max, limitLabel}) {
         <div style={{width:"100%",transform:`scaleX(${pct/100})`,transformOrigin:"left",background:color,height:7,borderRadius:4,transition:"transform 0.3s"}} />
       </div>
       {over && <p style={{color:DANGER,fontSize:12,margin:"6px 0 0",fontWeight:600}}>Limit exceeded</p>}
+    </div>
+  );
+}
+
+export function NewPeriodBanner({period, onDismiss}) {
+  return (
+    <div style={{...cardStyle,padding:"14px 16px",marginBottom:12,display:"flex",gap:10,alignItems:"center"}}>
+      <div style={{flex:1,minWidth:0}}>
+        <p style={{color:TEXT,fontSize:13.5,fontWeight:700,margin:"0 0 2px"}}>New 5-week period started</p>
+        <p style={{color:MUTED,fontSize:12,margin:0}}>{fmtShort(period.startDate)} – {fmtShort(addDays(period.startDate,34))} · your last one's been archived</p>
+      </div>
+      <button onClick={onDismiss} style={{background:"none",border:"none",color:MUTED,fontSize:18,cursor:"pointer",padding:"0 4px",flexShrink:0}}>×</button>
     </div>
   );
 }

@@ -5,7 +5,7 @@ import { DUTIES, shiftDepartLocation, shiftBreakEnd, pStats, periodForDate, dayI
 import { BG, CARD, BORDER, CARD2, TEXT, MUTED, ACCENT, SUCCESS, DANGER, btnStyle, tag } from "../lib/theme.js";
 import { notifyOnce, loadSettings, saveSettings } from "../lib/persistence.js";
 import { fetchWeather, weatherIconKind } from "../lib/weather.js";
-import { RouteAlertBanner, WeatherChip, SettingsButton } from "../components/shared.jsx";
+import { RouteAlertBanner, NewPeriodBanner, WeatherChip, SettingsButton } from "../components/shared.jsx";
 
 // ─── TODAY DUTY CARD ──────────────────────────────────────────────────────────
 export function TodayDutyCard({shift, label, accentColor, defaultExpanded=true}) {
@@ -202,7 +202,7 @@ export function UpcomingCarousel({periods, activePeriodId, todayDate, onLogDate}
 }
 
 // ─── HOME SCREEN ──────────────────────────────────────────────────────────────
-export function HomeScreen({period, periods, alerts, onViewAlerts, driverFirstName, onLog, onLogDate, onGoWeek, onOpenSettings}) {
+export function HomeScreen({period, periods, alerts, onViewAlerts, driverFirstName, onLog, onLogDate, onGoWeek, justRolledPeriod, onDismissRolloverBanner, onOpenSettings}) {
   const stats = useMemo(() => pStats(period), [period]);
   const [weather, setWeather] = useState(null);
   useEffect(() => {
@@ -310,6 +310,8 @@ export function HomeScreen({period, periods, alerts, onViewAlerts, driverFirstNa
       </div>
 
       <div style={{padding:"0 16px"}}>
+
+        {justRolledPeriod && <NewPeriodBanner period={justRolledPeriod} onDismiss={onDismissRolloverBanner}/>}
 
         <WeekHighlightsCard highlights={thisWeekHighlights}/>
 
