@@ -105,8 +105,9 @@ export default function App() {
     let cancelled = false;
     async function runInitialSync() {
       await migrateLocalDataIfNeeded(supabase, session.user.id, tableConfigs);
-      if (!cancelled) await syncAll(supabase, session.user.id, tableConfigs);
-      if (!cancelled) setSyncedOnce(true);
+      if (cancelled) return;
+      const results = await syncAll(supabase, session.user.id, tableConfigs);
+      if (!cancelled && results.app_data?.ok) setSyncedOnce(true);
     }
     runInitialSync();
 
