@@ -35,7 +35,10 @@ export function LogDayOffScreen({periods, editDayOff, onSave, onCancel, onOpenSe
   const allShifts = useMemo(()=>periods.flatMap(p=>p.shifts||[]), [periods]);
   // A day off replaces a shift already logged that date (a driver can't work
   // and be on leave the same day) — one shift per conflicting date, in order.
-  const conflictShifts = (isRange ? rangeDays : [date])
+  // Bank Holiday In Lieu is the one exception: it's always logged alongside a
+  // real worked shift on purpose (the shift IS the bank holiday worked), so it
+  // must never be treated as conflicting with — and replacing — that shift.
+  const conflictShifts = type === "Bank Holiday In Lieu" ? [] : (isRange ? rangeDays : [date])
     .map(d => allShifts.find(s => s.date === d))
     .filter(Boolean);
 

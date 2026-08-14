@@ -407,6 +407,16 @@ describe("weekHighlights", () => {
     const result = weekHighlights([earlierP, p], "wh1", "2026-07-19");
     expect(result.some(l => l.includes("Sick Day"))).toBe(false);
   });
+
+  it("does not surface a Bank Holiday In Lieu entry as a day-off-starts-this-week highlight", () => {
+    const period = {
+      id: "bhil1", startDate: "2026-07-19",
+      shifts: [{ id: "s1", date: "2026-07-20", roster: "SZ1/01" }],
+      daysOff: [{ id: "d1", date: "2026-07-20", type: "Bank Holiday In Lieu" }],
+    };
+    const lines = weekHighlights([period], "bhil1", "2026-07-19");
+    expect(lines.some(l => l.includes("Bank Holiday In Lieu"))).toBe(false);
+  });
 });
 
 // Helper: look up a duty's own record from the bundled DUTIES fallback.
