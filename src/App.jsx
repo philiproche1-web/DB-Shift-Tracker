@@ -5,7 +5,11 @@ import { syncAll, migrateLocalDataIfNeeded } from "./lib/sync.js";
 import { hasLiveRoster } from "./lib/garages.js";
 import { fetchRouteAlerts } from "./lib/routeAlerts.js";
 import { isCalendarSunday, uid, today } from "./lib/dutyMath.js";
-import { loadRosterData, applyRosterData, periodForDate, setCustomRestConfig, rollPeriodsForward } from "./lib/roster.js";
+import { loadRosterData, applyRosterData, setCustomRestConfig, rollPeriodsForward } from "./lib/roster.js";
+import {
+  applyShiftSave, applyDayOffSave, applyShiftDelete,
+  applyDayOffDelete, applyFixedRestDayRemoval,
+} from "./lib/periodMutations.js";
 import { BG, TEXT, MUTED, ACCENT, DANGER, applyTheme, btnStyle } from "./lib/theme.js";
 import {
   loadData, writeDataLocally, saveData, APP_VERSION, WHATS_NEW,
@@ -294,77 +298,17 @@ export default function App() {
   }
 
   function saveShift(shiftOrArray, bankHolidayInLieuEntries) {
-    const items = Array.isArray(shiftOrArray) ? shiftOrArray : [shiftOrArray];
-    const updated=periods.map(p=>{
-      if(p.id!==activePeriodId)return p;
-      let shifts = p.shifts;
-      items.forEach(shift=>{
-        const ei=shifts.findIndex(s=>s.id===shift.id);
-        if (ei>=0) { shifts = shifts.map(s=>s.id===shift.id?shift:s); return; }
-        // New shift (multi-day path): skip if some other shift already owns this date -
-        // the day-circle picker greys out already-logged days, but this guards a race
-        // (e.g. another device/tab logged something in between) the same way the old
-        // standalone Repeat screen's own dedup used to.
-        if (shifts.some(s=>s.date===shift.date)) return;
-        shifts = [...shifts, shift];
-      });
-      // Merged in the same update as the shift(s) above so a Bank Holiday In
-      // Lieu choice and its shift always save atomically — see
-      // docs/superpowers/specs/2026-08-13-bank-holiday-in-lieu-design.md.
-      const existingBhilDates = new Set((p.daysOff || []).filter(d => d.type === "Bank Holiday In Lieu").map(d => d.date));
-      const newBhilEntries = (bankHolidayInLieuEntries || []).filter(
-        entry => !existingBhilDates.has(entry.date) && shifts.some(s => s.date === entry.date)
-      );
-      const daysOff = newBhilEntries.length > 0
-        ? [...(p.daysOff || []), ...newBhilEntries]
-        : p.daysOff;
-      return{...p,shifts,daysOff};
-    });
+    // Mutation logic lives in lib/periodMutations.js so it can be tested
+    // without React — see periodMutations.test.js. This function keeps only
+    // persistence and navigation.
+    const updated = applyShiftSave(periods, activePeriodId, shiftOrArray, bankHolidayInLieuEntries);
     persist(updated,activePeriodId); setEditShift(null); setLookupDuty(null); setLogInitDate(null); setLogInitRestDay(false); setScreen("home");
   }
 
   function saveDayOff(dayOffOrArray, replaceShiftIds, replaceDayOffIds) {
-    const items = Array.isArray(dayOffOrArray) ? dayOffOrArray : [dayOffOrArray];
-    // Group items by target period
-    let updated = [...periods];
-    items.forEach(dayOff => {
-      // periodForDate checks the active period first — a plain periods.find()
-      // here could silently resolve into a stale archived period whose date
-      // range still overlaps the active one, saving the day off somewhere it
-      // would never be seen (not in Period, not on the Home carousel, not
-      // editable/deletable). See periodForDate's own comment for why.
-      const targetId = dayOff.id && periods.some(p=>(p.daysOff||[]).some(d=>d.id===dayOff.id))
-        ? periods.find(p=>(p.daysOff||[]).some(d=>d.id===dayOff.id))?.id
-        : (periodForDate(periods, dayOff.date, activePeriodId)?.id ?? activePeriodId);
-      updated = updated.map(p => {
-        if(p.id !== targetId) return p;
-        // Log Day Off warns and names what's already logged before calling
-        // this, then replaceDayOffIds carries the old day off(s) to drop —
-        // a second day off on the same date replaces the first, same as a
-        // day off replaces a same-date shift below.
-        let daysOff = p.daysOff||[];
-        if (replaceDayOffIds?.length) daysOff = daysOff.filter(d=>!replaceDayOffIds.includes(d.id));
-        const ei = daysOff.findIndex(d=>d.id===dayOff.id);
-        if (ei>=0) return {...p, daysOff: daysOff.map(d=>d.id===dayOff.id?dayOff:d)};
-        // New entry (multi-day path): skip if another day off already owns
-        // this date and wasn't in the replace list — the same race guard
-        // saveShift already has for its own multi-day path. Checked across
-        // ALL periods, not just this one — a date belongs to exactly one
-        // period, but a stale conflict-check on the caller's side (e.g. a
-        // double-submit) could otherwise let a second entry land in a
-        // different period than the first, invisible to this same-period-only
-        // check while still showing up in Leave's cross-period tally.
-        const dateTakenElsewhere = updated.some(op => op.id!==p.id
-          && (op.daysOff||[]).some(d => d.date===dayOff.date && !replaceDayOffIds?.includes(d.id)));
-        if (daysOff.some(d=>d.date===dayOff.date) || dateTakenElsewhere) return p;
-        return {...p, daysOff:[...daysOff, dayOff]};
-      });
-    });
-    // A day off replaces any shift(s) already logged on the same date(s) —
-    // Log Day Off warns and names what's being replaced before calling this.
-    if (replaceShiftIds?.length) {
-      updated = updated.map(p => ({...p, shifts:(p.shifts||[]).filter(s=>!replaceShiftIds.includes(s.id))}));
-    }
+    // See periodMutations.js — that module owns the period-routing and
+    // duplicate-guard rules, and periodMutations.test.js locks them.
+    const updated = applyDayOffSave(periods, activePeriodId, dayOffOrArray, replaceShiftIds, replaceDayOffIds);
     persist(updated, activePeriodId);
     setEditDayOff(null);
     setScreen(dayOffFrom === "leave" ? "leave" : "period");
@@ -372,8 +316,7 @@ export default function App() {
 
   function deleteShift(sid) {
     setConfirm({msg:"Delete this shift? This can't be undone.",yesLabel:"Delete",onYes:()=>{
-      const updated=periods.map(p=>p.id!==activePeriodId?p:{...p,shifts:p.shifts.filter(s=>s.id!==sid)});
-      persist(updated,activePeriodId); setConfirm(null);
+      persist(applyShiftDelete(periods, activePeriodId, sid), activePeriodId); setConfirm(null);
     }});
   }
 
@@ -381,18 +324,12 @@ export default function App() {
     if (did.startsWith("fixed-")) {
       const date = did.slice(6);
       setConfirm({msg:"Stop treating this date as an automatic rest day? If you're resting on a different day instead, log that separately.",yesLabel:"Stop",onYes:()=>{
-        const updated=periods.map(p=>p.id!==activePeriodId?p:{...p,removedFixedRestDates:[...(p.removedFixedRestDates||[]),date]});
-        persist(updated,activePeriodId); setConfirm(null);
+        persist(applyFixedRestDayRemoval(periods, activePeriodId, date), activePeriodId); setConfirm(null);
       }});
       return;
     }
     setConfirm({msg:"Remove this day off record?",yesLabel:"Remove",onYes:()=>{
-      // The Leave screen lists entries from every period, not just the active
-      // one, so this must find the entry's actual owning period rather than
-      // assuming activePeriodId — same reasoning as saveDayOff's edit branch.
-      const owner = periods.find(p=>(p.daysOff||[]).some(d=>d.id===did));
-      const updated=periods.map(p=>p.id!==owner?.id?p:{...p,daysOff:(p.daysOff||[]).filter(d=>d.id!==did)});
-      persist(updated,activePeriodId); setConfirm(null);
+      persist(applyDayOffDelete(periods, did), activePeriodId); setConfirm(null);
     }});
   }
 
