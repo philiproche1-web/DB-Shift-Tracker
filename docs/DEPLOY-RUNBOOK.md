@@ -45,18 +45,23 @@ where proname in ('handle_new_user','record_audit_entry','force_user_id_to_auth_
 
 ## Step 2 — Run the outstanding migrations, in number order
 
+> **Result on 2026-08-14:** everything came back `1` except `has_0016_retention`, which
+> was `0`. **`0006` and `0011` — the two dangerous, non-additive migrations — are already
+> applied and must NOT be re-run.** The only outstanding migration is `0016`, which is
+> purely additive. The warnings below are kept for reference in case a future environment
+> is rebuilt from scratch.
+
 Only the ones step 1 showed as `0`. One at a time, checking each succeeds before the next.
 
-**`0006_canonical_garages.sql` — read this before running it.**
-It force-updates **every** driver's garage to `'Summerhill'`, then locks the column to the canonical list. If any real driver has correctly set a different garage, this overwrites their choice. Before running it:
+**`0006_canonical_garages.sql` — ALREADY APPLIED, do not re-run.**
+It force-updates **every** driver's garage to `'Summerhill'`, then locks the column to the canonical list. If any real driver has correctly set a different garage, this overwrites their choice. If ever running it on a fresh environment, check first:
 
 ```sql
 select garage, count(*) from public.profiles group by garage;
 ```
 
-If everyone is already Summerhill, it is harmless. If not, tell me before running it and we'll adjust.
-
-**`0011_route_alerts_dropdown_columns.sql`** drops and recreates the route-alerts RLS policy as part of converting columns to enums. If it fails halfway, route alerts may be left with no read policy — meaning drivers see no alerts. After running it, confirm the policy is back:
+**`0011_route_alerts_dropdown_columns.sql` — ALREADY APPLIED, do not re-run.**
+It drops and recreates the route-alerts RLS policy as part of converting columns to enums. If it ever fails halfway, route alerts are left with no read policy — meaning drivers see no alerts. Confirm the policy exists with:
 
 ```sql
 select policyname from pg_policies where tablename='route_alerts';
@@ -64,7 +69,7 @@ select policyname from pg_policies where tablename='route_alerts';
 
 You should see `Drivers can view alerts for their own garage`.
 
-**`0016_operational_table_retention.sql`** is new in this batch. Before running it, see how much it will clear:
+**`0016_operational_table_retention.sql` — this is the one to run.** Before running it, see how much it will clear:
 
 ```sql
 select
