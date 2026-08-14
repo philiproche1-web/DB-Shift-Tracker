@@ -153,7 +153,7 @@ export function PeriodScreen({period, onEdit, onDelete, onEditDayOff, onDeleteDa
                       <p style={{color:MUTED,fontSize:12,margin:"2px 0 0"}}>{fmtDate(item.date)}</p>
                     </div>
                     {!readOnly&&(
-                      item.fixed ? (
+                      (item.fixed || item.type === "Bank Holiday In Lieu") ? (
                         <button onClick={()=>onDeleteDayOff(item.id)} style={{background:"none",border:`1px solid ${BORDER}`,color:MUTED,borderRadius:8,padding:"8px 14px",fontSize:13,fontWeight:600,cursor:"pointer"}}>Remove</button>
                       ) : (
                         <div style={{display:"flex",flexDirection:"column",gap:6}}>
