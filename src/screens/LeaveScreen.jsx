@@ -30,7 +30,11 @@ export function TrafficDot({color}) {
   return <div style={{width:12,height:12,borderRadius:"50%",background:color,boxShadow:`0 0 6px ${color}88`,flexShrink:0}}/>;
 }
 
-export function LeaveCard({title, subtitle, color, used, total, remaining, children, usedLabel="used"}) {
+// `note` is a short rule that belongs with the card's own description rather
+// than inside the expandable date list — the ACP threshold is context a driver
+// wants while deciding whether to log a sick day, not something they should
+// have to open the dates list to find.
+export function LeaveCard({title, subtitle, note, color, used, total, remaining, children, usedLabel="used"}) {
   const [open,setOpen] = useState(false);
   return (
     <div style={{background:CARD,border:`1px solid ${color}44`,borderRadius:16,marginBottom:10,overflow:"hidden"}}>
@@ -41,6 +45,7 @@ export function LeaveCard({title, subtitle, color, used, total, remaining, child
             <div>
               <p style={{color:TEXT,fontSize:15,fontWeight:700,margin:0}}>{title}</p>
               {subtitle&&<p style={{color:MUTED,fontSize:12,margin:"2px 0 0"}}>{subtitle}</p>}
+              {note&&<p style={{color:MUTED,fontSize:12,margin:"4px 0 0",lineHeight:1.4}}>{note}</p>}
             </div>
           </div>
           <div style={{textAlign:"right"}}>
@@ -233,8 +238,9 @@ export function LeaveScreen({periods, leaveSettings, onLogDayOff, onEditDayOff, 
           <DayList items={annual} emptyMsg="No annual leave logged this year" onEdit={onEditDayOff} onDelete={onDeleteDayOff}/>
         </LeaveCard>
 
-        <LeaveCard title="Sick Leave" subtitle="Certified by doctor · Jan–Dec" color={sickColor} used={sick.length}>
-          <p style={{color:MUTED,fontSize:12,margin:"0 0 8px"}}>13+ certified sick days in a calendar year triggers ACP.</p>
+        <LeaveCard title="Sick Leave" subtitle="Certified by doctor · Jan–Dec"
+          note="13+ certified sick days in a calendar year triggers ACP."
+          color={sickColor} used={sick.length}>
           {sick.length>=13 && (
             <div style={{background:`${DANGER}18`,border:`1px solid ${DANGER}44`,borderRadius:10,padding:"10px 12px",marginBottom:10}}>
               <p style={{color:DANGER,fontSize:13,fontWeight:700,margin:0}}>You've hit the ACP threshold — 13+ certified sick days in a calendar year.</p>
