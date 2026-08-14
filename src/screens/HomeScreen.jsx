@@ -321,13 +321,13 @@ export function HomeScreen({period, periods, alerts, onViewAlerts, driverFirstNa
 
         {justRolledPeriod && <NewPeriodBanner period={justRolledPeriod} onDismiss={onDismissRolloverBanner}/>}
 
-        <WeekHighlightsCard highlights={thisWeekHighlights}/>
-
-        <UpcomingCarousel periods={periods} activePeriodId={period.id} todayDate={todayDate} onLogDate={onLogDate}/>
-
-        <RouteAlertBanner alerts={activeAlerts} onView={onViewAlerts}/>
-
-        {/* TODAY'S DUTY — hero card when a shift is logged for today */}
+        {/* TODAY'S DUTY leads the screen. It used to sit fourth, below the
+            week highlights, the 35-day carousel and the alert banner, which
+            measured out at today's report/sign-off times landing on the fold
+            (y=632 against a 640px viewport on a 360x640 handset) — so a
+            driver glancing at the phone at a stop had to scroll to read the
+            one thing they opened the app for. Everything demoted below it is
+            planning context, useful but not time-critical. */}
         {todayShift ? (
           <TodayDutyCard shift={todayShift} label="Today's Duty" accentColor={ACCENT} />
         ) : todayDayOff ? (
@@ -368,10 +368,19 @@ export function HomeScreen({period, periods, alerts, onViewAlerts, driverFirstNa
           <TodayDutyCard shift={tomorrowShift} label="Tomorrow's Duty" accentColor="#60a5fa" defaultExpanded={false} />
         )}
 
+        {/* Alerts sit directly under today's duty: a diversion is only
+            actionable in the context of the duty you're about to work. */}
+        <RouteAlertBanner alerts={activeAlerts} onView={onViewAlerts}/>
+
         {/* Quick action */}
         <button style={{...btnStyle,fontSize:16,padding:"16px 20px",borderRadius:14,textAlign:"left",marginBottom:12}} onClick={onLog}>
           + Log a Shift
         </button>
+
+        {/* Planning context — demoted below the time-critical cards above. */}
+        <WeekHighlightsCard highlights={thisWeekHighlights}/>
+
+        <UpcomingCarousel periods={periods} activePeriodId={period.id} todayDate={todayDate} onLogDate={onLogDate}/>
 
         {/* Remaining hours + week totals */}
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>

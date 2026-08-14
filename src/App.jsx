@@ -363,7 +363,7 @@ export default function App() {
     <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minHeight:"100vh",background:BG,padding:24,textAlign:"center"}}>
       <div style={{marginBottom:20}}><BusLogo size={56}/></div>
       <p style={{color:TEXT,fontSize:17,fontWeight:700,margin:"0 0 10px"}}>We couldn't read your saved data</p>
-      <p style={{color:MUTED,fontSize:14,margin:"0 0 24px",maxWidth:320,lineHeight:1.6}}>The data stored on this device looks damaged and can't be opened. If you have an exported backup file, you can restore it from Settings after continuing.</p>
+      <p style={{color:MUTED,fontSize:14,margin:"0 0 24px",maxWidth:320,lineHeight:1.6}}>The data stored on this device looks damaged and can't be opened. Your shifts and leave are also saved to your account — continue, then sign in on this device and they'll come back.</p>
       <button onClick={()=>{setLoadCorrupted(false);setLoading(false);}} style={{...btnStyle,maxWidth:280}}>Continue</button>
     </div>
   );
