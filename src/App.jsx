@@ -311,8 +311,12 @@ export default function App() {
       // Merged in the same update as the shift(s) above so a Bank Holiday In
       // Lieu choice and its shift always save atomically — see
       // docs/superpowers/specs/2026-08-13-bank-holiday-in-lieu-design.md.
-      const daysOff = (bankHolidayInLieuEntries && bankHolidayInLieuEntries.length > 0)
-        ? [...(p.daysOff || []), ...bankHolidayInLieuEntries]
+      const existingBhilDates = new Set((p.daysOff || []).filter(d => d.type === "Bank Holiday In Lieu").map(d => d.date));
+      const newBhilEntries = (bankHolidayInLieuEntries || []).filter(
+        entry => !existingBhilDates.has(entry.date) && shifts.some(s => s.date === entry.date)
+      );
+      const daysOff = newBhilEntries.length > 0
+        ? [...(p.daysOff || []), ...newBhilEntries]
         : p.daysOff;
       return{...p,shifts,daysOff};
     });

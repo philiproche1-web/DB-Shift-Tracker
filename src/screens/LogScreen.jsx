@@ -6,14 +6,20 @@ import { BG, CARD, BORDER, CARD2, TEXT, MUTED, ACCENT, SUCCESS, DANGER, cardStyl
 import { PageHeader, FieldLabel, DateInput, SegGroup, DutyPicker, RouteAlertCard, ConfirmDialog, SettingsButton } from "../components/shared.jsx";
 
 function BankHolidayChoiceDialog({date, onChoose}) {
+  const [chosen, setChosen] = useState(false);
+  function choose(value) {
+    if (chosen) return;
+    setChosen(true);
+    onChoose(value);
+  }
   return (
     <div style={{position:"fixed",inset:0,background:"#00000099",display:"flex",alignItems:"flex-end",justifyContent:"center",zIndex:200,padding:16}}>
       <div style={{...cardStyle,width:"100%",maxWidth:420,padding:24}}>
         <p style={{color:TEXT,textAlign:"center",margin:"0 0 4px",fontSize:16,fontWeight:700}}>You worked a bank holiday</p>
         <p style={{color:MUTED,textAlign:"center",margin:"0 0 20px",fontSize:14}}>{fmtDate(date)} — how's it being paid?</p>
         <div style={{display:"flex",flexDirection:"column",gap:10}}>
-          <button onClick={()=>onChoose("pay")} style={{background:"none",border:`1px solid ${BORDER}`,color:TEXT,borderRadius:10,padding:"13px 0",fontSize:15,fontWeight:600,cursor:"pointer"}}>Bank Holiday Pay</button>
-          <button onClick={()=>onChoose("lieu")} style={{background:ACCENT,border:"none",color:"#07090F",borderRadius:10,padding:"13px 0",fontSize:15,fontWeight:700,cursor:"pointer"}}>Day in Lieu (+1¼ annual leave)</button>
+          <button onClick={()=>choose("pay")} style={{background:"none",border:`1px solid ${BORDER}`,color:TEXT,borderRadius:10,padding:"13px 0",fontSize:15,fontWeight:600,cursor:"pointer"}}>Bank Holiday Pay</button>
+          <button onClick={()=>choose("lieu")} style={{background:ACCENT,border:"none",color:"#07090F",borderRadius:10,padding:"13px 0",fontSize:15,fontWeight:700,cursor:"pointer"}}>Day in Lieu (+1¼ annual leave)</button>
         </div>
       </div>
     </div>
@@ -509,7 +515,7 @@ export function LogScreen({period, editShift, lookupDuty, initialDate, initialRe
             onNo={()=>setPendingAction(null)}/>
         )}
         {bhQueue && bhQueue.length > 0 && (
-          <BankHolidayChoiceDialog date={bhQueue[0]} onChoose={handleBankHolidayChoice}/>
+          <BankHolidayChoiceDialog key={bhQueue[0]} date={bhQueue[0]} onChoose={handleBankHolidayChoice}/>
         )}
       </div>
     </div>

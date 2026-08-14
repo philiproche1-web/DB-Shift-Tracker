@@ -14,9 +14,9 @@ export function DayList({items, emptyMsg, onEdit, onDelete}) {
             <span style={{color:TEXT,fontSize:13}}>{fmtDate(d.date)}</span>
             <span style={{color:MUTED,fontSize:12,marginLeft:8}}>{new Date(d.date+"T00:00:00").toLocaleDateString("en-IE",{weekday:"short"})}</span>
           </div>
-          {onEdit && onDelete && (
+          {onDelete && (
             <div style={{display:"flex",gap:6,flexShrink:0}}>
-              <button onClick={()=>onEdit(d)} style={{background:"none",border:`1px solid ${ACCENT}`,color:ACCENT,borderRadius:8,padding:"5px 10px",fontSize:12,fontWeight:600,cursor:"pointer"}}>Edit</button>
+              {onEdit && <button onClick={()=>onEdit(d)} style={{background:"none",border:`1px solid ${ACCENT}`,color:ACCENT,borderRadius:8,padding:"5px 10px",fontSize:12,fontWeight:600,cursor:"pointer"}}>Edit</button>}
               <button onClick={()=>onDelete(d.id)} style={{background:"none",border:`1px solid ${DANGER}`,color:DANGER,borderRadius:8,padding:"5px 10px",fontSize:12,fontWeight:600,cursor:"pointer"}}>Del</button>
             </div>
           )}
@@ -30,7 +30,7 @@ export function TrafficDot({color}) {
   return <div style={{width:12,height:12,borderRadius:"50%",background:color,boxShadow:`0 0 6px ${color}88`,flexShrink:0}}/>;
 }
 
-export function LeaveCard({title, subtitle, color, used, total, remaining, children}) {
+export function LeaveCard({title, subtitle, color, used, total, remaining, children, usedLabel="used"}) {
   const [open,setOpen] = useState(false);
   return (
     <div style={{background:CARD,border:`1px solid ${color}44`,borderRadius:16,marginBottom:10,overflow:"hidden"}}>
@@ -50,7 +50,7 @@ export function LeaveCard({title, subtitle, color, used, total, remaining, child
                 <p style={{color:MUTED,fontSize:11,margin:"1px 0 0"}}>{used} of {total} used</p>
               </>
             ) : (
-              <p style={{color:color,fontSize:18,fontWeight:800,margin:0}}>{used} <span style={{color:MUTED,fontSize:12,fontWeight:400}}>used</span></p>
+              <p style={{color:color,fontSize:18,fontWeight:800,margin:0}}>{used} <span style={{color:MUTED,fontSize:12,fontWeight:400}}>{usedLabel}</span></p>
             )}
             <span style={{color:MUTED,fontSize:11,display:"block",marginTop:3}}>{open?"▲ hide":"▼ dates"}</span>
           </div>
@@ -202,7 +202,7 @@ export function LeaveScreen({periods, leaveSettings, onLogDayOff, onEditDayOff, 
   const annualTotal = annualBase + bhil.length * 1.25;
   const annualRem = annualTotal - annualUsed;
   const annualSubtitle = bhil.length > 0
-    ? `${annualBase} + ${bhil.length}×1¼ in lieu = ${annualTotal} days entitlement · Jan–Dec`
+    ? `${annualBase} + ${bhil.length}×1.25 in lieu = ${annualTotal} days entitlement · Jan–Dec`
     : `${annualBase} days entitlement · Jan–Dec`;
   const annualColor = annualRem>=8?SUCCESS:annualRem>=4?"#F59E0B":DANGER;
   const sickColor = sick.length<=7?SUCCESS:sick.length<=9?"#F59E0B":DANGER;
@@ -248,8 +248,8 @@ export function LeaveScreen({periods, leaveSettings, onLogDayOff, onEditDayOff, 
         <ForceMajeureCard fm12={fm12} fm36={fm36} fmColor={fmColor} onEdit={onEditDayOff} onDelete={onDeleteDayOff}/>
 
         <LeaveCard title="Bank Holiday In Lieu" subtitle="Added automatically when you log a bank holiday shift as day in lieu"
-          color={bhil.length>0?SUCCESS:MUTED} used={bhil.length}>
-          <DayList items={bhil} emptyMsg="No bank holiday in lieu days logged this year" onEdit={onEditDayOff} onDelete={onDeleteDayOff}/>
+          color={bhil.length>0?SUCCESS:MUTED} used={bhil.length} usedLabel="earned">
+          <DayList items={bhil} emptyMsg="No bank holiday in lieu days logged this year" onDelete={onDeleteDayOff}/>
         </LeaveCard>
 
         {onViewFAQ && (
