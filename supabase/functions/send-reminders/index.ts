@@ -246,6 +246,19 @@ async function runScheduler() {
   }
 }
 
+// Deployed with --no-verify-jwt (see runbook) so this endpoint can be polled
+// by a free-tier uptime monitor that can't send a custom Authorization
+// header. That removes Supabase's platform-level gate for BOTH paths below,
+// so the real trigger path (no ?status=1) must check auth itself — it
+// compares the caller's Authorization header against this function's own
+// service_role key, which only pg_cron's scheduled invocation (see migration
+// 0015) actually has. The ?status=1 health-check path is deliberately left
+// open to anyone: it only ever returns a timestamp/boolean, nothing
+// driver-identifying or actionable, so requiring auth there would just be
+// friction for no security benefit — and is exactly what forced this whole
+// change, since a free-tier monitor can't provide one.
+const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
 Deno.serve(async (req) => {
   const url = new URL(req.url);
   if (url.searchParams.get("status") === "1") {
@@ -270,6 +283,16 @@ Deno.serve(async (req) => {
     const lastRunAgoSeconds = data ? (Date.now() - new Date(data.ran_at).getTime()) / 1000 : null;
     const status = error ? "query_failed" : data ? "ok" : "no_runs_recorded";
     return new Response(JSON.stringify({ lastRunAgoSeconds, status }), { headers: { "Content-Type": "application/json" } });
+  }
+  // Only the scheduled cron invocation (which sends this exact key, see
+  // migration 0015) may trigger a real send — --no-verify-jwt means anyone
+  // could otherwise reach this and send real pushes to drivers mid-break.
+  const authHeader = req.headers.get("Authorization") || "";
+  if (authHeader !== `Bearer ${SERVICE_ROLE_KEY}`) {
+    return new Response(JSON.stringify({ ok: false, error: "unauthorized" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json" },
+    });
   }
   try {
     await runScheduler();
