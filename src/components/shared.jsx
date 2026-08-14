@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import { fmtHrs, addDays, fmtShort } from "../lib/dutyMath.js";
 import { dutyLabel } from "../lib/roster.js";
-import { compColor, BG, CARD, CARD2, BORDER, TEXT, MUTED, ACCENT, DANGER, cardStyle, inputStyle } from "../lib/theme.js";
+import { compColor, BG, CARD, CARD2, BORDER, TEXT, MUTED, ACCENT, DANGER, NAV, NAV_MUTED, cardStyle, inputStyle } from "../lib/theme.js";
 import { alertWindowLabel } from "../lib/routeAlerts.js";
 
 // ─── SHARED UI ────────────────────────────────────────────────────────────────
@@ -240,7 +240,7 @@ export function EmptyState({icon, title, body}) {
 
 // ─── BOTTOM NAV ───────────────────────────────────────────────────────────────
 export function NavIcon({id, active}) {
-  const c = active ? ACCENT : MUTED;
+  const c = active ? ACCENT : NAV_MUTED;
   const s = {width:22,height:22,fill:"none",stroke:c,strokeWidth:1.8,strokeLinecap:"round",strokeLinejoin:"round"};
   if(id==="home") return <svg viewBox="0 0 24 24" style={s}><path d="M3 12L12 4l9 8"/><path d="M5 10v10h5v-5h4v5h5V10"/></svg>;
   if(id==="lookup") return <svg viewBox="0 0 24 24" style={s}><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="22" y2="22"/></svg>;
@@ -339,7 +339,7 @@ export function BottomNav({active, onChange}) {
     {id:"leave",label:"Leave"},
   ];
   return (
-    <div style={{position:"fixed",bottom:0,left:0,right:0,background:"#0A0E1A",borderTop:`1px solid ${BORDER}`,display:"grid",gridTemplateColumns:"repeat(5,1fr)",zIndex:100,paddingBottom:"env(safe-area-inset-bottom,0px)"}}>
+    <div style={{position:"fixed",bottom:0,left:0,right:0,background:NAV,borderTop:`1px solid ${BORDER}`,display:"grid",gridTemplateColumns:"repeat(5,1fr)",zIndex:100,paddingBottom:"env(safe-area-inset-bottom,0px)"}}>
       {tabs.map((t,i)=>{
         const isLookup = t.id==="lookup";
         const isActive = active===t.id;
@@ -352,7 +352,7 @@ export function BottomNav({active, onChange}) {
           }}>
             {isLookup ? (
               <div style={{
-                background: isActive ? ACCENT : "#1A2438",
+                background: isActive ? ACCENT : CARD2,
                 borderRadius:14,padding:"10px 18px",
                 display:"flex",flexDirection:"column",alignItems:"center",gap:3,
                 marginTop:-18,
@@ -361,13 +361,13 @@ export function BottomNav({active, onChange}) {
                 transition:"all 0.2s"
               }}>
                 <NavIcon id="lookup" active={isActive}/>
-                <span style={{fontSize:10,color:isActive?"#07090F":MUTED,fontWeight:700,letterSpacing:"0.5px",textTransform:"uppercase"}}>Lookup</span>
+                <span style={{fontSize:11,color:isActive?"#07090F":NAV_MUTED,fontWeight:700,letterSpacing:"0.5px",textTransform:"uppercase"}}>Lookup</span>
               </div>
             ) : (
               <>
                 {isActive && <div style={{position:"absolute",top:0,left:"20%",right:"20%",height:2,background:ACCENT,borderRadius:"0 0 2px 2px"}}/>}
                 <NavIcon id={t.id} active={isActive}/>
-                <span style={{fontSize:10,color:isActive?ACCENT:MUTED,fontWeight:isActive?700:400,letterSpacing:"0.3px"}}>{t.label}</span>
+                <span style={{fontSize:11,color:isActive?ACCENT:NAV_MUTED,fontWeight:isActive?700:500,letterSpacing:"0.3px"}}>{t.label}</span>
               </>
             )}
           </button>
