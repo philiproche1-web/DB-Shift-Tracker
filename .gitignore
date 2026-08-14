@@ -12,6 +12,14 @@ dist
 dist-ssr
 *.local
 
+# Local build artifacts and scratch state — never belong in the repo.
+# .claude/worktrees holds full working copies of feature branches (the
+# branch refs themselves are what preserve the work, not these directories),
+# supabase/.temp is CLI link state, dist.zip is a hand-made deploy bundle.
+.claude/worktrees/
+supabase/.temp/
+dist.zip
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
