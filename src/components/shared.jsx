@@ -131,9 +131,26 @@ export function DutyPicker({duties, value, onChange}) {
 
   return (
     <div>
-      <input ref={inputRef} type="text" inputMode="search" value={query} onChange={e=>setQuery(e.target.value)}
+      {/* inputMode="numeric" + pattern="[0-9]*" opens the number pad on iOS
+          and Android instead of the full QWERTY keyboard — driver typing a
+          duty number they got from a BACMS text shouldn't have to fight a
+          keyboard that swallows most of the screen for something they'll
+          only ever enter digits into. Matching stays a substring search
+          against the roster code (e.g. "03" still matches "SZ1/03"), so this
+          is purely a keyboard change, not a filtering change. */}
+      <input ref={inputRef} type="text" inputMode="numeric" pattern="[0-9]*" value={query} onChange={e=>setQuery(e.target.value)}
         placeholder="Type a duty number to search…"
-        onKeyDown={e=>{if(e.key==="Escape"){setOpen(false);setQuery("");}}}
+        onKeyDown={e=>{
+          if(e.key==="Escape"){setOpen(false);setQuery("");return;}
+          // Enter only auto-selects when exactly one duty matches what's been
+          // typed so far — with multiple matches, picking one on Enter would
+          // be guessing which duty the driver meant, and this is compliance
+          // data. Once narrowed to one, Enter behaves like tapping it.
+          if(e.key==="Enter" && filtered.length===1){
+            const i = duties.indexOf(filtered[0]);
+            onChange(i); setQuery(""); setOpen(false);
+          }
+        }}
         style={{...inputStyle, marginBottom:8}}/>
       <div style={{maxHeight:280,overflowY:"auto",border:`1px solid ${BORDER}`,borderRadius:10,background:CARD}}>
         {filtered.length===0 ? (
