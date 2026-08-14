@@ -29,7 +29,13 @@ select
 
 Each column comes back `0` (not applied) or `1` (applied). Anything already `1`, **skip** — do not re-run it.
 
-Then confirm the security hardening from `0005` is genuinely in place on the live database:
+Then confirm the security hardening from `0005` is genuinely in place on the live database.
+
+> **Verified 2026-08-14: all three functions returned `false` for both `anon_can_run` and
+> `authed_can_run`.** The hardening is live and intact — the live database was never
+> exposed. The audit's concern was that `0005` was missing from git, so the repo's
+> migration history no longer described a secure database and any future rebuild would
+> have silently reopened the hole. That file is now committed (`27d221d`).
 
 ```sql
 select proname,
