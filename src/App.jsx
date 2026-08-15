@@ -417,8 +417,9 @@ export default function App() {
 
   return (
     <div style={{background:BG,minHeight:"100vh"}}>
-      {screen==="log"&&<LogScreen period={activePeriod} editShift={editShift} lookupDuty={lookupDuty} initialDate={logInitDate} initialRestDay={logInitRestDay} alerts={routeAlerts}
+      {screen==="log"&&<LogScreen key={editShift?.id||"new"} period={activePeriod} editShift={editShift} lookupDuty={lookupDuty} initialDate={logInitDate} initialRestDay={logInitRestDay} alerts={routeAlerts}
         onSave={saveShift} onCancel={()=>{setEditShift(null);setLookupDuty(null);setLogInitDate(null);setLogInitRestDay(false);setScreen(editShift?"period":lookupDuty?"lookup":"home");}}
+        onEditConflict={setEditShift}
         onOpenSettings={()=>setShowSettings(true)}/>}
       {screen==="dayoff"&&<LogDayOffScreen periods={periods} editDayOff={editDayOff}
         onSave={saveDayOff} onCancel={()=>{setEditDayOff(null);setScreen(dayOffFrom);}}

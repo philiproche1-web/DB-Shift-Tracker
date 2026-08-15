@@ -27,7 +27,7 @@ function BankHolidayChoiceDialog({date, onChoose}) {
 }
 
 // ─── LOG SHIFT SCREEN ─────────────────────────────────────────────────────────
-export function LogScreen({period, editShift, lookupDuty, initialDate, initialRestDay, alerts, onSave, onCancel, onOpenSettings}) {
+export function LogScreen({period, editShift, lookupDuty, initialDate, initialRestDay, alerts, onSave, onCancel, onEditConflict, onOpenSettings}) {
   // lookupDuty = {d: dutyObj, dt: dayType} from the Lookup screen
   const initZone = lookupDuty?.d.z || editShift?.zone || "Zone 1";
   const [date, setDate] = useState(lookupDuty?.date || editShift?.date || initialDate || today());
@@ -277,7 +277,18 @@ export function LogScreen({period, editShift, lookupDuty, initialDate, initialRe
           {conflictShift && (
             <div style={{display:"flex",alignItems:"center",gap:8,marginTop:10,padding:"10px 12px",background:`${DANGER}14`,border:`1px solid ${DANGER}44`,borderRadius:10}}>
               <span style={{width:6,height:6,borderRadius:"50%",background:DANGER,flexShrink:0}}/>
-              <p style={{color:DANGER,fontSize:13,margin:0}}>A shift ({conflictShift.roster}) is already logged for this date. Edit or delete it first, or pick a different date.</p>
+              <div style={{flex:1,minWidth:0}}>
+                <p style={{color:DANGER,fontSize:13,margin:0}}>A shift ({conflictShift.roster}) is already logged for this date.{!onEditConflict&&" Edit or delete it first, or pick a different date."}</p>
+                {/* Jumps straight into editing the conflicting shift, right
+                    here, instead of only naming the Period screen where the
+                    edit/delete controls actually live. */}
+                {onEditConflict && (
+                  <button type="button" onClick={()=>onEditConflict(conflictShift)}
+                    style={{background:"none",border:"none",color:DANGER,fontSize:13,fontWeight:700,textDecoration:"underline",cursor:"pointer",padding:"4px 0 0",textAlign:"left"}}>
+                    Edit that shift instead
+                  </button>
+                )}
+              </div>
             </div>
           )}
           {!conflictShift && conflictDayOff && (
