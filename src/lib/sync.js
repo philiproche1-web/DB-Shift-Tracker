@@ -36,6 +36,19 @@ export function markDirty(table) {
   saveSyncMeta(meta);
 }
 
+// True while any table has a local change that hasn't reached the account
+// yet — offline, weak signal, or any sync failure, not just literally
+// offline (navigator.onLine is notoriously unreliable on mobile, so this
+// doesn't try to detect "offline" directly; it reflects the actual thing a
+// driver cares about, which is whether their change has actually synced).
+// Drives a small persistent indicator so logging a shift with no signal
+// doesn't look identical to logging one that reached the account — before
+// this, nothing told a driver the difference.
+export function hasPendingSync() {
+  const meta = loadSyncMeta();
+  return Object.values(meta).some(m => m.dirty);
+}
+
 // Reconciles one table's local copy against its remote row: pushes local if
 // local is dirty and wins, pulls remote if remote wins, or does nothing if
 // neither applies. A failed push/pull leaves the dirty flag untouched so the

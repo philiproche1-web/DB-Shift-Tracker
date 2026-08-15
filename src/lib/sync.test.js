@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { pickWinner, markDirty, syncTable, syncAll } from "./sync.js";
+import { pickWinner, markDirty, syncTable, syncAll, hasPendingSync } from "./sync.js";
 
 describe("pickWinner", () => {
   it("picks remote when there is no local timestamp", () => {
@@ -58,6 +58,43 @@ function makeFakeSupabase({
   };
   return { supabase, calls };
 }
+
+describe("hasPendingSync", () => {
+  beforeEach(() => localStorage.clear());
+
+  it("is false with nothing synced yet", () => {
+    expect(hasPendingSync()).toBe(false);
+  });
+
+  it("is true once something is marked dirty", () => {
+    markDirty("app_data");
+    expect(hasPendingSync()).toBe(true);
+  });
+
+  it("is true if ANY table is dirty, not just the first one checked", () => {
+    markDirty("settings");
+    expect(hasPendingSync()).toBe(true);
+  });
+
+  it("clears once a successful push resolves the dirty flag", async () => {
+    markDirty("settings");
+    const { supabase } = makeFakeSupabase();
+    const result = await syncTable(supabase, "settings", { load: () => ({}), save: () => {} }, "user-1");
+    expect(result.ok).toBe(true);
+    expect(result.direction).toBe("pushed");
+    expect(hasPendingSync()).toBe(false);
+  });
+
+  it("stays true if the push fails — this is the whole point: a failed", async () => {
+    // sync (offline, weak signal, server error) must NOT look the same as a
+    // successful one to a driver checking whether their change landed.
+    markDirty("settings");
+    const { supabase } = makeFakeSupabase({ pushError: { message: "network error" } });
+    const result = await syncTable(supabase, "settings", { load: () => ({}), save: () => {} }, "user-1");
+    expect(result.ok).toBe(false);
+    expect(hasPendingSync()).toBe(true);
+  });
+});
 
 describe("markDirty + syncTable", () => {
   beforeEach(() => localStorage.clear());

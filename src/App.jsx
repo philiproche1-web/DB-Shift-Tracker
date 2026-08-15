@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, lazy, Suspense } from "react";
 import { supabase } from "./lib/supabaseClient.js";
 import { signOut, getSession, onAuthStateChange } from "./lib/auth.js";
-import { syncAll, migrateLocalDataIfNeeded } from "./lib/sync.js";
+import { syncAll, migrateLocalDataIfNeeded, hasPendingSync } from "./lib/sync.js";
 import { hasLiveRoster } from "./lib/garages.js";
 import { fetchRouteAlerts } from "./lib/routeAlerts.js";
 import { isCalendarSunday, uid, today } from "./lib/dutyMath.js";
@@ -10,7 +10,7 @@ import {
   applyShiftSave, applyDayOffSave, applyShiftDelete,
   applyDayOffDelete, applyFixedRestDayRemoval,
 } from "./lib/periodMutations.js";
-import { BG, TEXT, MUTED, ACCENT, DANGER, applyTheme, btnStyle } from "./lib/theme.js";
+import { BG, CARD, BORDER, TEXT, MUTED, ACCENT, DANGER, applyTheme, btnStyle } from "./lib/theme.js";
 import {
   loadData, writeDataLocally, saveData, APP_VERSION, WHATS_NEW,
   loadLeaveSettings, writeLeaveSettingsLocally, saveLeaveSettings,
@@ -73,6 +73,7 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [confirmFeedback, setConfirmFeedback] = useState(false);
   const [justRolledPeriod, setJustRolledPeriod] = useState(null);
+  const [pendingSync, setPendingSync] = useState(false);
 
   const activePeriod = periods.find(p=>p.id===activePeriodId);
 
@@ -120,10 +121,17 @@ export default function App() {
       if (cancelled) return;
       const results = await syncAll(supabase, session.user.id, tableConfigs);
       if (!cancelled && results.app_data?.ok) setSyncedOnce(true);
+      if (!cancelled) setPendingSync(hasPendingSync());
     }
     runInitialSync();
 
-    function handleReconnect() { syncAll(supabase, session.user.id, tableConfigs); }
+    // Drives the "not yet synced" indicator: a driver logging a shift with
+    // no signal sees it saved locally with nothing telling them it hasn't
+    // reached their account — this is what closes that gap, updated after
+    // every sync attempt regardless of whether it succeeded.
+    function handleReconnect() {
+      syncAll(supabase, session.user.id, tableConfigs).then(() => setPendingSync(hasPendingSync()));
+    }
     function handleVisibilityChange() { if (document.visibilityState === "visible") handleReconnect(); }
     window.addEventListener("online", handleReconnect);
     document.addEventListener("visibilitychange", handleVisibilityChange);
@@ -181,6 +189,21 @@ export default function App() {
     fetchRouteAlerts(supabase, driverGarage).then((data) => { if (!cancelled) setRouteAlerts(data); });
     return () => { cancelled = true; };
   }, [driverGarage]);
+
+  useEffect(() => {
+    // Belt-and-braces alongside the direct pendingSync updates in persist()
+    // and the sync effect above: those cover shifts/periods (the case that
+    // actually prompted this — logging a shift with no signal looking
+    // identical to one that reached the account), but leave_settings and
+    // settings also go through the same dirty-flag mechanism via write
+    // paths scattered across SettingsPanel and elsewhere that aren't
+    // individually wired here. A cheap periodic localStorage read is far
+    // simpler and more robust than hunting down every write site, at the
+    // cost of up to 4s of lag before the indicator reacts — acceptable for
+    // something a driver checks, not something time-critical.
+    const interval = setInterval(() => setPendingSync(hasPendingSync()), 4000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(()=>{
     // Request persistent storage so browser doesn't evict data under pressure
@@ -314,7 +337,7 @@ export default function App() {
 
   const persist=(ps,aid)=>{
     setPeriods(ps);setActivePeriodId(aid);
-    saveData({periods:ps,activePeriodId:aid}).then(ok=>setSaveError(!ok));
+    saveData({periods:ps,activePeriodId:aid}).then(ok=>{ setSaveError(!ok); setPendingSync(hasPendingSync()); });
   };
 
   function createPeriod(startDate) {
@@ -487,6 +510,24 @@ export default function App() {
       {viewingFAQ !== null && (
         <div ref={faqModalRef} role="dialog" aria-modal="true" aria-label="FAQ" tabIndex={-1} style={{position:"fixed",inset:0,zIndex:250,background:BG,outline:"none"}}>
           <FAQScreen initialCategory={viewingFAQ} onClose={closeFAQ}/>
+        </div>
+      )}
+      {/* Small, low-profile — this is often a normal transient state (a
+          few seconds of weak signal), not an error, so it shouldn't read
+          as alarming the way saveError's red banner correctly does for an
+          actual write failure. Suppressed while saveError is showing so
+          the two don't stack; a failed local write is the more urgent
+          thing to surface in that moment. */}
+      {pendingSync && !saveError && (
+        <div style={{position:"fixed",bottom:74,left:"50%",transform:"translateX(-50%)",zIndex:150,background:CARD,border:`1px solid ${BORDER}`,borderRadius:999,padding:"6px 14px",display:"flex",alignItems:"center",gap:7,boxShadow:"0 4px 16px rgba(0,0,0,0.3)"}}>
+          {/* Own scoped keyframe, not the "pulse" name used by the separate
+              loading screens elsewhere in this file — those are only in the
+              DOM while loading, so relying on their definition here (which
+              renders during normal use, well after loading) would silently
+              do nothing once they unmount. */}
+          <style>{`@keyframes pendingSyncPulse{0%,100%{opacity:0.4}50%{opacity:1}}`}</style>
+          <span style={{width:7,height:7,borderRadius:"50%",background:ACCENT,flexShrink:0,animation:"pendingSyncPulse 1.4s ease-in-out infinite"}}/>
+          <span style={{fontSize:11.5,color:MUTED,fontWeight:600,whiteSpace:"nowrap"}}>Saved on this phone — not synced yet</span>
         </div>
       )}
       {saveError && (
