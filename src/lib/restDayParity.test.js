@@ -55,6 +55,14 @@ beforeEach(() => {
 });
 
 describe("roster.js and pushDuty.js agree on rest days", () => {
+  it("marks virtual rest-day ids with the same prefix on both sides", () => {
+    // roster.js and pushDuty.js each export their own FIXED_REST_ID_PREFIX
+    // (deliberately, not shared — pushDuty.js is a standalone port) with a
+    // comment claiming they match. This is what actually enforces that
+    // claim: a future edit to one without the other fails here.
+    expect(push.FIXED_REST_ID_PREFIX).toBe(roster.FIXED_REST_ID_PREFIX);
+  });
+
   it("uses an identical 5-week rest pattern on both sides", () => {
     // pushDuty's FIXED_REST_PATTERN is module-private, so compare it through
     // the behaviour it drives: with custom rest off, both must generate the

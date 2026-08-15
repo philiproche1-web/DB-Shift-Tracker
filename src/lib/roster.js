@@ -76,6 +76,17 @@ export function fixedRestDates(periodStartDate) {
   }
   return [...kept, ...custom];
 }
+// Marks a virtual (pattern-generated) rest day's id, distinguishing it from
+// a real logged day off — App.jsx's deleteDayOff checks this prefix to know
+// whether "delete" means removing a real record or suppressing an automatic
+// one. pushDuty.js independently produces ids in the same shape for its own
+// copy of this same logic (see that file's own FIXED_REST_ID_PREFIX) — the
+// two can't share this constant directly (pushDuty.js is a deliberately
+// standalone port, see its header), but restDayParity.test.js asserts both
+// values actually match, so a drift here fails a test instead of silently
+// breaking App.jsx's check.
+export const FIXED_REST_ID_PREFIX = "fixed-";
+
 // Merges the fixed rest days into daysOff — skipped for any date that already
 // has a real shift or day-off logged (a swap), or was explicitly removed.
 export function withFixedRestDays(startDate, daysOff, shifts, removedFixed) {
@@ -86,7 +97,7 @@ export function withFixedRestDays(startDate, daysOff, shifts, removedFixed) {
   ]);
   const virtual = fixedRestDates(startDate)
     .filter(d => !taken.has(d) && !removed.has(d))
-    .map(d => ({ id: `fixed-${d}`, date: d, type: "Rest Day", fixed: true }));
+    .map(d => ({ id: `${FIXED_REST_ID_PREFIX}${d}`, date: d, type: "Rest Day", fixed: true }));
   return [...(daysOff || []), ...virtual];
 }
 const WEEKDAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];

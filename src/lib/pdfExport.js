@@ -1,5 +1,21 @@
 import { MAX_HOURS, MAX_SUNDAY, DAY_OFF_TYPES, addDays, fmtDate, fmtShort, fmtLong, fmtHrs, calcSpreadover, dutyNumber } from "./dutyMath.js";
 
+// Every other interpolation into this HTML string is a controlled value —
+// dates, formatted hours, a dutyNumber(), or one of DAY_OFF_TYPES — but
+// notes/overtimeNote/zone/roster are free text a driver typed. Self-XSS
+// only (RLS means only the driver themself could ever plant a payload in
+// their own data), but the export is explicitly meant for discussions with
+// management or union representation, so it should still be robust.
+function escapeHtml(s) {
+  if (s == null) return s;
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 // ─── PDF EXPORT ───────────────────────────────────────────────────────────────
 export function buildPDFHTML(period, stats) {
   const endDate = addDays(period.startDate, 34);
@@ -33,15 +49,15 @@ export function buildPDFHTML(period, stats) {
           stat("Relief", item.isRestDay||item.isSpare?"—":fmtHrs(item.reliefHours)),
         ].join("");
         const otLine = item.overtimeHours > 0
-          ? `<div style="margin-top:8px;padding-top:8px;border-top:1px solid #f3f4f6;font-size:11px"><span style="color:#d97706;font-weight:700">Overtime: ${fmtHrs(item.overtimeHours)}</span>${item.overtimeNote ? ` <span style="color:#6b7280;font-style:italic">— ${item.overtimeNote}</span>` : ""}</div>`
+          ? `<div style="margin-top:8px;padding-top:8px;border-top:1px solid #f3f4f6;font-size:11px"><span style="color:#d97706;font-weight:700">Overtime: ${fmtHrs(item.overtimeHours)}</span>${item.overtimeNote ? ` <span style="color:#6b7280;font-style:italic">— ${escapeHtml(item.overtimeNote)}</span>` : ""}</div>`
           : "";
         const notesLine = item.notes
-          ? `<div style="margin-top:6px;font-size:11px;color:#6b7280;font-style:italic">${item.notes}</div>`
+          ? `<div style="margin-top:6px;font-size:11px;color:#6b7280;font-style:italic">${escapeHtml(item.notes)}</div>`
           : "";
         return `<div style="border:1px solid #e5e7eb;border-radius:8px;padding:10px 14px;margin-bottom:6px;page-break-inside:avoid;break-inside:avoid">
           <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:4px;margin-bottom:8px">
-            <div style="font-size:13px"><strong>${fmtDate(item.date)}</strong> <span style="color:#6b7280">· ${item.zone}</span></div>
-            <div style="font-size:12px;font-weight:700;color:#1e3a5f">${tags}${item.roster}${dutyNumber(item.duty) ? ` <span style="background:#fbbf24;color:#000;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:700;margin-left:4px">DUTY NO. ${dutyNumber(item.duty)}</span>` : ""}</div>
+            <div style="font-size:13px"><strong>${fmtDate(item.date)}</strong> <span style="color:#6b7280">· ${escapeHtml(item.zone)}</span></div>
+            <div style="font-size:12px;font-weight:700;color:#1e3a5f">${tags}${escapeHtml(item.roster)}${dutyNumber(item.duty) ? ` <span style="background:#fbbf24;color:#000;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:700;margin-left:4px">DUTY NO. ${dutyNumber(item.duty)}</span>` : ""}</div>
           </div>
           <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px">${stats5}</div>
           ${otLine}${notesLine}

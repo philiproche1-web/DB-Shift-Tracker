@@ -230,7 +230,9 @@ export function RouteAlertCard({alert}) {
   );
 }
 
-// Passive Home summary — same "banner you tap through" pattern as BackupNudgeBanner.
+// Passive Home summary — same "banner you tap through" pattern as
+// NewPeriodBanner above (the old backup-nudge banner this comment used to
+// reference was removed when the Import/Export feature was dropped).
 export function RouteAlertBanner({alerts, onView}) {
   if (!alerts.length) return null;
   return (

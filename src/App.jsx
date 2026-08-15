@@ -5,7 +5,7 @@ import { syncAll, migrateLocalDataIfNeeded } from "./lib/sync.js";
 import { hasLiveRoster } from "./lib/garages.js";
 import { fetchRouteAlerts } from "./lib/routeAlerts.js";
 import { isCalendarSunday, uid, today } from "./lib/dutyMath.js";
-import { loadRosterData, applyRosterData, setCustomRestConfig, rollPeriodsForward } from "./lib/roster.js";
+import { loadRosterData, applyRosterData, setCustomRestConfig, rollPeriodsForward, FIXED_REST_ID_PREFIX } from "./lib/roster.js";
 import {
   applyShiftSave, applyDayOffSave, applyShiftDelete,
   applyDayOffDelete, applyFixedRestDayRemoval,
@@ -53,14 +53,14 @@ export default function App() {
   const [lookupDuty, setLookupDuty] = useState(null);
   const [termsAccepted, setTermsAccepted] = useState(true);
   const [showWhatsNew, setShowWhatsNew] = useState(false);
-  const [themeKey, setThemeKey] = useState(0);
+  const [_themeKey, setThemeKey] = useState(0); // value unused by design — only the setter forces theme re-renders
   const [leaveSettings, setLeaveSettings] = useState(loadLeaveSettings);
   const [dayOffFrom, setDayOffFrom] = useState("home"); // tracks where to return after logging day off
   const [viewingTerms, setViewingTerms] = useState(false);
   const [viewingFAQ, setViewingFAQ] = useState(null); // null = closed, "" | category key = open
   const [saveError, setSaveError] = useState(false);
   const [loadCorrupted, setLoadCorrupted] = useState(false);
-  const [rosterVersion, setRosterVersion] = useState(0);
+  const [_rosterVersion, setRosterVersion] = useState(0); // value unused by design — only the setter forces a re-render on fresher roster data
   const [logInitDate, setLogInitDate] = useState(null);
   const [logInitRestDay, setLogInitRestDay] = useState(false);
   const [session, setSession] = useState(undefined); // undefined = not checked yet, null = signed out
@@ -341,8 +341,8 @@ export default function App() {
   }
 
   function deleteDayOff(did) {
-    if (did.startsWith("fixed-")) {
-      const date = did.slice(6);
+    if (did.startsWith(FIXED_REST_ID_PREFIX)) {
+      const date = did.slice(FIXED_REST_ID_PREFIX.length);
       setConfirm({msg:"Stop treating this date as an automatic rest day? If you're resting on a different day instead, log that separately.",yesLabel:"Stop",onYes:()=>{
         persist(applyFixedRestDayRemoval(periods, activePeriodId, date), activePeriodId); setConfirm(null);
       }});

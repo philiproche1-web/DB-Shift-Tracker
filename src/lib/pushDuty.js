@@ -59,6 +59,10 @@ export function fixedRestDates(restConfig, periodStartDate, restPattern = FIXED_
   return [...kept, ...custom];
 }
 
+// Mirrors roster.js's FIXED_REST_ID_PREFIX exactly — see that constant's own
+// comment. restDayParity.test.js asserts the two literal values match.
+export const FIXED_REST_ID_PREFIX = "fixed-";
+
 function withFixedRestDays(startDate, daysOff, shifts, removedFixed, restConfig, restPattern = FIXED_REST_PATTERN) {
   const removed = new Set(removedFixed || []);
   const taken = new Set([
@@ -67,7 +71,7 @@ function withFixedRestDays(startDate, daysOff, shifts, removedFixed, restConfig,
   ]);
   const virtual = fixedRestDates(restConfig, startDate, restPattern)
     .filter((d) => !taken.has(d) && !removed.has(d))
-    .map((d) => ({ id: `fixed-${d}`, date: d, type: "Rest Day", fixed: true }));
+    .map((d) => ({ id: `${FIXED_REST_ID_PREFIX}${d}`, date: d, type: "Rest Day", fixed: true }));
   return [...(daysOff || []), ...virtual];
 }
 
