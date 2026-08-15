@@ -280,11 +280,18 @@ export function NavIcon({id, active}) {
 // rain/snow fall and fade, the storm bolt flickers. Keyframes are global (by
 // name) so this tag can safely render every time WeatherIcon does.
 const WEATHER_KEYFRAMES = (
+  // Wrapped in prefers-reduced-motion rather than touching each icon's own
+  // inline animation style: outside this media condition none of these
+  // @keyframes names exist, so the animation shorthand each icon sets
+  // degrades to no visible motion (spec behaviour for an unresolved
+  // keyframes name) without needing per-icon logic.
   <style>{`
-    @keyframes wx-spin { to { transform: rotate(360deg); } }
-    @keyframes wx-drift { 0%,100% { transform: translateX(0); } 50% { transform: translateX(1.6px); } }
-    @keyframes wx-fall { 0% { transform: translateY(-1px); opacity: 1; } 100% { transform: translateY(3px); opacity: 0; } }
-    @keyframes wx-flicker { 0%,42%,58%,100% { opacity: 1; } 50% { opacity: 0.25; } }
+    @media (prefers-reduced-motion: no-preference) {
+      @keyframes wx-spin { to { transform: rotate(360deg); } }
+      @keyframes wx-drift { 0%,100% { transform: translateX(0); } 50% { transform: translateX(1.6px); } }
+      @keyframes wx-fall { 0% { transform: translateY(-1px); opacity: 1; } 100% { transform: translateY(3px); opacity: 0; } }
+      @keyframes wx-flicker { 0%,42%,58%,100% { opacity: 1; } 50% { opacity: 0.25; } }
+    }
   `}</style>
 );
 

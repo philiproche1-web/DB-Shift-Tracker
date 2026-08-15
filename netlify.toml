@@ -1,0 +1,27 @@
+# Deploys have been Netlify Drop uploads of dist/ up to now — nothing pinned
+# build settings or security headers in version control, so both lived only
+# in the Netlify UI. This file makes both reviewable like the rest of the
+# repo. It does not change how you deploy: Netlify Drop still works exactly
+# as before, this only takes effect if/when the site is switched to a
+# git-connected build.
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+# Deliberately no Content-Security-Policy here. This app talks to Supabase
+# (URL is a runtime env var, not a literal in source), Open-Meteo for the
+# weather chip, raw.githubusercontent.com for the roster data fallback, and
+# web push — getting a CSP right for all of that needs testing against the
+# actual live URLs, which isn't safe to guess at and ship blind. The headers
+# below are the ones that are safe without that: they don't depend on which
+# external hosts the app talks to.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "DENY"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    # None of these are used anywhere in the app — deny by default rather
+    # than leave the browser default (which varies by permissions-policy
+    # support and can be more permissive than intended).
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
