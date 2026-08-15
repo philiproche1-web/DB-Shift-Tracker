@@ -324,6 +324,17 @@ export function SettingsPanel({period, onClose, onThemeChange, leaveSettings, on
             </div>
           </div>
 
+          {/* Persistent, not just the one-off toast toggleNotifications
+              already shows on a blocked attempt — once permission is
+              actually denied, tapping the toggle again does nothing
+              (the browser won't re-prompt), so a driver who missed that
+              toast has no other way to find out why reminders don't work. */}
+          {typeof Notification !== "undefined" && Notification.permission === "denied" && (
+            <p style={{color:DANGER,fontSize:11.5,margin:"10px 0 0",lineHeight:1.5}}>
+              Reminders are blocked at your phone's level. Allow notifications for this site in your phone's settings, then turn this back on here.
+            </p>
+          )}
+
           <div style={{borderTop:`1px solid ${BORDER}`,margin:"14px 0"}}/>
 
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",cursor:"pointer"}} onClick={toggleBreakReminder}>

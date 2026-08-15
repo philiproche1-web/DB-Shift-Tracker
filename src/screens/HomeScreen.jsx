@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef, useLayoutEffect } from "react";
 import { MAX_HOURS, MAX_SUNDAY, getDayType, addDays, fmtShort, fmtHrs, today, calcSpreadover, greetingTimeBand, dutyNumber } from "../lib/dutyMath.js";
 import { isLiveNow } from "../lib/routeAlerts.js";
 import { DUTIES, shiftDepartLocation, pStats, periodForDate, dayInfo, getSeq, greetingDutyContext, computeShiftStreak, weekHighlights } from "../lib/roster.js";
-import { BG, CARD, BORDER, CARD2, TEXT, MUTED, ACCENT, SUCCESS, DANGER, btnStyle, tag } from "../lib/theme.js";
+import { BG, CARD, BORDER, CARD2, TEXT, MUTED, ACCENT, SUCCESS, DANGER, btnStyle, cardStyle, tag } from "../lib/theme.js";
 import { notifyOnce, loadSettings, saveSettings } from "../lib/persistence.js";
 import { subscribeToPush } from "../lib/push.js";
 import { fetchWeather, weatherIconKind } from "../lib/weather.js";
@@ -232,6 +232,7 @@ export function UpcomingCarousel({periods, activePeriodId, todayDate, onLogDate}
 export function HomeScreen({period, periods, alerts, onViewAlerts, driverFirstName, userId, onLog, onLogDate, onGoWeek, justRolledPeriod, onDismissRolloverBanner, onOpenSettings}) {
   const stats = useMemo(() => pStats(period), [period]);
   const [weather, setWeather] = useState(null);
+  const [showNotifPrompt, setShowNotifPrompt] = useState(false);
   useEffect(() => {
     let cancelled = false;
     fetchWeather().then(w => { if (!cancelled) setWeather(w); });
@@ -263,22 +264,28 @@ export function HomeScreen({period, periods, alerts, onViewAlerts, driverFirstNa
   const activeAlerts = useMemo(() => (alerts||[]).filter(a => isLiveNow(a)), [alerts, todayDate]);
 
   useEffect(() => {
-    if (!loadSettings().notificationsEnabled) return;
-    // Reminders default to on, so a driver who never touched the toggle still
-    // needs the OS permission requested at least once — do it here rather
-    // than only from the Settings toggle, which they may never open.
-    if (typeof Notification !== "undefined" && Notification.permission === "default") {
-      Notification.requestPermission().then(perm => {
-        if (perm !== "granted") { saveSettings({...loadSettings(), notificationsEnabled:false}); return; }
-        ensurePushSubscription(userId);
-      });
-      return;
-    }
+    // Used to call Notification.requestPermission() unconditionally here on
+    // every mount whenever notificationsEnabled was true (the default) — a
+    // system permission dialog with zero explanation, seconds after
+    // signup. A reflex Deny there silently and permanently disabled
+    // reminders, with nothing telling the driver it happened or how to
+    // undo it. Settings' own toggle (toggleNotifications) already does
+    // this properly — asks only when the driver taps it, with a clear
+    // toast either way — so this now shows an explainer card instead of
+    // calling the browser API directly; the card's own "Turn on" button is
+    // the only place this component ever calls requestPermission.
+    if (typeof Notification === "undefined") return; // unsupported browser, nothing to prime
+    if (Notification.permission !== "default") return; // already decided, one way or the other
+    if (localStorage.getItem("dbus_notif_primed")) return; // already asked once, don't nag every visit
+    setShowNotifPrompt(true);
+  }, []);
+
+  useEffect(() => {
     // Permission was already granted on an earlier visit — including every
     // existing driver, who granted it to a build that had no push at all.
     // They'd otherwise never get subscribed without toggling reminders off
     // and back on in Settings, which nothing tells them to do.
-    if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+    if (typeof Notification !== "undefined" && Notification.permission === "granted" && loadSettings().notificationsEnabled) {
       ensurePushSubscription(userId);
     }
     if (stats.total >= MAX_HOURS*0.9) {
@@ -288,6 +295,29 @@ export function HomeScreen({period, periods, alerts, onViewAlerts, driverFirstNa
       notifyOnce(`dbus_notified_sun90_${period.id}`, "Approaching your Sunday hours limit", `You're at ${fmtHrs(stats.sunday)} of your 14h 30m Sunday limit.`);
     }
   }, [period.id, stats.total, stats.sunday, userId]);
+
+  function dismissNotifPrompt() {
+    localStorage.setItem("dbus_notif_primed", "1");
+    setShowNotifPrompt(false);
+  }
+  // "Not now" deliberately does NOT call requestPermission — OS permission
+  // stays "default", so tapping the Settings toggle later still works
+  // exactly as if this card had never appeared. Also corrects
+  // notificationsEnabled to false: it was defaulting to true despite
+  // permission never actually being granted, which is what made the old
+  // cold-prompt logic think it had something to act on in the first place.
+  function declineNotifPrompt() {
+    saveSettings({...loadSettings(), notificationsEnabled:false});
+    dismissNotifPrompt();
+  }
+  function acceptNotifPrompt() {
+    Notification.requestPermission().then(perm => {
+      const enabled = perm === "granted";
+      saveSettings({...loadSettings(), notificationsEnabled:enabled});
+      if (enabled) ensurePushSubscription(userId);
+      dismissNotifPrompt();
+    });
+  }
 
   return (
     <div style={{background:BG,minHeight:"100vh",paddingBottom:100}}>
@@ -374,6 +404,26 @@ export function HomeScreen({period, periods, alerts, onViewAlerts, driverFirstNa
         {/* Alerts sit directly under today's duty: a diversion is only
             actionable in the context of the duty you're about to work. */}
         <RouteAlertBanner alerts={activeAlerts} onView={onViewAlerts}/>
+
+        {/* Explains what's being asked before the OS permission dialog
+            appears, rather than that dialog just showing up cold. Same
+            dismissible-card pattern as RouteAlertBanner/NewPeriodBanner
+            above, not a blocking modal. */}
+        {showNotifPrompt && (
+          <div style={{...cardStyle,padding:"14px 16px",marginBottom:12,display:"flex",gap:12,alignItems:"flex-start"}}>
+            <div style={{width:36,height:36,borderRadius:10,background:`${ACCENT}14`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={ACCENT} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+            </div>
+            <div style={{flex:1,minWidth:0}}>
+              <p style={{color:TEXT,fontSize:13.5,fontWeight:700,margin:"0 0 3px"}}>Get a nudge when your break ends</p>
+              <p style={{color:MUTED,fontSize:12,margin:"0 0 10px",lineHeight:1.5}}>We can remind you when your break's about to finish, and if you haven't logged a shift by evening. Off by default until you say yes.</p>
+              <div style={{display:"flex",gap:8}}>
+                <button onClick={acceptNotifPrompt} style={{background:ACCENT,color:"#07090F",border:"none",borderRadius:8,padding:"8px 14px",fontSize:12.5,fontWeight:700,cursor:"pointer"}}>Turn on</button>
+                <button onClick={declineNotifPrompt} style={{background:"none",color:MUTED,border:`1px solid ${BORDER}`,borderRadius:8,padding:"8px 14px",fontSize:12.5,fontWeight:600,cursor:"pointer"}}>Not now</button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Quick action */}
         <button style={{...btnStyle,fontSize:16,padding:"16px 20px",borderRadius:14,textAlign:"left",marginBottom:12}} onClick={onLog}>
