@@ -74,6 +74,8 @@ export default function App() {
   const [confirmFeedback, setConfirmFeedback] = useState(false);
   const [justRolledPeriod, setJustRolledPeriod] = useState(null);
   const [pendingSync, setPendingSync] = useState(false);
+  const [sessionCheckTimedOut, setSessionCheckTimedOut] = useState(false);
+  const [profileFetchError, setProfileFetchError] = useState(false);
 
   const activePeriod = periods.find(p=>p.id===activePeriodId);
 
@@ -104,12 +106,21 @@ export default function App() {
   ], []);
 
   useEffect(() => {
-    getSession(supabase).then(({ data }) => setSession(data.session ?? null));
+    // Bad signal is the normal case for this user, not an edge case — a
+    // hung getSession() call used to leave the driver staring at a blank
+    // frame indefinitely, indistinguishable from a crash, no spinner, no
+    // way out short of force-closing the app. 8s is generous for a real
+    // network round trip but short enough that a driver waiting on it
+    // notices something's actually wrong rather than assuming it's just
+    // slow.
+    const timeout = setTimeout(() => setSessionCheckTimedOut(true), 8000);
+    getSession(supabase).then(({ data }) => { clearTimeout(timeout); setSession(data.session ?? null); });
     const { data: { subscription } } = onAuthStateChange(supabase, (newSession, event) => {
+      clearTimeout(timeout);
       setSession(newSession);
       if (event === "PASSWORD_RECOVERY") setPasswordRecovery(true);
     });
-    return () => subscription.unsubscribe();
+    return () => { clearTimeout(timeout); subscription.unsubscribe(); };
   }, []);
 
   useEffect(() => {
@@ -164,16 +175,30 @@ export default function App() {
   }, [syncedOnce]);
 
   useEffect(() => {
-    if (!session) { setDriverGarage(undefined); setDriverFirstName(null); setCustomRestConfig(null); return; }
+    if (!session) { setDriverGarage(undefined); setDriverFirstName(null); setCustomRestConfig(null); setProfileFetchError(false); return; }
     let cancelled = false;
     supabase.from("profiles")
       .select("garage, first_name, custom_rest_days_enabled, custom_rest_weekdays, custom_rest_days_since")
       .eq("id", session.user.id).single()
       .then(({ data, error }) => {
         if (cancelled) return;
-        setDriverGarage(error ? null : data?.garage ?? null);
-        setDriverFirstName(error ? null : data?.first_name ?? null);
-        setCustomRestConfig(error ? null : data);
+        setProfileFetchError(!!error);
+        if (error) {
+          // Used to set driverGarage to null on any error — indistinguishable
+          // from "this driver genuinely has no garage set", which falls
+          // through hasLiveRoster's check and lands them in the main app
+          // with route alerts silently gone and no explanation. Now this
+          // branch leaves driverGarage/driverFirstName/custom rest days
+          // completely untouched: on first load that means it correctly
+          // stays undefined (render shows a retry screen below, not an
+          // infinite spinner or a broken fallthrough); on a later
+          // background refetch it means a transient failure can't wipe out
+          // an already-known-good value the driver was relying on.
+          return;
+        }
+        setDriverGarage(data?.garage ?? null);
+        setDriverFirstName(data?.first_name ?? null);
+        setCustomRestConfig(data);
         setDriverCustomRestDays({
           enabled: !!data?.custom_rest_days_enabled,
           weekdays: data?.custom_rest_weekdays || [],
@@ -388,7 +413,21 @@ export default function App() {
   }
 
   if (session === undefined) {
-    return <div style={{ background: BG, minHeight: "100vh" }} />; // brief blank frame while session check resolves
+    // Was a genuinely blank div — indistinguishable from a crash on bad
+    // signal, this app's normal operating condition. Now the same pulsing
+    // logo used by every other loading state in this file, and after
+    // sessionCheckTimedOut a retry prompt instead of waiting forever.
+    if (sessionCheckTimedOut) {
+      return (
+        <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minHeight:"100vh",background:BG,padding:24,textAlign:"center"}}>
+          <div style={{marginBottom:20}}><BusLogo size={56}/></div>
+          <p style={{color:TEXT,fontSize:17,fontWeight:700,margin:"0 0 10px"}}>Taking longer than usual</p>
+          <p style={{color:MUTED,fontSize:14,margin:"0 0 24px",maxWidth:320,lineHeight:1.6}}>Checking you're signed in is taking a while — this usually means a weak connection.</p>
+          <button onClick={()=>window.location.reload()} style={{...btnStyle,maxWidth:280}}>Try again</button>
+        </div>
+      );
+    }
+    return <div style={{display:"flex",alignItems:"center",justifyContent:"center",minHeight:"100vh",background:BG}}><div style={{animation:"pulse 1.4s ease-in-out infinite"}}><BusLogo size={56}/></div><style>{`@keyframes pulse{0%,100%{opacity:0.4}50%{opacity:1}}`}</style></div>;
   }
   if (passwordRecovery) {
     return (
@@ -406,6 +445,24 @@ export default function App() {
   }
 
   if (driverGarage === undefined) {
+    // profileFetchError only reaches here when the fetch has never
+    // succeeded at all (a failed background refetch after an earlier
+    // success leaves driverGarage already set, so this branch isn't
+    // reached for that case) — that used to silently proceed into the
+    // main app with driverGarage forced to null, route alerts and garage
+    // context just gone with nothing telling the driver why. Retry here
+    // is a reload, same pattern as the session-check timeout above and
+    // the corrupted-data screen below.
+    if (profileFetchError) {
+      return (
+        <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minHeight:"100vh",background:BG,padding:24,textAlign:"center"}}>
+          <div style={{marginBottom:20}}><BusLogo size={56}/></div>
+          <p style={{color:TEXT,fontSize:17,fontWeight:700,margin:"0 0 10px"}}>Couldn't load your profile</p>
+          <p style={{color:MUTED,fontSize:14,margin:"0 0 24px",maxWidth:320,lineHeight:1.6}}>This usually means a weak connection. Your data is safe — just needs another try to load.</p>
+          <button onClick={()=>window.location.reload()} style={{...btnStyle,maxWidth:280}}>Try again</button>
+        </div>
+      );
+    }
     return <div style={{display:"flex",alignItems:"center",justifyContent:"center",minHeight:"100vh",background:BG}}><div style={{animation:"pulse 1.4s ease-in-out infinite"}}><BusLogo size={56}/></div><style>{`@keyframes pulse{0%,100%{opacity:0.4}50%{opacity:1}}`}</style></div>;
   }
   if (driverGarage && !hasLiveRoster(driverGarage)) {
