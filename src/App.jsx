@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, lazy, Suspense } from "react";
+import { useState, useEffect, useMemo, useCallback, lazy, Suspense } from "react";
 import { supabase } from "./lib/supabaseClient.js";
 import { signOut, getSession, onAuthStateChange } from "./lib/auth.js";
 import { syncAll, migrateLocalDataIfNeeded } from "./lib/sync.js";
@@ -16,7 +16,7 @@ import {
   loadLeaveSettings, writeLeaveSettingsLocally, saveLeaveSettings,
   loadSettings, writeSettingsLocally,
 } from "./lib/persistence.js";
-import { BusLogo, BottomNav, ConfirmDialog } from "./components/shared.jsx";
+import { BusLogo, BottomNav, ConfirmDialog, useModalA11y } from "./components/shared.jsx";
 import { GarageComingSoonScreen } from "./screens/GarageComingSoonScreen.jsx";
 import { TermsScreen } from "./screens/TermsScreen.jsx";
 import { FAQScreen } from "./screens/FAQScreen.jsx";
@@ -229,6 +229,17 @@ export default function App() {
   function handleThemeChange(appearance) {
     applyTheme(appearance, ()=>setThemeKey(k=>k+1));
   }
+
+  // Stable references (not inline arrows) because useModalA11y below takes
+  // each as a dependency to know when to re-attach its keydown listener and
+  // re-focus the dialog — an inline arrow would be a new function every
+  // render, re-running that effect (and re-stealing focus from wherever the
+  // driver's interacting inside the overlay) on every unrelated App
+  // re-render, e.g. a background sync updating periods.
+  const closeTerms = useCallback(() => setViewingTerms(false), []);
+  const closeFAQ = useCallback(() => setViewingFAQ(null), []);
+  const termsModalRef = useModalA11y(viewingTerms ? closeTerms : null);
+  const faqModalRef = useModalA11y(viewingFAQ !== null ? closeFAQ : null);
 
   // Drivers move between garages sometimes — this is the one place garage is
   // ever changed after signup. Only garages with hasLiveRoster() are
@@ -468,13 +479,13 @@ export default function App() {
           onNo={()=>setConfirmFeedback(false)}/>
       )}
       {viewingTerms && (
-        <div style={{position:"fixed",inset:0,zIndex:250,background:BG}}>
-          <TermsScreen readOnly onClose={()=>setViewingTerms(false)}/>
+        <div ref={termsModalRef} role="dialog" aria-modal="true" aria-label="Terms" tabIndex={-1} style={{position:"fixed",inset:0,zIndex:250,background:BG,outline:"none"}}>
+          <TermsScreen readOnly onClose={closeTerms}/>
         </div>
       )}
       {viewingFAQ !== null && (
-        <div style={{position:"fixed",inset:0,zIndex:250,background:BG}}>
-          <FAQScreen initialCategory={viewingFAQ} onClose={()=>setViewingFAQ(null)}/>
+        <div ref={faqModalRef} role="dialog" aria-modal="true" aria-label="FAQ" tabIndex={-1} style={{position:"fixed",inset:0,zIndex:250,background:BG,outline:"none"}}>
+          <FAQScreen initialCategory={viewingFAQ} onClose={closeFAQ}/>
         </div>
       )}
       {saveError && (

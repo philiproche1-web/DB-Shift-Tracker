@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { fmtHrs, addDays, fmtShort } from "../lib/dutyMath.js";
 import { dutyLabel } from "../lib/roster.js";
 import { compColor, BG, CARD, CARD2, BORDER, TEXT, MUTED, ACCENT, DANGER, NAV, NAV_MUTED, cardStyle, inputStyle } from "../lib/theme.js";
@@ -406,10 +406,44 @@ export function BottomNav({active, onChange}) {
   );
 }
 
+// Shared modal accessibility for every full-screen overlay in the app
+// (ConfirmDialog here, plus the Terms/FAQ overlays in App.jsx) — none of
+// them had any of this before: no role, no focus trap, no Escape-to-close.
+// Traps Tab/Shift+Tab focus within the dialog, closes on Escape, and moves
+// focus into the dialog on mount so a screen reader announces it
+// immediately. The element the returned ref is attached to must have
+// tabIndex={-1} so it's programmatically focusable even with nothing else
+// inside it yet to focus.
+export function useModalA11y(onClose) {
+  const ref = useRef(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const focusable = () => [...el.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')]
+      .filter(n => !n.disabled && n.offsetParent !== null);
+    (focusable()[0] || el).focus();
+    function handleKeyDown(e) {
+      if (e.key === "Escape") { onClose?.(); return; }
+      if (e.key !== "Tab") return;
+      const items = focusable();
+      if (!items.length) return;
+      const first = items[0], last = items[items.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    }
+    el.addEventListener("keydown", handleKeyDown);
+    return () => el.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
+  return ref;
+}
+
 export function ConfirmDialog({msg,onYes,onNo,yesLabel,danger=true}) {
+  // Escape maps to Cancel (onNo), not the affirmative action — same as
+  // clicking outside a native confirm dialog never confirms it.
+  const ref = useModalA11y(onNo);
   return (
     <div style={{position:"fixed",inset:0,background:"#00000099",display:"flex",alignItems:"flex-end",justifyContent:"center",zIndex:200,padding:16}}>
-      <div style={{...cardStyle,width:"100%",maxWidth:420,padding:24}}>
+      <div ref={ref} role="dialog" aria-modal="true" aria-label={msg} tabIndex={-1} style={{...cardStyle,width:"100%",maxWidth:420,padding:24,outline:"none"}}>
         <p style={{color:TEXT,textAlign:"center",margin:"0 0 20px",fontSize:16}}>{msg}</p>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
           <button onClick={onNo} style={{background:"none",border:`1px solid ${BORDER}`,color:TEXT,borderRadius:10,padding:"13px 0",fontSize:15,cursor:"pointer"}}>Cancel</button>
