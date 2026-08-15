@@ -1,6 +1,14 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
-import { greetingDutyContext, computeShiftStreak, dayInfo, periodForDate, weekHighlights, getSeq, DUTIES, setCustomRestConfig, rollPeriodsForward } from "./roster.js";
+import { greetingDutyContext, computeShiftStreak, dayInfo, periodForDate, weekHighlights, getSeq, DUTIES, SEQ, FIXED_REST_PATTERN, ROSTER_VERSION, setCustomRestConfig, rollPeriodsForward, applyRosterData, isValidRosterPayload } from "./roster.js";
 import { addDays, isBankHoliday } from "./dutyMath.js";
+
+// Captured before any test runs, while these live bindings still hold the
+// pristine bundled fallback — applyRosterData mutates the module's own
+// DUTIES/SEQ/FIXED_REST_PATTERN/ROSTER_VERSION in place, and every other
+// test in this file (and getSeq's own tests) relies on the real bundled
+// data being intact, so the applyRosterData tests below must restore these
+// exact values afterward.
+const BUNDLED_DUTIES = DUTIES, BUNDLED_SEQ = SEQ, BUNDLED_PATTERN = FIXED_REST_PATTERN, BUNDLED_VERSION = ROSTER_VERSION;
 
 const PERIOD = {
   id: "p1",
@@ -604,5 +612,56 @@ describe("rollPeriodsForward (automatic period rollover)", () => {
     expect(second.rolled).toBe(false);
     expect(second.periods).toBe(first.periods);
     expect(second.activePeriodId).toBe(first.activePeriodId);
+  });
+});
+
+describe("applyRosterData / ROSTER_VERSION", () => {
+  afterEach(() => {
+    // Restore the bundled fallback — every other test in this file (and
+    // getSeq's own tests) relies on it being intact.
+    applyRosterData({ duties: BUNDLED_DUTIES, seq: BUNDLED_SEQ, fixedRestPattern: BUNDLED_PATTERN, version: BUNDLED_VERSION });
+  });
+
+  it("starts on the bundled fallback before any fetch has ever succeeded", () => {
+    expect(BUNDLED_VERSION).toBe("bundled");
+  });
+
+  it("adopts the payload's own version once a fetch succeeds", () => {
+    applyRosterData({ duties: [{ z: "Zone 1", t: "weekday", r: "X/01", d2: "001" }], seq: {}, fixedRestPattern: [], version: "2026-08-14-a" });
+    expect(ROSTER_VERSION).toBe("2026-08-14-a");
+  });
+
+  it("falls back to a labelled 'unknown' rather than silently keeping a stale version string", () => {
+    applyRosterData({ duties: [{ z: "Zone 1", t: "weekday", r: "X/01", d2: "001" }], seq: {}, fixedRestPattern: [] });
+    expect(ROSTER_VERSION).toBe("unknown");
+  });
+
+  it("actually replaces DUTIES/SEQ/FIXED_REST_PATTERN, not just ROSTER_VERSION", () => {
+    const fakeDuty = { z: "Zone 1", t: "weekday", r: "FAKE/01", d2: "999" };
+    applyRosterData({ duties: [fakeDuty], seq: { "fake-key": ["entry"] }, fixedRestPattern: [[1, 2]], version: "test" });
+    expect(DUTIES).toEqual([fakeDuty]);
+    expect(SEQ).toEqual({ "fake-key": ["entry"] });
+    expect(FIXED_REST_PATTERN).toEqual([[1, 2]]);
+  });
+});
+
+describe("isValidRosterPayload", () => {
+  it("accepts a well-formed payload regardless of whether version is present", () => {
+    expect(isValidRosterPayload({ duties: [{}], seq: {}, fixedRestPattern: [[0]] })).toBe(true);
+    expect(isValidRosterPayload({ duties: [{}], seq: {}, fixedRestPattern: [[0]], version: "x" })).toBe(true);
+  });
+
+  it("rejects empty or malformed payloads", () => {
+    // The function's && chain returns whichever operand actually failed
+    // rather than a coerced boolean (e.g. seq:null short-circuits to
+    // `null`, not `false`) — asserting .toBeFalsy() rather than .toBe(false)
+    // tests the real contract (every caller uses this in a boolean
+    // context) without pinning an implementation detail that was never
+    // actually part of it.
+    expect(isValidRosterPayload(null)).toBeFalsy();
+    expect(isValidRosterPayload({})).toBeFalsy();
+    expect(isValidRosterPayload({ duties: [], seq: {}, fixedRestPattern: [[0]] })).toBeFalsy(); // empty duties
+    expect(isValidRosterPayload({ duties: [{}], seq: null, fixedRestPattern: [[0]] })).toBeFalsy();
+    expect(isValidRosterPayload({ duties: [{}], seq: {}, fixedRestPattern: [] })).toBeFalsy(); // empty pattern
   });
 });
