@@ -1,4 +1,4 @@
-import { useState, useEffect, lazy, Suspense } from "react";
+import { useState, useEffect, useMemo, lazy, Suspense } from "react";
 import { supabase } from "./lib/supabaseClient.js";
 import { signOut, getSession, onAuthStateChange } from "./lib/auth.js";
 import { syncAll, migrateLocalDataIfNeeded } from "./lib/sync.js";
@@ -76,7 +76,15 @@ export default function App() {
 
   const activePeriod = periods.find(p=>p.id===activePeriodId);
 
-  const tableConfigs = [
+  // Memoized rather than rebuilt every render: the sync effect below takes
+  // this as a dependency, and lint correctly flagged that dependency as
+  // missing (suppressed via the empty dep array) — a new tableConfigs
+  // identity every render is a latent stale-closure risk for whoever edits
+  // that effect next. Safe with an empty dep array: every closure here only
+  // captures useState setters, which React guarantees are stable across
+  // renders — the callbacks' actual behaviour never changes, only their
+  // object identity would have, without this.
+  const tableConfigs = useMemo(() => [
     {
       table: "app_data",
       load: async () => { const { data } = await loadData(); return data || { periods: [], activePeriodId: null }; },
@@ -92,7 +100,7 @@ export default function App() {
       load: () => loadSettings(),
       save: (remote) => { writeSettingsLocally(remote); applyTheme(remote.appearance, () => setThemeKey((k) => k + 1)); },
     },
-  ];
+  ], []);
 
   useEffect(() => {
     getSession(supabase).then(({ data }) => setSession(data.session ?? null));
@@ -182,6 +190,17 @@ export default function App() {
     // Apply saved theme on load
     const s = loadSettings();
     applyTheme(s.appearance, null);
+    // Re-apply whenever the OS's own light/dark switches — without this, a
+    // driver on "system" appearance whose phone auto-switches to dark at
+    // sunset mid-shift sees no change until they fully restart the app.
+    // Re-reads settings fresh each time (not the closed-over `s` above) so
+    // this stays correct if the driver later changes their in-app appearance
+    // choice; when that choice is explicit dark/light rather than "system",
+    // applyTheme's own output doesn't depend on the OS query, so this is a
+    // harmless no-op re-render in that case, not a wrong theme.
+    const media = window.matchMedia("(prefers-color-scheme: dark)");
+    const handleSchemeChange = () => applyTheme(loadSettings().appearance, () => setThemeKey(k => k + 1));
+    media.addEventListener("change", handleSchemeChange);
     // Fetches fresher duty/running-board/rest-day data in the background so a
     // roster update can go live without an app rebuild — never blocks first
     // render; if it resolves after the user's already looking at a screen,
@@ -204,6 +223,7 @@ export default function App() {
       if(!toured) setShowTour(true);
       setLoading(false);
     });
+    return () => media.removeEventListener("change", handleSchemeChange);
   },[]);
 
   function handleThemeChange(appearance) {

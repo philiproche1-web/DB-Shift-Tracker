@@ -40,5 +40,15 @@ export function applyTheme(appearance, forceUpdate) {
   cardStyle  = {background:CARD,border:`1px solid ${BORDER}`,borderRadius:16,padding:18};
   inputStyle = {background:t.INPUT,border:`1px solid ${BORDER}`,borderRadius:8,padding:"12px 14px",color:TEXT,fontSize:16,width:"100%",boxSizing:"border-box",WebkitAppearance:"none"};
   btnStyle   = {background:ACCENT,color:"#07090F",border:"none",borderRadius:12,padding:"16px 20px",fontSize:16,fontWeight:800,cursor:"pointer",width:"100%",letterSpacing:"0.3px"};
+  // The address/status bar colour was hardcoded dark in index.html, so it
+  // stayed black in light mode. This can't be a static <meta> pair keyed off
+  // prefers-color-scheme, because "dark"/"light" here can come from the
+  // driver's own in-app choice, not just the OS — so it's set here,
+  // wherever the resolved theme actually changes, same as every other token
+  // on this page.
+  if (typeof document !== "undefined") {
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute("content", BG);
+  }
   if(forceUpdate) forceUpdate();
 }

@@ -37,7 +37,10 @@ export function PageHeader({eyebrow, title, subtitle, right, onBack}) {
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:12}}>
         <div style={{display:"flex",alignItems:"flex-start",gap:12,minWidth:0}}>
           {onBack && (
-            <button onClick={onBack} style={{background:CARD,border:`1px solid ${BORDER}`,borderRadius:10,width:36,height:36,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",padding:0,flexShrink:0,marginTop:2}}>
+            // 44x44 (was 36x36) and a real aria-label — this was the only
+            // control found with no accessible name at all: nothing a screen
+            // reader could announce.
+            <button aria-label="Back" onClick={onBack} style={{background:CARD,border:`1px solid ${BORDER}`,borderRadius:10,width:44,height:44,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",padding:0,flexShrink:0,marginTop:2}}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={ACCENT} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
             </button>
           )}

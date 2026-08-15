@@ -141,7 +141,10 @@ function WeekHighlightsCard({highlights}) {
 // out, that's a follow-up, not needed for the initial ask.
 export const CAROUSEL_DAYS_BACK = 7;
 export const CAROUSEL_DAYS_FORWARD = 21;
-const carouselArrowStyle = {background:CARD,border:`1px solid ${BORDER}`,color:MUTED,borderRadius:10,width:32,height:32,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",padding:0,flexShrink:0};
+// 44x44 minimum touch target (WCAG 2.5.5) — was 32x32, the smallest tap
+// targets in the app and used one-handed while a driver's moving. The arrow
+// icon inside stays visually small; only the tappable area grows.
+const carouselArrowStyle = {background:CARD,border:`1px solid ${BORDER}`,color:MUTED,borderRadius:10,width:44,height:44,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",padding:0,flexShrink:0};
 
 export function UpcomingDayCard({date, isToday, info, onLogDate}) {
   const dayLabel = new Date(date+"T12:00:00").toLocaleDateString("en-IE", {weekday:"short"});
