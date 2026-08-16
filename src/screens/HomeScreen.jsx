@@ -6,7 +6,7 @@ import { BG, CARD, BORDER, CARD2, TEXT, MUTED, ACCENT, SUCCESS, DANGER, btnStyle
 import { notifyOnce, loadSettings, saveSettings } from "../lib/persistence.js";
 import { subscribeToPush } from "../lib/push.js";
 import { fetchWeather, weatherIconKind } from "../lib/weather.js";
-import { RouteAlertBanner, NewPeriodBanner, WeatherChip, SettingsButton } from "../components/shared.jsx";
+import { HeaderAlertButton, NewPeriodBanner, WeatherChip, SettingsButton } from "../components/shared.jsx";
 
 // Makes sure this device actually has a push subscription registered, given
 // the driver already has reminders on and OS permission granted. The Settings
@@ -350,7 +350,10 @@ export function HomeScreen({period, periods, alerts, onViewAlerts, driverFirstNa
             </p>
             <p style={{color:MUTED,fontSize:"0.75rem",margin:"4px 0 0"}}>Week {wi+1} of 5 · {fmtShort(cw.start)} – {fmtShort(cw.end)}</p>
           </div>
-          <SettingsButton onClick={onOpenSettings}/>
+          <div style={{display:"flex",gap:8,flexShrink:0}}>
+            <HeaderAlertButton count={activeAlerts.length} onClick={onViewAlerts}/>
+            <SettingsButton onClick={onOpenSettings}/>
+          </div>
         </div>
       </div>
 
@@ -405,14 +408,10 @@ export function HomeScreen({period, periods, alerts, onViewAlerts, driverFirstNa
           <TodayDutyCard shift={tomorrowShift} label="Tomorrow's Duty" accentColor="#60a5fa" defaultExpanded={false} />
         )}
 
-        {/* Alerts sit directly under today's duty: a diversion is only
-            actionable in the context of the duty you're about to work. */}
-        <RouteAlertBanner alerts={activeAlerts} onView={onViewAlerts}/>
-
         {/* Explains what's being asked before the OS permission dialog
             appears, rather than that dialog just showing up cold. Same
-            dismissible-card pattern as RouteAlertBanner/NewPeriodBanner
-            above, not a blocking modal. */}
+            dismissible-card pattern as NewPeriodBanner above, not a
+            blocking modal. */}
         {showNotifPrompt && (
           <div style={{...cardStyle,padding:"14px 16px",marginBottom:12,display:"flex",gap:12,alignItems:"flex-start"}}>
             <div style={{width:36,height:36,borderRadius:10,background:`${ACCENT}14`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>

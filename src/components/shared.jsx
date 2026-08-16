@@ -30,6 +30,20 @@ export function SettingsButton({onClick}) {
   );
 }
 
+// Compact header alert button — sits beside SettingsButton so active route
+// alerts are visible the instant Home loads, not just in a card a driver
+// might scroll past. Replaces RouteAlertBanner's old placement below
+// Today's Duty, which Phil found easy to miss.
+export function HeaderAlertButton({count, onClick}) {
+  if (!count) return null;
+  return (
+    <button aria-label={`${count} active alert${count!==1?"s":""} for your garage`} onClick={onClick} style={{position:"relative",background:`${ALERT_COLOR}1a`,border:`1px solid ${ALERT_COLOR}66`,color:ALERT_COLOR,borderRadius:10,width:44,height:44,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",padding:0,flexShrink:0}}>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={ALERT_COLOR} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      <span style={{position:"absolute",top:-5,right:-5,minWidth:16,height:16,padding:"0 3px",borderRadius:999,background:ALERT_COLOR,color:"#07090F",fontSize:"0.625rem",fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1}}>{count}</span>
+    </button>
+  );
+}
+
 // Page header with gradient — used on every screen for consistency
 export function PageHeader({eyebrow, title, subtitle, right, onBack}) {
   return (
