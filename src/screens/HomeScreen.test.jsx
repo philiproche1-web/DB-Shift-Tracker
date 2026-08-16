@@ -25,7 +25,21 @@ const shift = (id, date, over = {}) => ({
 });
 
 function basePeriod(over = {}) {
-  return { id: "p1", startDate: start, createdAt: new Date("2026-01-01").toISOString(), shifts: [], daysOff: [], removedFixedRestDates: [], ...over };
+  return {
+    id: "p1", startDate: start, createdAt: new Date("2026-01-01").toISOString(), shifts: [], daysOff: [],
+    // Suppresses today's own automatic pattern-generated rest day by
+    // default — without this, whether "today" is genuinely unlogged in
+    // these fixtures depends on which real calendar weekday the suite
+    // happens to run on (today() is the real date, and the fixed 5-week
+    // pattern marks specific weekdays as automatic rest days). A test
+    // exercising a real shift/day-off for today overrides shifts/daysOff
+    // below anyway, which already independently skips the automatic
+    // generation for a taken date — this default only changes anything
+    // for the "genuinely nothing logged" cases, making them calendar-
+    // independent instead of only passing by coincidence on some days.
+    removedFixedRestDates: [todayDate],
+    ...over,
+  };
 }
 function homeProps(period) {
   return {

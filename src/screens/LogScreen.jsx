@@ -380,6 +380,22 @@ export function LogScreen({period, editShift, lookupDuty, initialDate, initialRe
           </div>
         )}
 
+        {/* Save sits here, not after Notes/More options — picking a real
+            duty above already auto-fills report/finish/work/relief straight
+            from the roster (see pick()), so for that path everything Save
+            needs is already set and the driver shouldn't have to scroll
+            past review-only fields to reach it. Phil's call, made knowing
+            this means a Spare/CPC/manual entry — which still needs typing
+            into Shift details below — means scrolling down to fill those in
+            and back up to Save; the common on-roster case was worth that
+            tradeoff more than a sticky/pinned button would have been. */}
+        <button style={{...btnStyle,opacity:canSave?1:0.4,cursor:canSave?"pointer":"not-allowed",marginBottom:20}} onClick={handleSave} disabled={!canSave}>
+          {editShift ? "Save Changes" : extraDays.length>0 ? `Log ${1+extraDays.length} days` : "Log Shift"}
+        </button>
+        {!canSave && saveBlockReason && (
+          <p style={{color:MUTED,fontSize:12,margin:"-12px 0 20px",textAlign:"center"}}>{saveBlockReason}</p>
+        )}
+
         {/* Shift details */}
         {(rIdx>=0 || isSpare || fixedType) && (
           <div style={{...cardStyle,marginBottom:16}}>
@@ -511,13 +527,6 @@ export function LogScreen({period, editShift, lookupDuty, initialDate, initialRe
             <textarea id="log-notes" value={notes} onChange={e=>setNotes(e.target.value)} placeholder="e.g. duty changed at short notice, covered for a colleague"
               style={{...inputStyle,minHeight:72,resize:"vertical",fontFamily:"inherit",lineHeight:1.5}} />
           </div>
-        )}
-
-        <button style={{...btnStyle,opacity:canSave?1:0.4,cursor:canSave?"pointer":"not-allowed"}} onClick={handleSave} disabled={!canSave}>
-          {editShift ? "Save Changes" : extraDays.length>0 ? `Log ${1+extraDays.length} days` : "Log Shift"}
-        </button>
-        {!canSave && saveBlockReason && (
-          <p style={{color:MUTED,fontSize:12,margin:"8px 0 0",textAlign:"center"}}>{saveBlockReason}</p>
         )}
 
         {pendingAction && (
