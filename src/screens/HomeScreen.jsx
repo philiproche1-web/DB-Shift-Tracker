@@ -350,14 +350,18 @@ export function HomeScreen({period, periods, alerts, onViewAlerts, driverFirstNa
             </p>
             <p style={{color:MUTED,fontSize:"0.75rem",margin:"4px 0 0"}}>Week {wi+1} of 5 · {fmtShort(cw.start)} – {fmtShort(cw.end)}</p>
           </div>
-          <div style={{display:"flex",gap:8,flexShrink:0}}>
-            <HeaderAlertButton count={activeAlerts.length} onClick={onViewAlerts}/>
-            <SettingsButton onClick={onOpenSettings}/>
-          </div>
+          <SettingsButton onClick={onOpenSettings}/>
         </div>
       </div>
 
       <div style={{padding:"0 16px"}}>
+
+        {/* Full-width so it doesn't fight the greeting/date for horizontal
+            room the way a header pill did (that squeezed "Good afternoon,
+            Phil..." down to five/six wrapped lines on a phone). Sits above
+            Today's Duty so it's seen before scrolling, not squeezed into
+            the header row. */}
+        <HeaderAlertButton count={activeAlerts.length} onClick={onViewAlerts}/>
 
         {justRolledPeriod && <NewPeriodBanner period={justRolledPeriod} onDismiss={onDismissRolloverBanner}/>}
 
