@@ -69,15 +69,19 @@ export function TodayDutyCard({shift, label, accentColor, defaultExpanded=true})
         </div>
         {/* Key times row */}
         <div style={{display:"grid",gridTemplateColumns:`1fr ${duty?.b?"1fr ":""}1fr`,gap:6}}>
-          <div style={{background:"#07090F55",borderRadius:10,padding:"8px 10px"}}>
+          {/* minWidth:0 overrides the grid item default of min-width:auto — without
+              it, a 1fr column won't shrink below its content's intrinsic width, so
+              at large OS/browser text sizes these three columns push the card wider
+              than its overflow:hidden container instead of wrapping/shrinking. */}
+          <div style={{background:"#07090F55",borderRadius:10,padding:"8px 10px",minWidth:0}}>
             <p style={{color:MUTED,fontSize:"0.6875rem",textTransform:"uppercase",letterSpacing:1,fontWeight:700,margin:"0 0 2px"}}>Report</p>
             <p style={{color:ac,fontSize:"0.9375rem",fontWeight:800,margin:0,fontVariantNumeric:"tabular-nums"}}>{shift.reportTime}</p>
           </div>
-          {duty?.b&&<div style={{background:"#07090F55",borderRadius:10,padding:"8px 10px"}}>
+          {duty?.b&&<div style={{background:"#07090F55",borderRadius:10,padding:"8px 10px",minWidth:0}}>
             <p style={{color:MUTED,fontSize:"0.6875rem",textTransform:"uppercase",letterSpacing:1,fontWeight:700,margin:"0 0 2px"}}>Break</p>
             <p style={{color:"#F59E0B",fontSize:"0.9375rem",fontWeight:800,margin:0,fontVariantNumeric:"tabular-nums"}}>{duty.bs||"–"}</p>
           </div>}
-          <div style={{background:"#07090F55",borderRadius:10,padding:"8px 10px"}}>
+          <div style={{background:"#07090F55",borderRadius:10,padding:"8px 10px",minWidth:0}}>
             <p style={{color:MUTED,fontSize:"0.6875rem",textTransform:"uppercase",letterSpacing:1,fontWeight:700,margin:"0 0 2px"}}>Finish</p>
             <p style={{color:SUCCESS,fontSize:"0.9375rem",fontWeight:800,margin:0,fontVariantNumeric:"tabular-nums"}}>{shift.signOffTime}</p>
           </div>
