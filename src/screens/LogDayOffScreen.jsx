@@ -113,11 +113,16 @@ export function LogDayOffScreen({periods, editDayOff, onSave, onCancel, onOpenSe
             <FieldLabel>Date range</FieldLabel>
             <p style={{color:MUTED,fontSize:"0.75rem",margin:"0 0 10px"}}>Select the first and last day — all days in between will be logged. Logging just one day? Leave From and To the same.</p>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
-              <div>
+              {/* minWidth:0 lets each column shrink below its native
+                  <input type="date"> — which has its own irreducible
+                  minimum rendering width — instead of the grid track
+                  expanding past the screen once text scale makes the
+                  squeeze worse than it already is at 100%. */}
+              <div style={{minWidth:0}}>
                 <p style={{color:MUTED,fontSize:"0.6875rem",textTransform:"uppercase",letterSpacing:1,fontWeight:700,margin:"0 0 6px"}}>From</p>
                 <DateInput value={date} onChange={e=>setDate(e.target.value)}/>
               </div>
-              <div>
+              <div style={{minWidth:0}}>
                 <p style={{color:MUTED,fontSize:"0.6875rem",textTransform:"uppercase",letterSpacing:1,fontWeight:700,margin:"0 0 6px"}}>To</p>
                 <DateInput value={rangeTo < date ? date : rangeTo} onChange={e=>setRangeTo(e.target.value)} min={date}/>
               </div>
