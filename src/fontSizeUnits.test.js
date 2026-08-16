@@ -7,6 +7,8 @@
 // (`fontSize:"1rem"`). Every already-converted value starts with a quote
 // right after the colon, so this pattern only ever matches an unconverted
 // literal — same regex the one-off codemod script used to find them.
+// Limitation: this only catches literal numeric fontSize values — an
+// indirect numeric (e.g. `const S = 14; style={{fontSize:S}}`) won't match.
 import { describe, it, expect } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
@@ -15,13 +17,10 @@ import { fileURLToPath } from "node:url";
 const SRC_DIR = path.dirname(fileURLToPath(import.meta.url));
 const RAW_FONT_SIZE = /fontSize:\s*\d/;
 
-// Excludes: test files (this pattern would match this file's own docstring/
-// regex source), and auditHarness.jsx — a temporary, never-shipped dev tool
-// (see Task 6) allowed to use fixed px sizes for its own throwaway control
-// bar, deleted before this repo's final state.
+// Excludes test files, since this pattern would match this file's own
+// docstring/regex source.
 function isScannable(name) {
   if (name.endsWith(".test.js") || name.endsWith(".test.jsx")) return false;
-  if (name === "auditHarness.jsx") return false;
   return /\.(js|jsx)$/.test(name);
 }
 
