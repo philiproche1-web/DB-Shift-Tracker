@@ -380,20 +380,27 @@ export function LogScreen({period, editShift, lookupDuty, initialDate, initialRe
           </div>
         )}
 
-        {/* Save sits here, not after Notes/More options — picking a real
-            duty above already auto-fills report/finish/work/relief straight
-            from the roster (see pick()), so for that path everything Save
-            needs is already set and the driver shouldn't have to scroll
-            past review-only fields to reach it. Phil's call, made knowing
-            this means a Spare/CPC/manual entry — which still needs typing
-            into Shift details below — means scrolling down to fill those in
-            and back up to Save; the common on-roster case was worth that
-            tradeoff more than a sticky/pinned button would have been. */}
-        <button style={{...btnStyle,opacity:canSave?1:0.4,cursor:canSave?"pointer":"not-allowed",marginBottom:20}} onClick={handleSave} disabled={!canSave}>
-          {editShift ? "Save Changes" : extraDays.length>0 ? `Log ${1+extraDays.length} days` : "Log Shift"}
-        </button>
-        {!canSave && saveBlockReason && (
-          <p style={{color:MUTED,fontSize:12,margin:"-12px 0 20px",textAlign:"center"}}>{saveBlockReason}</p>
+        {/* Save moved up here (was after Notes/More options) for a normal
+            duty pick specifically: picking a real duty above already
+            auto-fills report/finish/work/relief straight from the roster
+            (see pick()), so everything Save needs already exists and the
+            driver shouldn't have to scroll past review-only fields to
+            reach it. Does NOT render for isSpare/fixedType (CPC, Standard
+            Spare, Workout Spare) — those hide the duty picker and this
+            whole section, and still need a start time typed into Shift
+            details below, so Save renders AFTER that instead (see the
+            second copy of this exact block, right after Shift details
+            closes) rather than sitting above a field it isn't ready for
+            yet. Phil caught this split on first look at the moved button. */}
+        {!isSpare && !fixedType && (
+          <>
+            <button style={{...btnStyle,opacity:canSave?1:0.4,cursor:canSave?"pointer":"not-allowed",marginBottom:20}} onClick={handleSave} disabled={!canSave}>
+              {editShift ? "Save Changes" : extraDays.length>0 ? `Log ${1+extraDays.length} days` : "Log Shift"}
+            </button>
+            {!canSave && saveBlockReason && (
+              <p style={{color:MUTED,fontSize:12,margin:"-12px 0 20px",textAlign:"center"}}>{saveBlockReason}</p>
+            )}
+          </>
         )}
 
         {/* Shift details */}
@@ -461,6 +468,21 @@ export function LogScreen({period, editShift, lookupDuty, initialDate, initialRe
               </div>
             )}
           </div>
+        )}
+
+        {/* Second copy of the exact same Save block — see the first copy's
+            comment above the Duty section for why this one exists.
+            Spare/CPC/Workout Spare still need the start time just entered
+            in Shift details above, so Save goes here instead of before it. */}
+        {(isSpare || fixedType) && (
+          <>
+            <button style={{...btnStyle,opacity:canSave?1:0.4,cursor:canSave?"pointer":"not-allowed",marginBottom:20}} onClick={handleSave} disabled={!canSave}>
+              {editShift ? "Save Changes" : extraDays.length>0 ? `Log ${1+extraDays.length} days` : "Log Shift"}
+            </button>
+            {!canSave && saveBlockReason && (
+              <p style={{color:MUTED,fontSize:12,margin:"-12px 0 20px",textAlign:"center"}}>{saveBlockReason}</p>
+            )}
+          </>
         )}
 
         {/* More options — Rest day + Overtime, collapsed by default */}

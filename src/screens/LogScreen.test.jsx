@@ -24,7 +24,23 @@ function render(element) {
   return { container, unmount: () => act(() => root.unmount()) };
 }
 function saveButton(container) {
-  return [...container.querySelectorAll("button")].find(b => /Log Shift|Save Changes|Log \d+ days/.test(b.textContent));
+  const matches = [...container.querySelectorAll("button")].filter(b => /Log Shift|Save Changes|Log \d+ days/.test(b.textContent));
+  // The two Save positions (normal duty pick vs Spare/CPC) are meant to be
+  // mutually exclusive — asserting exactly one here means a regression that
+  // renders both at once fails loudly instead of this helper silently
+  // picking whichever happens to be first.
+  expect(matches.length).toBeLessThanOrEqual(1);
+  return matches[0];
+}
+function textNode(container, text) {
+  return [...container.querySelectorAll("*")].find(e => e.children.length === 0 && e.textContent.trim() === text);
+}
+// jsdom doesn't compute real layout — getBoundingClientRect() is always 0
+// here, so DOM order (via compareDocumentPosition) is what actually proves
+// "renders before/after", not pixel position. The live-browser verification
+// (separate from this suite) is what confirmed the real visual position.
+function isBefore(a, b) {
+  return !!(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
 }
 function click(el) { act(() => { el.click(); }); }
 function setValue(input, value) {
@@ -122,5 +138,55 @@ describe("LogScreen save gating", () => {
     expect(saved.date).toBe(addDays(start, 2));
     expect(saved.fixedType).toBe("cpc");
     expect(saved.reportTime).toBe("07:00");
+  });
+});
+
+describe("LogScreen Save button position", () => {
+  // Phil's follow-up on the initial move: for a normal duty pick, Save
+  // renders early — everything it needs is already auto-filled. For
+  // Spare/CPC/Workout Spare, the duty picker and "Also log this duty on"
+  // section are hidden entirely, and a start time still has to be typed
+  // into Shift details — so Save renders AFTER that section instead,
+  // rather than sitting above a field it isn't ready for yet.
+  it("renders Save before Shift details for a normal duty pick", () => {
+    const period = { id: "p1", startDate: start, shifts: [], daysOff: [] };
+    mounted = render(<LogScreen period={period} editShift={null} lookupDuty={null} initialDate={addDays(start, 2)}
+      initialRestDay={false} alerts={[]} onSave={noop} onCancel={noop} onOpenSettings={noop} />);
+    const dutyPickerBtn = [...mounted.container.querySelectorAll("button")].find(b => b.textContent.includes("Tap to choose a duty"));
+    click(dutyPickerBtn);
+    const firstDuty = mounted.container.querySelector('div[style*="max-height"] button');
+    click(firstDuty);
+
+    const save = saveButton(mounted.container);
+    const shiftDetailsLabel = textNode(mounted.container, "Shift details");
+    expect(save).toBeTruthy();
+    expect(shiftDetailsLabel).toBeTruthy();
+    expect(isBefore(save, shiftDetailsLabel)).toBe(true);
+  });
+
+  it("renders Save after Shift details (Start time) for a fixed duty type, not before", () => {
+    const period = { id: "p1", startDate: start, shifts: [], daysOff: [] };
+    mounted = render(<LogScreen period={period} editShift={null} lookupDuty={null} initialDate={addDays(start, 2)}
+      initialRestDay={false} alerts={[]} onSave={noop} onCancel={noop} onOpenSettings={noop} />);
+    const cpcBtn = [...mounted.container.querySelectorAll("button")].find(b => b.textContent.includes("CPC/Training"));
+    click(cpcBtn);
+
+    const save = saveButton(mounted.container);
+    const startTimeLabel = textNode(mounted.container, "Start time");
+    expect(save).toBeTruthy();
+    expect(startTimeLabel).toBeTruthy();
+    expect(isBefore(startTimeLabel, save)).toBe(true);
+    // And the early-render slot genuinely has nothing in it for this path —
+    // not just "Save happens to also appear later too".
+    expect(mounted.container.querySelectorAll("button").length).toBeGreaterThan(0);
+  });
+
+  it("never renders two Save buttons at once, for either path", () => {
+    const period = { id: "p1", startDate: start, shifts: [], daysOff: [] };
+    mounted = render(<LogScreen period={period} editShift={null} lookupDuty={null} initialDate={addDays(start, 2)}
+      initialRestDay={false} alerts={[]} onSave={noop} onCancel={noop} onOpenSettings={noop} />);
+    const cpcBtn = [...mounted.container.querySelectorAll("button")].find(b => b.textContent.includes("CPC/Training"));
+    click(cpcBtn);
+    expect([...mounted.container.querySelectorAll("button")].filter(b => /Log Shift|Save Changes|Log \d+ days/.test(b.textContent)).length).toBe(1);
   });
 });
