@@ -446,8 +446,11 @@ export function ConfirmDialog({msg,onYes,onNo,yesLabel,danger=true}) {
       <div ref={ref} role="dialog" aria-modal="true" aria-label={msg} tabIndex={-1} style={{...cardStyle,width:"100%",maxWidth:420,padding:24,outline:"none"}}>
         <p style={{color:TEXT,textAlign:"center",margin:"0 0 20px",fontSize:"1rem"}}>{msg}</p>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-          <button onClick={onNo} style={{background:"none",border:`1px solid ${BORDER}`,color:TEXT,borderRadius:10,padding:"13px 0",fontSize:"0.9375rem",cursor:"pointer"}}>Cancel</button>
-          <button onClick={onYes} style={{background:danger?DANGER:ACCENT,border:"none",color:danger?"#fff":"#07090F",borderRadius:10,padding:"13px 0",fontSize:"0.9375rem",fontWeight:700,cursor:"pointer"}}>{yesLabel||"Confirm"}</button>
+          {/* minWidth:0 lets each 1fr column shrink below its button label's
+              intrinsic width — without it, at large OS/browser text sizes
+              these two buttons push the dialog wider than its container. */}
+          <button onClick={onNo} style={{background:"none",border:`1px solid ${BORDER}`,color:TEXT,borderRadius:10,padding:"13px 0",fontSize:"0.9375rem",cursor:"pointer",minWidth:0}}>Cancel</button>
+          <button onClick={onYes} style={{background:danger?DANGER:ACCENT,border:"none",color:danger?"#fff":"#07090F",borderRadius:10,padding:"13px 0",fontSize:"0.9375rem",fontWeight:700,cursor:"pointer",minWidth:0}}>{yesLabel||"Confirm"}</button>
         </div>
       </div>
     </div>
