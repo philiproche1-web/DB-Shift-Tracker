@@ -15,11 +15,11 @@ function BankHolidayChoiceDialog({date, onChoose}) {
   return (
     <div style={{position:"fixed",inset:0,background:"#00000099",display:"flex",alignItems:"flex-end",justifyContent:"center",zIndex:200,padding:16}}>
       <div style={{...cardStyle,width:"100%",maxWidth:420,padding:24}}>
-        <p style={{color:TEXT,textAlign:"center",margin:"0 0 4px",fontSize:16,fontWeight:700}}>You worked a bank holiday</p>
-        <p style={{color:MUTED,textAlign:"center",margin:"0 0 20px",fontSize:14}}>{fmtDate(date)} — how's it being paid?</p>
+        <p style={{color:TEXT,textAlign:"center",margin:"0 0 4px",fontSize:"1rem",fontWeight:700}}>You worked a bank holiday</p>
+        <p style={{color:MUTED,textAlign:"center",margin:"0 0 20px",fontSize:"0.875rem"}}>{fmtDate(date)} — how's it being paid?</p>
         <div style={{display:"flex",flexDirection:"column",gap:10}}>
-          <button onClick={()=>choose("pay")} style={{background:"none",border:`1px solid ${BORDER}`,color:TEXT,borderRadius:10,padding:"13px 0",fontSize:15,fontWeight:600,cursor:"pointer"}}>Bank Holiday Pay</button>
-          <button onClick={()=>choose("lieu")} style={{background:ACCENT,border:"none",color:"#07090F",borderRadius:10,padding:"13px 0",fontSize:15,fontWeight:700,cursor:"pointer"}}>Day in Lieu (+1¼ annual leave)</button>
+          <button onClick={()=>choose("pay")} style={{background:"none",border:`1px solid ${BORDER}`,color:TEXT,borderRadius:10,padding:"13px 0",fontSize:"0.9375rem",fontWeight:600,cursor:"pointer"}}>Bank Holiday Pay</button>
+          <button onClick={()=>choose("lieu")} style={{background:ACCENT,border:"none",color:"#07090F",borderRadius:10,padding:"13px 0",fontSize:"0.9375rem",fontWeight:700,cursor:"pointer"}}>Day in Lieu (+1¼ annual leave)</button>
         </div>
       </div>
     </div>
@@ -252,7 +252,7 @@ export function LogScreen({period, editShift, lookupDuty, initialDate, initialRe
     <div style={{background:BG,minHeight:"100vh",paddingBottom:100}}>
       {initialRestDay && isRestDay && (
         <div style={{margin:"12px 16px 0",background:`${DANGER}18`,border:`1px solid ${DANGER}44`,borderRadius:12,padding:"10px 14px"}}>
-          <p style={{color:DANGER,fontSize:13,fontWeight:600,margin:0}}>Logging this as overtime — you're on a scheduled rest day.</p>
+          <p style={{color:DANGER,fontSize:"0.8125rem",fontWeight:600,margin:0}}>Logging this as overtime — you're on a scheduled rest day.</p>
         </div>
       )}
       <PageHeader eyebrow={editShift?"Editing":lookupDuty?"From Lookup":"New entry"} title={editShift?"Edit Shift":"Log a Shift"} onBack={onCancel} right={<SettingsButton onClick={onOpenSettings}/>}/>
@@ -261,7 +261,7 @@ export function LogScreen({period, editShift, lookupDuty, initialDate, initialRe
         {lookupDuty && (
           <div style={{background:`${ACCENT}14`,border:`1px solid ${ACCENT}44`,borderRadius:12,padding:"12px 14px",marginBottom:16,display:"flex",alignItems:"center",gap:10}}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={ACCENT} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-            <p style={{color:ACCENT,fontSize:13,margin:0,fontWeight:600}}>Pre-filled from Lookup — check the date and save</p>
+            <p style={{color:ACCENT,fontSize:"0.8125rem",margin:0,fontWeight:600}}>Pre-filled from Lookup — check the date and save</p>
           </div>
         )}
         {/* Date */}
@@ -272,19 +272,19 @@ export function LogScreen({period, editShift, lookupDuty, initialDate, initialRe
             <span style={tag(dayColor)}>{dayLabel}</span>
           </div>
           {!inRange && date && (
-            <p style={{color:DANGER,fontSize:12,margin:"8px 0 0",fontWeight:600}}>This date falls outside the current 5-week period ({fmtShort(period.startDate)} – {fmtShort(addDays(period.startDate,34))}).</p>
+            <p style={{color:DANGER,fontSize:"0.75rem",margin:"8px 0 0",fontWeight:600}}>This date falls outside the current 5-week period ({fmtShort(period.startDate)} – {fmtShort(addDays(period.startDate,34))}).</p>
           )}
           {conflictShift && (
             <div style={{display:"flex",alignItems:"center",gap:8,marginTop:10,padding:"10px 12px",background:`${DANGER}14`,border:`1px solid ${DANGER}44`,borderRadius:10}}>
               <span style={{width:6,height:6,borderRadius:"50%",background:DANGER,flexShrink:0}}/>
               <div style={{flex:1,minWidth:0}}>
-                <p style={{color:DANGER,fontSize:13,margin:0}}>A shift ({conflictShift.roster}) is already logged for this date.{!onEditConflict&&" Edit or delete it first, or pick a different date."}</p>
+                <p style={{color:DANGER,fontSize:"0.8125rem",margin:0}}>A shift ({conflictShift.roster}) is already logged for this date.{!onEditConflict&&" Edit or delete it first, or pick a different date."}</p>
                 {/* Jumps straight into editing the conflicting shift, right
                     here, instead of only naming the Period screen where the
                     edit/delete controls actually live. */}
                 {onEditConflict && (
                   <button type="button" onClick={()=>onEditConflict(conflictShift)}
-                    style={{background:"none",border:"none",color:DANGER,fontSize:13,fontWeight:700,textDecoration:"underline",cursor:"pointer",padding:"4px 0 0",textAlign:"left"}}>
+                    style={{background:"none",border:"none",color:DANGER,fontSize:"0.8125rem",fontWeight:700,textDecoration:"underline",cursor:"pointer",padding:"4px 0 0",textAlign:"left"}}>
                     Edit that shift instead
                   </button>
                 )}
@@ -294,7 +294,7 @@ export function LogScreen({period, editShift, lookupDuty, initialDate, initialRe
           {!conflictShift && conflictDayOff && (
             <div style={{display:"flex",alignItems:"center",gap:8,marginTop:10,padding:"10px 12px",background:"#F59E0B14",border:"1px solid #F59E0B44",borderRadius:10}}>
               <span style={{width:6,height:6,borderRadius:"50%",background:"#F59E0B",flexShrink:0}}/>
-              <p style={{color:"#F59E0B",fontSize:13,margin:0}}>{conflictDayOff.type} is already logged for this date. Saving a shift will keep both records — check that's right.</p>
+              <p style={{color:"#F59E0B",fontSize:"0.8125rem",margin:0}}>{conflictDayOff.type} is already logged for this date. Saving a shift will keep both records — check that's right.</p>
             </div>
           )}
         </div>
@@ -318,7 +318,7 @@ export function LogScreen({period, editShift, lookupDuty, initialDate, initialRe
             switch to it, tap again to go back to a normal Duty. */}
         <div style={{marginBottom:16}}>
           <FieldLabel>Duty type</FieldLabel>
-          <p style={{color:MUTED,fontSize:11,margin:"-6px 0 10px"}}>Logging a normal duty? Leave these unselected and pick it below. CPC/Training = Certificate of Professional Competence.</p>
+          <p style={{color:MUTED,fontSize:"0.6875rem",margin:"-6px 0 10px"}}>Logging a normal duty? Leave these unselected and pick it below. CPC/Training = Certificate of Professional Competence.</p>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
             {FIXED_DUTY_TYPES.map(opt => {
               const active = fixedType===opt.key;
@@ -326,11 +326,15 @@ export function LogScreen({period, editShift, lookupDuty, initialDate, initialRe
                 <button key={opt.key} onClick={()=>selectDutyType(opt.key)} style={{
                   background:active?ACCENT:CARD, color:active?"#07090F":MUTED,
                   border:`1px solid ${active?ACCENT:BORDER}`, borderRadius:10,
-                  padding:"10px 6px", fontSize:12, fontWeight:600, cursor:"pointer",
-                  textAlign:"center", lineHeight:1.3
+                  padding:"10px 6px", fontSize:"0.75rem", fontWeight:600, cursor:"pointer",
+                  textAlign:"center", lineHeight:1.3, minWidth:0
+                  // minWidth:0 lets a 1fr column shrink below its label's
+                  // intrinsic width — without it, "CPC/Training" etc. push
+                  // this 3-column grid past the screen at large text sizes
+                  // instead of wrapping onto a second line.
                 }}>
                   {opt.label}
-                  {opt.hours!=null && <div style={{fontSize:10,fontWeight:400,opacity:0.85,marginTop:2}}>{fmtHrs(opt.hours)}</div>}
+                  {opt.hours!=null && <div style={{fontSize:"0.625rem",fontWeight:400,opacity:0.85,marginTop:2}}>{fmtHrs(opt.hours)}</div>}
                 </button>
               );
             })}
@@ -367,7 +371,7 @@ export function LogScreen({period, editShift, lookupDuty, initialDate, initialRe
                         background: (isPrimary || sel) ? ACCENT : isTaken ? CARD : CARD2,
                         color: (isPrimary || sel) ? "#07090F" : isTaken ? MUTED : TEXT,
                         border: (isPrimary || sel) ? "none" : `1px solid ${BORDER}`,
-                        fontSize:12, fontWeight:700, cursor: (isPrimary || isTaken) ? "not-allowed" : "pointer",
+                        fontSize:"0.75rem", fontWeight:700, cursor: (isPrimary || isTaken) ? "not-allowed" : "pointer",
                         opacity: isTaken ? 0.5 : 1
                       }}>{letters[i]}</button>
                   );
@@ -375,7 +379,7 @@ export function LogScreen({period, editShift, lookupDuty, initialDate, initialRe
               })()}
             </div>
             {extraDays.length>0 && (
-              <p style={{color:MUTED,fontSize:12,margin:"8px 0 0"}}>Will log on {1+extraDays.length} days total{rIdx>=0 && duties[rIdx] ? ` (${duties[rIdx].r})` : ""}</p>
+              <p style={{color:MUTED,fontSize:"0.75rem",margin:"8px 0 0"}}>Will log on {1+extraDays.length} days total{rIdx>=0 && duties[rIdx] ? ` (${duties[rIdx].r})` : ""}</p>
             )}
           </div>
         )}
@@ -398,7 +402,7 @@ export function LogScreen({period, editShift, lookupDuty, initialDate, initialRe
               {editShift ? "Save Changes" : extraDays.length>0 ? `Log ${1+extraDays.length} days` : "Log Shift"}
             </button>
             {!canSave && saveBlockReason && (
-              <p style={{color:MUTED,fontSize:12,margin:"-12px 0 20px",textAlign:"center"}}>{saveBlockReason}</p>
+              <p style={{color:MUTED,fontSize:"0.75rem",margin:"-12px 0 20px",textAlign:"center"}}>{saveBlockReason}</p>
             )}
           </>
         )}
@@ -408,7 +412,7 @@ export function LogScreen({period, editShift, lookupDuty, initialDate, initialRe
           <div style={{...cardStyle,marginBottom:16}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
               <FieldLabel>{fixedDef ? (fixedDef.full||fixedDef.label) : isSpare?"Spare shift times":"Shift details"}</FieldLabel>
-              {!isSpare && !fixedType && <span style={{color:MUTED,fontSize:11,marginTop:-8}}>adjust if needed</span>}
+              {!isSpare && !fixedType && <span style={{color:MUTED,fontSize:"0.6875rem",marginTop:-8}}>adjust if needed</span>}
             </div>
 
             {fixedType ? (
@@ -439,10 +443,10 @@ export function LogScreen({period, editShift, lookupDuty, initialDate, initialRe
                     <button onClick={()=>setNextDay(!nextDay)} style={{
                       background:nextDay?ACCENT:CARD2,color:nextDay?"#07090F":MUTED,
                       border:`1px solid ${nextDay?ACCENT:BORDER}`,borderRadius:8,
-                      padding:"10px 7px",fontSize:10,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap",flexShrink:0
+                      padding:"10px 7px",fontSize:"0.625rem",fontWeight:700,cursor:"pointer",whiteSpace:"nowrap",flexShrink:0
                     }}>+1</button>
                   </div>
-                  {nextDay&&<p style={{color:ACCENT,fontSize:11,margin:"3px 0 0"}}>Next day</p>}
+                  {nextDay&&<p style={{color:ACCENT,fontSize:"0.6875rem",margin:"3px 0 0"}}>Next day</p>}
                 </div>
               </div>
             )}
@@ -462,9 +466,9 @@ export function LogScreen({period, editShift, lookupDuty, initialDate, initialRe
             )}
             {spreadover !== null && (
               <div style={{display:"flex",alignItems:"center",gap:8,margin:"16px 0 0",paddingTop:14,borderTop:`1px solid ${BORDER}`}}>
-                <span style={{color:MUTED,fontSize:13}}>Spreadover</span>
-                <span style={{color:ACCENT,fontSize:15,fontWeight:700}}>{fmtHrs(spreadover)}</span>
-                {!isSpare&&!fixedType&&duties[rIdx]?.b&&duties[rIdx]?.bs&&<span style={{color:MUTED,fontSize:12,marginLeft:"auto"}}>Break at {duties[rIdx].bs}</span>}
+                <span style={{color:MUTED,fontSize:"0.8125rem"}}>Spreadover</span>
+                <span style={{color:ACCENT,fontSize:"0.9375rem",fontWeight:700}}>{fmtHrs(spreadover)}</span>
+                {!isSpare&&!fixedType&&duties[rIdx]?.b&&duties[rIdx]?.bs&&<span style={{color:MUTED,fontSize:"0.75rem",marginLeft:"auto"}}>Break at {duties[rIdx].bs}</span>}
               </div>
             )}
           </div>
@@ -480,7 +484,7 @@ export function LogScreen({period, editShift, lookupDuty, initialDate, initialRe
               {editShift ? "Save Changes" : extraDays.length>0 ? `Log ${1+extraDays.length} days` : "Log Shift"}
             </button>
             {!canSave && saveBlockReason && (
-              <p style={{color:MUTED,fontSize:12,margin:"-12px 0 20px",textAlign:"center"}}>{saveBlockReason}</p>
+              <p style={{color:MUTED,fontSize:"0.75rem",margin:"-12px 0 20px",textAlign:"center"}}>{saveBlockReason}</p>
             )}
           </>
         )}
@@ -495,8 +499,8 @@ export function LogScreen({period, editShift, lookupDuty, initialDate, initialRe
             <div style={{...cardStyle,marginBottom:16,padding:0,overflow:"hidden"}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"14px 16px",cursor:"pointer"}} onClick={()=>setMoreOptionsOpen(!moreOptionsOpen)}>
                 <div>
-                  <p style={{color:TEXT,fontSize:14,fontWeight:600,margin:0}}>More options</p>
-                  {summary && <p style={{color:isRestDay?DANGER:ACCENT,fontSize:12,margin:"2px 0 0",fontWeight:600}}>{summary}</p>}
+                  <p style={{color:TEXT,fontSize:"0.875rem",fontWeight:600,margin:0}}>More options</p>
+                  {summary && <p style={{color:isRestDay?DANGER:ACCENT,fontSize:"0.75rem",margin:"2px 0 0",fontWeight:600}}>{summary}</p>}
                 </div>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={MUTED} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink:0,transform:moreOptionsOpen?"rotate(180deg)":"none",transition:"transform 0.2s"}}><polyline points="6 9 12 15 18 9"/></svg>
               </div>
@@ -506,8 +510,8 @@ export function LogScreen({period, editShift, lookupDuty, initialDate, initialRe
                   <div style={{...cardStyle,marginBottom:14,padding:"14px 16px",border:isRestDay?`1px solid ${DANGER}44`:`1px solid ${BORDER}`}}>
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",cursor:"pointer"}} onClick={()=>setIsRestDay(!isRestDay)}>
                       <div>
-                        <p style={{color:isRestDay?DANGER:TEXT,fontSize:14,fontWeight:600,margin:0}}>Working on a rest day</p>
-                        <p style={{color:MUTED,fontSize:12,margin:"2px 0 0"}}>All hours count as overtime — excluded from 190h limit</p>
+                        <p style={{color:isRestDay?DANGER:TEXT,fontSize:"0.875rem",fontWeight:600,margin:0}}>Working on a rest day</p>
+                        <p style={{color:MUTED,fontSize:"0.75rem",margin:"2px 0 0"}}>All hours count as overtime — excluded from 190h limit</p>
                       </div>
                       <div style={{width:44,height:26,borderRadius:13,background:isRestDay?DANGER:BORDER,position:"relative",transition:"background 0.2s",flexShrink:0}}>
                         <div style={{width:20,height:20,borderRadius:"50%",background:"#fff",position:"absolute",top:3,left:isRestDay?21:3,transition:"left 0.2s"}}/>
@@ -519,12 +523,12 @@ export function LogScreen({period, editShift, lookupDuty, initialDate, initialRe
                   {!isRestDay && (
                     <div style={{...cardStyle}}>
                       <FieldLabel htmlFor="log-ot-h" hint="optional">Overtime hours</FieldLabel>
-                      <p style={{color:MUTED,fontSize:12,margin:"0 0 10px"}}>Extra time worked on top of this duty — tracked separately, doesn't count toward 190h</p>
+                      <p style={{color:MUTED,fontSize:"0.75rem",margin:"0 0 10px"}}>Extra time worked on top of this duty — tracked separately, doesn't count toward 190h</p>
                       <div style={{display:"flex",gap:6,alignItems:"center",marginBottom:12}}>
                         <input id="log-ot-h" type="number" min="0" max="12" value={overtimeH} onChange={e=>setOvertimeH(Math.min(12,Math.max(0,parseInt(e.target.value)||0)))} style={{...inputStyle,padding:"12px 8px",textAlign:"center",minWidth:58}} />
-                        <span style={{color:MUTED,fontSize:13}}>h</span>
+                        <span style={{color:MUTED,fontSize:"0.8125rem"}}>h</span>
                         <input type="number" min="0" max="59" value={overtimeM} onChange={e=>setOvertimeM(Math.min(59,Math.max(0,parseInt(e.target.value)||0)))} style={{...inputStyle,padding:"12px 8px",textAlign:"center",minWidth:58}} />
-                        <span style={{color:MUTED,fontSize:13}}>m</span>
+                        <span style={{color:MUTED,fontSize:"0.8125rem"}}>m</span>
                       </div>
                       {(overtimeH > 0 || overtimeM > 0) && (
                         <div>

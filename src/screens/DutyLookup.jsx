@@ -61,9 +61,9 @@ export function DutyLookup({alerts, onLogShift, onOpenSettings}) {
       <div style={{padding:"24px 20px 20px",background:`linear-gradient(180deg,${CARD2} 0%,${BG} 100%)`}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:12}}>
           <div style={{flex:1,minWidth:0}}>
-            <p style={{color:MUTED,fontSize:11,margin:"0 0 4px",textTransform:"uppercase",letterSpacing:2,fontWeight:600}}>Dublin Bus</p>
-            <h1 style={{color:TEXT,fontSize:26,fontWeight:800,margin:0,letterSpacing:"-0.5px"}}>Duty Lookup</h1>
-            <p style={{color:MUTED,fontSize:13,margin:"6px 0 0"}}>Select zone, day and duty to see your running board</p>
+            <p style={{color:MUTED,fontSize:"0.6875rem",margin:"0 0 4px",textTransform:"uppercase",letterSpacing:2,fontWeight:600}}>Dublin Bus</p>
+            <h1 style={{color:TEXT,fontSize:"1.625rem",fontWeight:800,margin:0,letterSpacing:"-0.5px"}}>Duty Lookup</h1>
+            <p style={{color:MUTED,fontSize:"0.8125rem",margin:"6px 0 0"}}>Select zone, day and duty to see your running board</p>
           </div>
           <SettingsButton onClick={onOpenSettings}/>
         </div>
@@ -72,7 +72,7 @@ export function DutyLookup({alerts, onLogShift, onOpenSettings}) {
       <div style={{padding:"0 16px"}}>
         {/* Zone selector */}
         <div style={{marginBottom:12}}>
-          <p style={{color:MUTED,fontSize:11,textTransform:"uppercase",letterSpacing:1.5,fontWeight:600,margin:"0 0 8px"}}>Zone</p>
+          <p style={{color:MUTED,fontSize:"0.6875rem",textTransform:"uppercase",letterSpacing:1.5,fontWeight:600,margin:"0 0 8px"}}>Zone</p>
           <SegGroup options={ZONES} value={zone} cols={4} onChange={handleZoneChange}/>
         </div>
 
@@ -80,7 +80,7 @@ export function DutyLookup({alerts, onLogShift, onOpenSettings}) {
 
         {/* Day selector */}
         <div style={{marginBottom:12}}>
-          <p style={{color:MUTED,fontSize:11,textTransform:"uppercase",letterSpacing:1.5,fontWeight:600,margin:"0 0 8px"}}>Day
+          <p style={{color:MUTED,fontSize:"0.6875rem",textTransform:"uppercase",letterSpacing:1.5,fontWeight:600,margin:"0 0 8px"}}>Day
             {todayIsHoliday && <span style={{...tag(SUCCESS),marginLeft:8}}>Bank Holiday — Sunday duties</span>}
           </p>
           <SegGroup options={dayOpts.map(o=>({v:o.v,l:o.l}))} value={dayType} cols={dayOpts.length}
@@ -89,7 +89,7 @@ export function DutyLookup({alerts, onLogShift, onOpenSettings}) {
 
         {/* Duty selector */}
         <div style={{marginBottom:duty?20:0}}>
-          <p style={{color:MUTED,fontSize:11,textTransform:"uppercase",letterSpacing:1.5,fontWeight:600,margin:"0 0 8px"}}>Duty <span style={{color:MUTED,fontWeight:400,textTransform:"none",letterSpacing:0}}>— {duties.length} available</span></p>
+          <p style={{color:MUTED,fontSize:"0.6875rem",textTransform:"uppercase",letterSpacing:1.5,fontWeight:600,margin:"0 0 8px"}}>Duty <span style={{color:MUTED,fontWeight:400,textTransform:"none",letterSpacing:0}}>— {duties.length} available</span></p>
           <DutyPicker key={zone+dayType} duties={duties} value={rIdx} onChange={setRIdx}/>
         </div>
 
@@ -99,8 +99,8 @@ export function DutyLookup({alerts, onLogShift, onOpenSettings}) {
             <div style={{width:72,height:72,borderRadius:20,background:`${ACCENT}14`,display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 18px"}}>
               <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke={ACCENT} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="22" y2="22"/></svg>
             </div>
-            <p style={{color:TEXT,fontSize:16,fontWeight:700,margin:"0 0 6px"}}>Pick a duty to see the board</p>
-            <p style={{color:MUTED,fontSize:14,lineHeight:1.6,margin:"0 auto",maxWidth:280}}>
+            <p style={{color:TEXT,fontSize:"1rem",fontWeight:700,margin:"0 0 6px"}}>Pick a duty to see the board</p>
+            <p style={{color:MUTED,fontSize:"0.875rem",lineHeight:1.6,margin:"0 auto",maxWidth:280}}>
               Got a duty from your BACMS text? Choose the zone and day above, then select the duty number — the full running board appears here.
             </p>
           </div>
@@ -112,30 +112,30 @@ export function DutyLookup({alerts, onLogShift, onOpenSettings}) {
             {/* Duty summary strip */}
             <div style={{background:CARD2,border:`1px solid ${BORDER}`,borderRadius:14,padding:"16px 18px",marginBottom:4}}>
               <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
-                <span style={{color:ACCENT,fontSize:24,fontWeight:800,letterSpacing:"-0.5px"}}>{duty.r}</span>
-                <span style={{background:ACCENT+"22",color:ACCENT,borderRadius:6,padding:"2px 8px",fontSize:11,fontWeight:700,letterSpacing:1,textTransform:"uppercase"}}>{dayOpts.find(o=>o.v===dayType)?.l}</span>
+                <span style={{color:ACCENT,fontSize:"1.5rem",fontWeight:800,letterSpacing:"-0.5px"}}>{duty.r}</span>
+                <span style={{background:ACCENT+"22",color:ACCENT,borderRadius:6,padding:"2px 8px",fontSize:"0.6875rem",fontWeight:700,letterSpacing:1,textTransform:"uppercase"}}>{dayOpts.find(o=>o.v===dayType)?.l}</span>
                 {dutyNumber(duty.d2) && <span style={{...tag(ACCENT),marginLeft:"auto"}}>Duty No. {dutyNumber(duty.d2)}</span>}
               </div>
-              <p style={{color:MUTED,fontSize:13,margin:"0 0 12px"}}>{duty.z}</p>
+              <p style={{color:MUTED,fontSize:"0.8125rem",margin:"0 0 12px"}}>{duty.z}</p>
               <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8}}>
                 <div style={{background:`${BG}88`,borderRadius:10,padding:"10px 12px"}}>
-                  <p style={{color:MUTED,fontSize:10,textTransform:"uppercase",letterSpacing:1,fontWeight:700,margin:"0 0 3px"}}>Work</p>
-                  <p style={{color:TEXT,fontSize:16,fontWeight:800,margin:0}}>{fmtHrs(duty.w)}</p>
+                  <p style={{color:MUTED,fontSize:"0.625rem",textTransform:"uppercase",letterSpacing:1,fontWeight:700,margin:"0 0 3px"}}>Work</p>
+                  <p style={{color:TEXT,fontSize:"1rem",fontWeight:800,margin:0}}>{fmtHrs(duty.w)}</p>
                 </div>
                 <div style={{background:`${BG}88`,borderRadius:10,padding:"10px 12px"}}>
-                  <p style={{color:MUTED,fontSize:10,textTransform:"uppercase",letterSpacing:1,fontWeight:700,margin:"0 0 3px"}}>Spread</p>
-                  <p style={{color:ACCENT,fontSize:16,fontWeight:800,margin:0}}>{fmtHrs(spreadover)}</p>
+                  <p style={{color:MUTED,fontSize:"0.625rem",textTransform:"uppercase",letterSpacing:1,fontWeight:700,margin:"0 0 3px"}}>Spread</p>
+                  <p style={{color:ACCENT,fontSize:"1rem",fontWeight:800,margin:0}}>{fmtHrs(spreadover)}</p>
                 </div>
                 <div style={{background:`${BG}88`,borderRadius:10,padding:"10px 12px"}}>
-                  <p style={{color:MUTED,fontSize:10,textTransform:"uppercase",letterSpacing:1,fontWeight:700,margin:"0 0 3px"}}>Relief</p>
-                  <p style={{color:duty.l>0?TEXT:MUTED,fontSize:16,fontWeight:800,margin:0}}>{duty.l>0?fmtHrs(duty.l):"–"}</p>
+                  <p style={{color:MUTED,fontSize:"0.625rem",textTransform:"uppercase",letterSpacing:1,fontWeight:700,margin:"0 0 3px"}}>Relief</p>
+                  <p style={{color:duty.l>0?TEXT:MUTED,fontSize:"1rem",fontWeight:800,margin:0}}>{duty.l>0?fmtHrs(duty.l):"–"}</p>
                 </div>
               </div>
             </div>
 
             {/* Running board timeline */}
             <div style={{background:CARD,border:`1px solid ${BORDER}`,borderRadius:14,padding:"20px 18px",marginBottom:16}}>
-              <p style={{color:MUTED,fontSize:10,textTransform:"uppercase",letterSpacing:2,fontWeight:700,margin:"0 0 18px"}}>Running Board</p>
+              <p style={{color:MUTED,fontSize:"0.625rem",textTransform:"uppercase",letterSpacing:2,fontWeight:700,margin:"0 0 18px"}}>Running Board</p>
               {sequence.length > 0 ? sequence.map((entry,i) => {
                 const {time, desc} = parseEntry(entry);
                 const dc = dotColor(entry);
@@ -156,16 +156,16 @@ export function DutyLookup({alerts, onLogShift, onOpenSettings}) {
                     {/* Content */}
                     <div style={{flex:1,paddingBottom:isLast?0:16}}>
                       <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
-                        <span style={{color:dc,fontSize:17,fontWeight:800,fontVariantNumeric:"tabular-nums",letterSpacing:"-0.3px"}}>{time}</span>
-                        {badge && <span style={{background:dc+"22",color:dc,borderRadius:5,padding:"1px 7px",fontSize:11,fontWeight:700}}>{badge}</span>}
-                        {label && <span style={{color:MUTED,fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:1}}>{label}</span>}
+                        <span style={{color:dc,fontSize:"1.0625rem",fontWeight:800,fontVariantNumeric:"tabular-nums",letterSpacing:"-0.3px"}}>{time}</span>
+                        {badge && <span style={{background:dc+"22",color:dc,borderRadius:5,padding:"1px 7px",fontSize:"0.6875rem",fontWeight:700}}>{badge}</span>}
+                        {label && <span style={{color:MUTED,fontSize:"0.625rem",fontWeight:700,textTransform:"uppercase",letterSpacing:1}}>{label}</span>}
                       </div>
                       <p style={{color:label==="FINISH"?SUCCESS:label==="BREAK"?"#F59E0B":label==="REPORT"?TEXT:TEXT,
-                        fontSize:13,margin:"2px 0 0",lineHeight:1.4,opacity:0.85}}>{desc.replace(/\(\d{1,3}[A-Z]?\)/g,"").trim()}</p>
+                        fontSize:"0.8125rem",margin:"2px 0 0",lineHeight:1.4,opacity:0.85}}>{desc.replace(/\(\d{1,3}[A-Z]?\)/g,"").trim()}</p>
                     </div>
                   </div>
                 );
-              }) : <p style={{color:MUTED,fontSize:14,textAlign:"center",padding:"12px 0",margin:0}}>No running board available for this duty</p>}
+              }) : <p style={{color:MUTED,fontSize:"0.875rem",textAlign:"center",padding:"12px 0",margin:0}}>No running board available for this duty</p>}
             </div>
 
             {onLogShift && (

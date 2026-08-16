@@ -45,9 +45,9 @@ export function PageHeader({eyebrow, title, subtitle, right, onBack}) {
             </button>
           )}
           <div style={{minWidth:0}}>
-            {eyebrow && <p style={{color:MUTED,fontSize:11,margin:"0 0 4px",textTransform:"uppercase",letterSpacing:2,fontWeight:600}}>{eyebrow}</p>}
-            <h1 style={{color:TEXT,fontSize:24,fontWeight:800,margin:0,letterSpacing:"-0.5px",lineHeight:1.1}}>{title}</h1>
-            {subtitle && <p style={{color:MUTED,fontSize:13,margin:"6px 0 0"}}>{subtitle}</p>}
+            {eyebrow && <p style={{color:MUTED,fontSize:"0.6875rem",margin:"0 0 4px",textTransform:"uppercase",letterSpacing:2,fontWeight:600}}>{eyebrow}</p>}
+            <h1 style={{color:TEXT,fontSize:"1.5rem",fontWeight:800,margin:0,letterSpacing:"-0.5px",lineHeight:1.1}}>{title}</h1>
+            {subtitle && <p style={{color:MUTED,fontSize:"0.8125rem",margin:"6px 0 0"}}>{subtitle}</p>}
           </div>
         </div>
         {right}
@@ -60,7 +60,7 @@ export function PageHeader({eyebrow, title, subtitle, right, onBack}) {
 // screen readers announce it; pass htmlFor + a matching input id to link them.
 export function FieldLabel({children, hint, htmlFor}) {
   return (
-    <label htmlFor={htmlFor} style={{display:"block",color:TEXT,fontSize:12.5,textTransform:"uppercase",letterSpacing:1.2,fontWeight:700,margin:"0 0 8px"}}>
+    <label htmlFor={htmlFor} style={{display:"block",color:TEXT,fontSize:"0.78125rem",textTransform:"uppercase",letterSpacing:1.2,fontWeight:700,margin:"0 0 8px"}}>
       {children}{hint && <span style={{color:MUTED,fontWeight:400,textTransform:"none",letterSpacing:0}}> — {hint}</span>}
     </label>
   );
@@ -96,7 +96,7 @@ export function SegGroup({options, value, onChange, cols}) {
           <button key={v} onClick={()=>onChange(v)} style={{
             background: sel?ACCENT:CARD, color: sel?"#07090F":MUTED,
             border: sel?"none":`1px solid ${BORDER}`, borderRadius:10,
-            padding:"11px 4px", fontSize:13, fontWeight: sel?800:500,
+            padding:"11px 4px", fontSize:"0.8125rem", fontWeight: sel?800:500,
             cursor:"pointer", transition:"all 0.15s"
           }}>{l}</button>
         );
@@ -124,7 +124,7 @@ export function DutyPicker({duties, value, onChange}) {
         width:"100%",textAlign:"left",padding:"12px 14px",
         background:CARD,border:`1px solid ${BORDER}`,borderRadius:10,cursor:"pointer"
       }}>
-        <span style={{fontSize:14,fontWeight:selected?700:500,color:selected?TEXT:MUTED}}>
+        <span style={{fontSize:"0.875rem",fontWeight:selected?700:500,color:selected?TEXT:MUTED}}>
           {selected ? dutyLabel(selected) : `Tap to choose a duty (${duties.length})`}
         </span>
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={MUTED} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink:0}}><polyline points="6 9 12 15 18 9"/></svg>
@@ -157,7 +157,7 @@ export function DutyPicker({duties, value, onChange}) {
         style={{...inputStyle, marginBottom:8}}/>
       <div style={{maxHeight:280,overflowY:"auto",border:`1px solid ${BORDER}`,borderRadius:10,background:CARD}}>
         {filtered.length===0 ? (
-          <p style={{color:MUTED,fontSize:13,textAlign:"center",padding:"18px 12px",margin:0}}>No duties match "{query}"</p>
+          <p style={{color:MUTED,fontSize:"0.8125rem",textAlign:"center",padding:"18px 12px",margin:0}}>No duties match "{query}"</p>
         ) : filtered.map(d=>{
           const i = duties.indexOf(d);
           const sel = i===value;
@@ -166,7 +166,7 @@ export function DutyPicker({duties, value, onChange}) {
               display:"block",width:"100%",textAlign:"left",padding:"12px 14px",
               background:sel?`${ACCENT}18`:"transparent",border:"none",
               borderBottom:`1px solid ${BORDER}`,
-              color:sel?ACCENT:TEXT,fontSize:14,fontWeight:sel?700:500,cursor:"pointer"
+              color:sel?ACCENT:TEXT,fontSize:"0.875rem",fontWeight:sel?700:500,cursor:"pointer"
             }}>{dutyLabel(d)}</button>
           );
         })}
@@ -183,13 +183,13 @@ export function ComplianceBar({label, current, max, limitLabel}) {
   return (
     <div style={{...cardStyle, padding:"12px 16px"}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
-        <span style={{color:MUTED,fontSize:12,textTransform:"uppercase",letterSpacing:0.5}}>{label}</span>
-        <span style={{color,fontWeight:700,fontSize:15}}>{fmtHrs(current)} <span style={{color:MUTED,fontWeight:400,fontSize:12}}>/ {limitLabel}</span></span>
+        <span style={{color:MUTED,fontSize:"0.75rem",textTransform:"uppercase",letterSpacing:0.5}}>{label}</span>
+        <span style={{color,fontWeight:700,fontSize:"0.9375rem"}}>{fmtHrs(current)} <span style={{color:MUTED,fontWeight:400,fontSize:"0.75rem"}}>/ {limitLabel}</span></span>
       </div>
       <div style={{background:BORDER,borderRadius:4,height:7}}>
         <div style={{width:"100%",transform:`scaleX(${pct/100})`,transformOrigin:"left",background:color,height:7,borderRadius:4,transition:"transform 0.3s"}} />
       </div>
-      {over && <p style={{color:DANGER,fontSize:12,margin:"6px 0 0",fontWeight:600}}>Limit exceeded</p>}
+      {over && <p style={{color:DANGER,fontSize:"0.75rem",margin:"6px 0 0",fontWeight:600}}>Limit exceeded</p>}
     </div>
   );
 }
@@ -198,10 +198,10 @@ export function NewPeriodBanner({period, onDismiss}) {
   return (
     <div style={{...cardStyle,padding:"14px 16px",marginBottom:12,display:"flex",gap:10,alignItems:"center"}}>
       <div style={{flex:1,minWidth:0}}>
-        <p style={{color:TEXT,fontSize:13.5,fontWeight:700,margin:"0 0 2px"}}>New 5-week period started</p>
-        <p style={{color:MUTED,fontSize:12,margin:0}}>{fmtShort(period.startDate)} – {fmtShort(addDays(period.startDate,34))} · your last one's been archived</p>
+        <p style={{color:TEXT,fontSize:"0.84375rem",fontWeight:700,margin:"0 0 2px"}}>New 5-week period started</p>
+        <p style={{color:MUTED,fontSize:"0.75rem",margin:0}}>{fmtShort(period.startDate)} – {fmtShort(addDays(period.startDate,34))} · your last one's been archived</p>
       </div>
-      <button onClick={onDismiss} aria-label="Dismiss" style={{background:"none",border:"none",color:MUTED,fontSize:18,cursor:"pointer",padding:"10px",flexShrink:0}}>×</button>
+      <button onClick={onDismiss} aria-label="Dismiss" style={{background:"none",border:"none",color:MUTED,fontSize:"1.125rem",cursor:"pointer",padding:"10px",flexShrink:0}}>×</button>
     </div>
   );
 }
@@ -214,15 +214,15 @@ export function RouteAlertCard({alert}) {
   return (
     <div style={{background:`${ALERT_COLOR}14`,border:`1px solid ${ALERT_COLOR}44`,borderRadius:12,padding:"12px 14px",marginBottom:10}}>
       <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
-        <span style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:0.5,color:ALERT_COLOR,background:`${ALERT_COLOR}22`,padding:"2px 8px",borderRadius:999}}>
+        <span style={{fontSize:"0.625rem",fontWeight:700,textTransform:"uppercase",letterSpacing:0.5,color:ALERT_COLOR,background:`${ALERT_COLOR}22`,padding:"2px 8px",borderRadius:999}}>
           {ALERT_TYPE_LABEL[alert.type] || "Notice"}
         </span>
-        {alert.zone && <span style={{fontSize:11,color:MUTED,fontWeight:600}}>{alert.zone}</span>}
+        {alert.zone && <span style={{fontSize:"0.6875rem",color:MUTED,fontWeight:600}}>{alert.zone}</span>}
       </div>
-      <p style={{color:MUTED,fontSize:11,margin:"0 0 6px",fontWeight:600}}>{alertWindowLabel(alert)}</p>
-      <p style={{color:TEXT,fontSize:13,margin:"0 0 8px",lineHeight:1.5}}>{alert.description}</p>
+      <p style={{color:MUTED,fontSize:"0.6875rem",margin:"0 0 6px",fontWeight:600}}>{alertWindowLabel(alert)}</p>
+      <p style={{color:TEXT,fontSize:"0.8125rem",margin:"0 0 8px",lineHeight:1.5}}>{alert.description}</p>
       {alert.map_url && (
-        <a href={alert.map_url} target="_blank" rel="noopener noreferrer" style={{fontSize:12,fontWeight:700,color:ALERT_COLOR,textDecoration:"none"}}>
+        <a href={alert.map_url} target="_blank" rel="noopener noreferrer" style={{fontSize:"0.75rem",fontWeight:700,color:ALERT_COLOR,textDecoration:"none"}}>
           View on map →
         </a>
       )}
@@ -242,8 +242,8 @@ export function RouteAlertBanner({alerts, onView}) {
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={ALERT_COLOR} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
         </div>
         <div style={{flex:1,minWidth:0}}>
-          <p style={{color:TEXT,fontSize:13.5,fontWeight:700,margin:"0 0 2px"}}>{alerts.length} active alert{alerts.length!==1?"s":""} for your garage</p>
-          <p style={{color:MUTED,fontSize:12,margin:0}}>Tap to see diversions and roadworks</p>
+          <p style={{color:TEXT,fontSize:"0.84375rem",fontWeight:700,margin:"0 0 2px"}}>{alerts.length} active alert{alerts.length!==1?"s":""} for your garage</p>
+          <p style={{color:MUTED,fontSize:"0.75rem",margin:0}}>Tap to see diversions and roadworks</p>
         </div>
       </div>
     </button>
@@ -254,8 +254,8 @@ export function EmptyState({icon, title, body}) {
   return (
     <div style={{...cardStyle,textAlign:"center",padding:"28px 20px"}}>
       {icon && <div style={{opacity:0.4,marginBottom:10,display:"flex",justifyContent:"center"}}>{icon}</div>}
-      <p style={{color:TEXT,margin:"0 0 4px",fontSize:14,fontWeight:600}}>{title}</p>
-      {body && <p style={{color:MUTED,fontSize:12,margin:0,lineHeight:1.5}}>{body}</p>}
+      <p style={{color:TEXT,margin:"0 0 4px",fontSize:"0.875rem",fontWeight:600}}>{title}</p>
+      {body && <p style={{color:MUTED,fontSize:"0.75rem",margin:0,lineHeight:1.5}}>{body}</p>}
     </div>
   );
 }
@@ -352,7 +352,7 @@ export function WeatherIcon({kind, size=16}) {
 
 export function WeatherChip({tempC, iconKind}) {
   return (
-    <span style={{display:"inline-flex",alignItems:"center",gap:4,background:CARD,border:`1px solid ${BORDER}`,borderRadius:999,padding:"3px 9px",fontSize:12,fontWeight:700,color:MUTED,flexShrink:0}}>
+    <span style={{display:"inline-flex",alignItems:"center",gap:4,background:CARD,border:`1px solid ${BORDER}`,borderRadius:999,padding:"3px 9px",fontSize:"0.75rem",fontWeight:700,color:MUTED,flexShrink:0}}>
       <WeatherIcon kind={iconKind} size={14}/>
       {tempC}°C
     </span>
@@ -390,13 +390,13 @@ export function BottomNav({active, onChange}) {
                 transition:"all 0.2s"
               }}>
                 <NavIcon id="lookup" active={isActive}/>
-                <span style={{fontSize:11,color:isActive?"#07090F":NAV_MUTED,fontWeight:700,letterSpacing:"0.5px",textTransform:"uppercase"}}>Lookup</span>
+                <span style={{fontSize:"0.6875rem",color:isActive?"#07090F":NAV_MUTED,fontWeight:700,letterSpacing:"0.5px",textTransform:"uppercase"}}>Lookup</span>
               </div>
             ) : (
               <>
                 {isActive && <div style={{position:"absolute",top:0,left:"20%",right:"20%",height:2,background:ACCENT,borderRadius:"0 0 2px 2px"}}/>}
                 <NavIcon id={t.id} active={isActive}/>
-                <span style={{fontSize:11,color:isActive?ACCENT:NAV_MUTED,fontWeight:isActive?700:500,letterSpacing:"0.3px"}}>{t.label}</span>
+                <span style={{fontSize:"0.6875rem",color:isActive?ACCENT:NAV_MUTED,fontWeight:isActive?700:500,letterSpacing:"0.3px"}}>{t.label}</span>
               </>
             )}
           </button>
@@ -444,10 +444,13 @@ export function ConfirmDialog({msg,onYes,onNo,yesLabel,danger=true}) {
   return (
     <div style={{position:"fixed",inset:0,background:"#00000099",display:"flex",alignItems:"flex-end",justifyContent:"center",zIndex:200,padding:16}}>
       <div ref={ref} role="dialog" aria-modal="true" aria-label={msg} tabIndex={-1} style={{...cardStyle,width:"100%",maxWidth:420,padding:24,outline:"none"}}>
-        <p style={{color:TEXT,textAlign:"center",margin:"0 0 20px",fontSize:16}}>{msg}</p>
+        <p style={{color:TEXT,textAlign:"center",margin:"0 0 20px",fontSize:"1rem"}}>{msg}</p>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-          <button onClick={onNo} style={{background:"none",border:`1px solid ${BORDER}`,color:TEXT,borderRadius:10,padding:"13px 0",fontSize:15,cursor:"pointer"}}>Cancel</button>
-          <button onClick={onYes} style={{background:danger?DANGER:ACCENT,border:"none",color:danger?"#fff":"#07090F",borderRadius:10,padding:"13px 0",fontSize:15,fontWeight:700,cursor:"pointer"}}>{yesLabel||"Confirm"}</button>
+          {/* minWidth:0 lets each 1fr column shrink below its button label's
+              intrinsic width — without it, at large OS/browser text sizes
+              these two buttons push the dialog wider than its container. */}
+          <button onClick={onNo} style={{background:"none",border:`1px solid ${BORDER}`,color:TEXT,borderRadius:10,padding:"13px 0",fontSize:"0.9375rem",cursor:"pointer",minWidth:0}}>Cancel</button>
+          <button onClick={onYes} style={{background:danger?DANGER:ACCENT,border:"none",color:danger?"#fff":"#07090F",borderRadius:10,padding:"13px 0",fontSize:"0.9375rem",fontWeight:700,cursor:"pointer",minWidth:0}}>{yesLabel||"Confirm"}</button>
         </div>
       </div>
     </div>

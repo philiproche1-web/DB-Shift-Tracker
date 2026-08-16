@@ -26,9 +26,9 @@ export const DARK  = {BG:"#07090F",CARD:"#0D1321",BORDER:"#1A2438",CARD2:"#141B2
 export const LIGHT = {BG:"#F5F7FA",CARD:"#FFFFFF",BORDER:"#D8DFE8",CARD2:"#EEF1F5",TEXT:"#0D1321",MUTED:"#64748B",INPUT:"#FFFFFF",NAV:"#FFFFFF",NAV_MUTED:"#5A6678"};
 
 export let cardStyle={background:CARD,border:`1px solid ${BORDER}`,borderRadius:16,padding:18};
-export let inputStyle={background:DARK.INPUT,border:`1px solid ${BORDER}`,borderRadius:8,padding:"12px 14px",color:TEXT,fontSize:16,width:"100%",boxSizing:"border-box",WebkitAppearance:"none"};
-export let btnStyle={background:ACCENT,color:"#07090F",border:"none",borderRadius:12,padding:"16px 20px",fontSize:16,fontWeight:800,cursor:"pointer",width:"100%",letterSpacing:"0.3px"};
-export const tag=(c)=>({background:c+"22",color:c,borderRadius:6,padding:"3px 10px",fontSize:11,fontWeight:700,display:"inline-block",letterSpacing:"0.5px",textTransform:"uppercase"});
+export let inputStyle={background:DARK.INPUT,border:`1px solid ${BORDER}`,borderRadius:8,padding:"12px 14px",color:TEXT,fontSize:"1rem",width:"100%",boxSizing:"border-box",WebkitAppearance:"none"};
+export let btnStyle={background:ACCENT,color:"#07090F",border:"none",borderRadius:12,padding:"16px 20px",fontSize:"1rem",fontWeight:800,cursor:"pointer",width:"100%",letterSpacing:"0.3px"};
+export const tag=(c)=>({background:c+"22",color:c,borderRadius:6,padding:"3px 10px",fontSize:"0.6875rem",fontWeight:700,display:"inline-block",letterSpacing:"0.5px",textTransform:"uppercase"});
 
 export function applyTheme(appearance, forceUpdate) {
   const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
@@ -38,8 +38,8 @@ export function applyTheme(appearance, forceUpdate) {
   BG=t.BG; CARD=t.CARD; BORDER=t.BORDER; CARD2=t.CARD2; TEXT=t.TEXT; MUTED=t.MUTED;
   NAV=t.NAV; NAV_MUTED=t.NAV_MUTED;
   cardStyle  = {background:CARD,border:`1px solid ${BORDER}`,borderRadius:16,padding:18};
-  inputStyle = {background:t.INPUT,border:`1px solid ${BORDER}`,borderRadius:8,padding:"12px 14px",color:TEXT,fontSize:16,width:"100%",boxSizing:"border-box",WebkitAppearance:"none"};
-  btnStyle   = {background:ACCENT,color:"#07090F",border:"none",borderRadius:12,padding:"16px 20px",fontSize:16,fontWeight:800,cursor:"pointer",width:"100%",letterSpacing:"0.3px"};
+  inputStyle = {background:t.INPUT,border:`1px solid ${BORDER}`,borderRadius:8,padding:"12px 14px",color:TEXT,fontSize:"1rem",width:"100%",boxSizing:"border-box",WebkitAppearance:"none"};
+  btnStyle   = {background:ACCENT,color:"#07090F",border:"none",borderRadius:12,padding:"16px 20px",fontSize:"1rem",fontWeight:800,cursor:"pointer",width:"100%",letterSpacing:"0.3px"};
   // The address/status bar colour was hardcoded dark in index.html, so it
   // stayed black in light mode. This can't be a static <meta> pair keyed off
   // prefers-color-scheme, because "dark"/"light" here can come from the

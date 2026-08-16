@@ -23,17 +23,17 @@ export function ArchiveScreen({periods, activePeriodId, onView, onOpenSettings})
           <div key={p.id} style={{...cardStyle,marginBottom:12}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
               <div>
-                <p style={{color:TEXT,fontWeight:700,margin:"0 0 3px",fontSize:15}}>{fmtShort(p.startDate)} – {fmtShort(addDays(p.startDate,34))}</p>
-                <p style={{color:MUTED,fontSize:13,margin:0}}>{p.shifts?.length||0} shifts · {p.daysOff?.length||0} days off</p>
+                <p style={{color:TEXT,fontWeight:700,margin:"0 0 3px",fontSize:"0.9375rem"}}>{fmtShort(p.startDate)} – {fmtShort(addDays(p.startDate,34))}</p>
+                <p style={{color:MUTED,fontSize:"0.8125rem",margin:0}}>{p.shifts?.length||0} shifts · {p.daysOff?.length||0} days off</p>
               </div>
               <div style={{textAlign:"right"}}>
-                <p style={{color:ACCENT,fontWeight:800,margin:"0 0 2px",fontSize:16}}>{fmtHrs(st.total)}</p>
-                <p style={{color:SUCCESS,fontSize:12,margin:0}}>Sun: {fmtHrs(st.sunday)}</p>
+                <p style={{color:ACCENT,fontWeight:800,margin:"0 0 2px",fontSize:"1rem"}}>{fmtHrs(st.total)}</p>
+                <p style={{color:SUCCESS,fontSize:"0.75rem",margin:0}}>Sun: {fmtHrs(st.sunday)}</p>
               </div>
             </div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-              <button onClick={()=>onView(p.id)} style={{background:"none",border:`1px solid ${BORDER}`,color:TEXT,borderRadius:10,padding:"11px 0",fontSize:14,fontWeight:600,cursor:"pointer"}}>View</button>
-              <button onClick={()=>exportPDF(p,st)} style={{background:ACCENT,color:"#07090F",border:"none",borderRadius:10,padding:"11px 0",fontSize:14,fontWeight:800,cursor:"pointer"}}>Export PDF</button>
+              <button onClick={()=>onView(p.id)} style={{background:"none",border:`1px solid ${BORDER}`,color:TEXT,borderRadius:10,padding:"11px 0",fontSize:"0.875rem",fontWeight:600,cursor:"pointer"}}>View</button>
+              <button onClick={()=>exportPDF(p,st)} style={{background:ACCENT,color:"#07090F",border:"none",borderRadius:10,padding:"11px 0",fontSize:"0.875rem",fontWeight:800,cursor:"pointer"}}>Export PDF</button>
             </div>
           </div>
         );

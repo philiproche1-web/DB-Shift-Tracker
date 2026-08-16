@@ -20,7 +20,7 @@ Convert every hardcoded numeric `fontSize` (px) to the equivalent rem value acro
 - Per-screen inline `fontSize` values in all 20 files currently containing them (`HomeScreen.jsx`, `LogScreen.jsx`, `LogDayOffScreen.jsx`, `App.jsx`, `SettingsPanel.jsx`, `shared.jsx`, `LeaveScreen.jsx`, `ErrorBoundary.jsx`, `PeriodScreen.jsx`, `ArchiveScreen.jsx`, `SetupScreen.jsx`, `DutyLookup.jsx`, `ResetPasswordScreen.jsx`, `AuthScreen.jsx`, `FAQScreen.jsx`, `WhatsNewScreen.jsx`, `TourOverlay.jsx`, `TermsScreen.jsx`, `GarageComingSoonScreen.jsx`).
 - 366 total `fontSize` occurrences to convert.
 
-**Conversion rule:** `rem = px / 16` (browser default root is 16px, confirmed unoverridden). Examples: `11px→0.6875rem`, `12px→0.75rem`, `13px→0.8125rem`, `14px→0.875rem`, `15px→0.9375rem`, `16px→1rem`, `18px→1.125rem`, `20px→1.25rem`, `22px→1.375rem`, `24px→1.5rem`, `28px→1.75rem`, `32px→2rem`. Use exact division, no rounding — all values in this codebase are multiples that divide cleanly.
+**Conversion rule:** `rem = px / 16` (browser default root is 16px, confirmed unoverridden). Examples: `11px→0.6875rem`, `12px→0.75rem`, `13px→0.8125rem`, `14px→0.875rem`, `15px→0.9375rem`, `16px→1rem`, `18px→1.125rem`, `20px→1.25rem`, `22px→1.375rem`, `24px→1.5rem`, `28px→1.75rem`. Use exact division, no rounding — all values in this codebase are multiples that divide cleanly.
 
 **Out of scope:** `padding`, `borderRadius`, `width`/`height`, icon sizes, and other non-font px values stay as-is. No in-app text-size toggle. No touch-target changes (already done 08-14). No change to `index.css` or the viewport meta (already correctly permits pinch-zoom, no `user-scalable=no`).
 

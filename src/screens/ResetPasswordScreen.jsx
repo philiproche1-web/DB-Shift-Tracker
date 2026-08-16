@@ -15,7 +15,7 @@ const inputStyle = {
   border: "1px solid #262B36",
   background: "#0D1017",
   color: TEXT,
-  fontSize: 15,
+  fontSize:"0.9375rem",
   marginBottom: 12,
   boxSizing: "border-box",
 };
@@ -28,7 +28,7 @@ const buttonStyle = {
   background: ACCENT,
   color: "#07090F",
   fontWeight: 700,
-  fontSize: 15,
+  fontSize:"0.9375rem",
   cursor: "pointer",
 };
 
@@ -57,16 +57,16 @@ export default function ResetPasswordScreen({ supabase, onDone }) {
   return (
     <div style={{ background: BG, minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
       <form onSubmit={handleSubmit} style={{ background: CARD, borderRadius: 16, padding: 28, width: "100%", maxWidth: 380 }}>
-        <h1 style={{ color: TEXT, fontSize: 22, fontWeight: 800, marginBottom: 4 }}>Set a new password</h1>
-        <p style={{ color: MUTED, fontSize: 13, marginBottom: 20 }}>Choose a new password for your account.</p>
+        <h1 style={{ color: TEXT, fontSize:"1.375rem", fontWeight: 800, marginBottom: 4 }}>Set a new password</h1>
+        <p style={{ color: MUTED, fontSize:"0.8125rem", marginBottom: 20 }}>Choose a new password for your account.</p>
 
         <input style={inputStyle} type="password" placeholder="New password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} autoFocus />
         <input style={inputStyle} type="password" placeholder="Confirm new password" value={confirm} onChange={(e) => setConfirm(e.target.value)} required minLength={8} />
-        <p style={{ color: MUTED, fontSize: 12, marginTop: -8, marginBottom: 12 }}>
+        <p style={{ color: MUTED, fontSize:"0.75rem", marginTop: -8, marginBottom: 12 }}>
           Use at least 8 characters, mixing letters, numbers, and a symbol.
         </p>
 
-        {error && <p style={{ color: DANGER, fontSize: 13, marginBottom: 12 }}>{error}</p>}
+        {error && <p style={{ color: DANGER, fontSize:"0.8125rem", marginBottom: 12 }}>{error}</p>}
 
         <button style={buttonStyle} type="submit" disabled={submitting}>
           {submitting ? "Please wait…" : "Save new password"}

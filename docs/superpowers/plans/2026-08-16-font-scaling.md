@@ -51,7 +51,7 @@
 **Interfaces:**
 - Produces: `convertFontSizes(source: string) => { result: string, count: number }`, exported from `scripts/convert-fontsize-to-rem.mjs`, used directly by its own test and indirectly (via the CLI block in the same file) by Tasks 2 and 3.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```js
 // scripts/convert-fontsize-to-rem.test.mjs
@@ -102,12 +102,12 @@ describe("convertFontSizes", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `cd "C:\Users\phili\.claude\Claude Code\DB 5 Wk Tracker App" && npx vitest run scripts/convert-fontsize-to-rem.test.mjs`
 Expected: FAIL — `convert-fontsize-to-rem.mjs` does not exist yet (module not found).
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 ```js
 // scripts/convert-fontsize-to-rem.mjs
@@ -187,12 +187,12 @@ if (isMain) {
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run scripts/convert-fontsize-to-rem.test.mjs`
 Expected: PASS — 6 tests passing.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add scripts/convert-fontsize-to-rem.mjs scripts/convert-fontsize-to-rem.test.mjs
@@ -209,27 +209,27 @@ git commit -m "feat: add px-to-rem fontSize codemod script"
 **Interfaces:**
 - Consumes: `convertFontSizes` behavior verified by Task 1 (not imported here — run via the script's CLI).
 
-- [ ] **Step 1: Run the codemod against theme.js**
+- [x] **Step 1: Run the codemod against theme.js**
 
 Run: `cd "C:\Users\phili\.claude\Claude Code\DB 5 Wk Tracker App" && node scripts/convert-fontsize-to-rem.mjs src/lib/theme.js`
 Expected output: `src/lib/theme.js: 5 conversions` then `Total: 5 conversions across 1 file(s)`.
 
-- [ ] **Step 2: Verify the diff by eye**
+- [x] **Step 2: Verify the diff by eye**
 
 Run: `git diff src/lib/theme.js`
 Expected: exactly 5 changed lines, each a `fontSize:16` → `fontSize:"1rem"` or `fontSize:11` → `fontSize:"0.6875rem"` substitution (lines 29, 30, 31, 41, 42), nothing else touched.
 
-- [ ] **Step 3: Confirm no raw px fontSize remains in the file**
+- [x] **Step 3: Confirm no raw px fontSize remains in the file**
 
 Run: `grep -n "fontSize:[[:space:]]*[0-9]" src/lib/theme.js`
 Expected: no output (empty match — grep exits 1).
 
-- [ ] **Step 4: Run the full test suite**
+- [x] **Step 4: Run the full test suite**
 
 Run: `npm test`
 Expected: PASS — 287 tests (281 baseline + Task 1's 6 new codemod-script tests; theme.test.js's contrast-ratio tests are colour-only and unaffected by this change).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/lib/theme.js
@@ -246,7 +246,7 @@ git commit -m "refactor: convert theme.js fontSize tokens from px to rem"
 **Interfaces:**
 - Consumes: `convertFontSizes` behavior verified by Task 1, run via the script's CLI.
 
-- [ ] **Step 1: Run the codemod against every remaining file in one pass**
+- [x] **Step 1: Run the codemod against every remaining file in one pass**
 
 Run (single command, repo root):
 ```bash
@@ -273,27 +273,27 @@ node scripts/convert-fontsize-to-rem.mjs \
 ```
 Expected: 19 per-file lines, counts matching `11, 29, 6, 6, 14, 23, 7, 2, 60, 39, 8, 30, 30, 6, 58, 6, 15, 5, 6` respectively, then `Total: 361 conversions across 19 file(s)`.
 
-- [ ] **Step 2: Verify total occurrence count matches**
+- [x] **Step 2: Verify total occurrence count matches**
 
 Run: `grep -rc 'fontSize:"' src/App.jsx src/components/shared.jsx src/components/ErrorBoundary.jsx src/screens/*.jsx src/lib/theme.js | awk -F: '{s+=$2} END {print s}'`
 Expected: `366` (361 from this task's 19 files + 5 from Task 2's `src/lib/theme.js`, included here to check the whole app's total in one number — if it differs, check which individual file's count is off before proceeding).
 
-- [ ] **Step 3: Confirm no raw px fontSize remains anywhere in src/**
+- [x] **Step 3: Confirm no raw px fontSize remains anywhere in src/**
 
 Run: `grep -rn "fontSize:[[:space:]]*[0-9]" src --include=*.jsx --include=*.js`
 Expected: no output.
 
-- [ ] **Step 4: Run the full test suite**
+- [x] **Step 4: Run the full test suite**
 
 Run: `npm test`
 Expected: PASS — 287 tests (unchanged from Task 2 — this is a value-only change; no test asserts a specific fontSize value, confirmed by `grep -rl "fontSize" src --include=*.test.jsx --include=*.test.js` returning nothing before this plan started).
 
-- [ ] **Step 5: Run the production build**
+- [x] **Step 5: Run the production build**
 
 Run: `npm run build`
 Expected: succeeds with no errors (catches any syntax mistake the codemod could have introduced, e.g. an unbalanced quote).
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/App.jsx src/components/shared.jsx src/components/ErrorBoundary.jsx src/screens/*.jsx
@@ -311,23 +311,23 @@ git commit -m "refactor: convert remaining fontSize tokens from px to rem"
 **Interfaces:**
 - Consumes: confirmation from Task 3 that all 366 occurrences are converted (this script has no more files left to convert).
 
-- [ ] **Step 1: Confirm nothing else references the script**
+- [x] **Step 1: Confirm nothing else references the script**
 
 Run: `grep -rn "convert-fontsize-to-rem" --include=*.json --include=*.md --include=*.mjs --include=*.js .  --exclude-dir=node_modules --exclude-dir=.git`
 Expected: only this plan document and the design spec mention it by name — nothing in `package.json` scripts or CI config references it (confirm by eye; if something does, keep the script and skip this task's deletion).
 
-- [ ] **Step 2: Delete the files**
+- [x] **Step 2: Delete the files**
 
 ```bash
 git rm scripts/convert-fontsize-to-rem.mjs scripts/convert-fontsize-to-rem.test.mjs
 ```
 
-- [ ] **Step 3: Run the full test suite**
+- [x] **Step 3: Run the full test suite**
 
 Run: `npm test`
 Expected: PASS — 281 tests (287 minus the 6 codemod-script tests removed with it — back to the pre-plan baseline).
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git commit -m "chore: remove px-to-rem codemod script, conversion complete"
@@ -343,7 +343,7 @@ git commit -m "chore: remove px-to-rem codemod script, conversion complete"
 **Interfaces:**
 - Produces: nothing consumed elsewhere — this is a standalone regression test, run automatically by `npm test`.
 
-- [ ] **Step 1: Write the test**
+- [x] **Step 1: Write the test**
 
 ```js
 // src/fontSizeUnits.test.js
@@ -399,24 +399,24 @@ describe("fontSize stays unit-safe (rem, not raw px)", () => {
 });
 ```
 
-- [ ] **Step 2: Run it and confirm it passes immediately**
+- [x] **Step 2: Run it and confirm it passes immediately**
 
 Run: `npx vitest run src/fontSizeUnits.test.js`
 Expected: PASS — 1 test, 0 offenders (Tasks 2–3 already converted everything; this test documents and locks that state rather than driving new behavior, so it's expected green on first run, not red).
 
-- [ ] **Step 3: Prove the guardrail actually catches a regression**
+- [x] **Step 3: Prove the guardrail actually catches a regression**
 
 Run: `node -e "const fs=require('node:fs'); fs.writeFileSync('src/lib/__tmp_regress.js', 'export const x = {fontSize:16};')"`
 then: `npx vitest run src/fontSizeUnits.test.js`
 Expected: FAIL — 1 offender reported, `src/lib/__tmp_regress.js:1: export const x = {fontSize:16};`
 then clean up: `rm src/lib/__tmp_regress.js` and re-run `npx vitest run src/fontSizeUnits.test.js` to confirm it's back to PASS.
 
-- [ ] **Step 4: Run the full suite**
+- [x] **Step 4: Run the full suite**
 
 Run: `npm test`
 Expected: PASS — 282 tests (281 + this new guardrail test).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/fontSizeUnits.test.js
@@ -434,7 +434,7 @@ git commit -m "test: guard against raw px fontSize regressions"
 **Interfaces:**
 - Produces: a dev-server route (`/audit.html`) that mounts every screen touched by this plan with fixture data and a text-size selector, for Task 7's manual visual pass. Deleted in Task 8.
 
-- [ ] **Step 1: Create the HTML entry**
+- [x] **Step 1: Create the HTML entry**
 
 ```html
 <!-- audit.html -->
@@ -451,7 +451,7 @@ git commit -m "test: guard against raw px fontSize regressions"
 </html>
 ```
 
-- [ ] **Step 2: Create the harness component**
+- [x] **Step 2: Create the harness component**
 
 ```jsx
 // src/auditHarness.jsx
@@ -574,12 +574,12 @@ function AuditHarness() {
 createRoot(document.getElementById("root")).render(<AuditHarness />);
 ```
 
-- [ ] **Step 3: Verify the harness loads**
+- [x] **Step 3: Verify the harness loads**
 
 Start the dev server: `npm run dev` (leave running), then open `http://localhost:5173/audit.html` in a browser.
 Expected: the control bar renders top-left with "Screen" and "OS text size" dropdowns, and the Home screen renders below it with fixture data (today's duty card showing "SZ1/01", no console errors).
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add audit.html src/auditHarness.jsx
@@ -598,11 +598,11 @@ git commit -m "test: temporary visual-verification harness for font scaling"
 
 This task is a manual audit, not a scripted one — the point is to find whatever's actually there, the same way the 2026-08-14 audit did. Do not skip ahead to writing fixes for problems that haven't been observed yet.
 
-- [ ] **Step 1: Open the harness in the Browser pane**
+- [x] **Step 1: Open the harness in the Browser pane**
 
 Use `preview_start` with the dev server, then `navigate` to `/audit.html`. Use `resize_window` to a phone viewport (375×812, the mobile preset) — this app is used on drivers' phones, not desktop.
 
-- [ ] **Step 2: Check every screen at every scale**
+- [x] **Step 2: Check every screen at every scale**
 
 For each of the 16 screens in the harness's dropdown (`Home, Log, LogDayOff, Period, Leave, Archive, DutyLookup, Settings, Setup, Terms, FAQ, WhatsNew, Tour, GarageComingSoon, Auth, ResetPassword`), for each scale (`100%, 150%, 200%`):
 1. Select the screen and scale via `computer` (click) or `form_input`.
@@ -612,7 +612,7 @@ For each of the 16 screens in the harness's dropdown (`Home, Log, LogDayOff, Per
 
 This is 16 × 3 = 48 checks. Batch related screens together in a run when a first pass suggests a whole class is clean (e.g. if the four static-content screens — Terms, FAQ, WhatsNew, GarageComingSoon — look fine at 150%, spend more time on data-dense ones instead: Home, Period, Leave, Settings, DutyLookup, Log).
 
-- [ ] **Step 3: Fix each real issue found, one at a time**
+- [x] **Step 3: Fix each real issue found, one at a time**
 
 For each issue noted in Step 2:
 1. Read the relevant section of the source file to find the exact style object responsible.
@@ -627,7 +627,7 @@ git commit -m "fix: prevent <element> overflow at large text scale on <ScreenNam
 
 If Step 2 found zero issues, skip straight to Step 4 with nothing to commit here.
 
-- [ ] **Step 4: Run the full test suite once more**
+- [x] **Step 4: Run the full test suite once more**
 
 Run: `npm test`
 Expected: PASS — 282 tests (unchanged from Task 5, unless Step 3 added new tests for a fix, in which case it should be higher).
@@ -643,34 +643,34 @@ Expected: PASS — 282 tests (unchanged from Task 5, unless Step 3 added new tes
 **Interfaces:**
 - Consumes: Task 7's confirmation that visual verification is complete.
 
-- [ ] **Step 1: Delete the harness**
+- [x] **Step 1: Delete the harness**
 
 ```bash
 git rm audit.html src/auditHarness.jsx
 ```
 
-- [ ] **Step 2: Confirm the guardrail test still passes with the harness gone**
+- [x] **Step 2: Confirm the guardrail test still passes with the harness gone**
 
 Run: `npx vitest run src/fontSizeUnits.test.js`
 Expected: PASS (the harness's own `fontSize:14` in its control bar was already excluded by filename while it existed, so removing the file changes nothing here — this just confirms nothing else broke).
 
-- [ ] **Step 3: Run the full test suite**
+- [x] **Step 3: Run the full test suite**
 
 Run: `npm test`
 Expected: PASS — 282 tests (or more, if Task 7 added any).
 
-- [ ] **Step 4: Run the production build**
+- [x] **Step 4: Run the production build**
 
 Run: `npm run build`
 Expected: succeeds — confirms `audit.html` being gone doesn't break the Vite build (it was a second, independent entry point; deleting it should have no effect on the main `index.html` build).
 
-- [ ] **Step 5: Final commit**
+- [x] **Step 5: Final commit**
 
 ```bash
 git commit -m "chore: remove temporary font-scaling audit harness, verification complete"
 ```
 
-- [ ] **Step 6: Confirm clean state**
+- [x] **Step 6: Confirm clean state**
 
 Run: `git status --short`
 Expected: no output (clean working tree) — everything from this plan is committed.

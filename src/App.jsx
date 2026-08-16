@@ -421,8 +421,8 @@ export default function App() {
       return (
         <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minHeight:"100vh",background:BG,padding:24,textAlign:"center"}}>
           <div style={{marginBottom:20}}><BusLogo size={56}/></div>
-          <p style={{color:TEXT,fontSize:17,fontWeight:700,margin:"0 0 10px"}}>Taking longer than usual</p>
-          <p style={{color:MUTED,fontSize:14,margin:"0 0 24px",maxWidth:320,lineHeight:1.6}}>Checking you're signed in is taking a while — this usually means a weak connection.</p>
+          <p style={{color:TEXT,fontSize:"1.0625rem",fontWeight:700,margin:"0 0 10px"}}>Taking longer than usual</p>
+          <p style={{color:MUTED,fontSize:"0.875rem",margin:"0 0 24px",maxWidth:320,lineHeight:1.6}}>Checking you're signed in is taking a while — this usually means a weak connection.</p>
           <button onClick={()=>window.location.reload()} style={{...btnStyle,maxWidth:280}}>Try again</button>
         </div>
       );
@@ -457,8 +457,8 @@ export default function App() {
       return (
         <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minHeight:"100vh",background:BG,padding:24,textAlign:"center"}}>
           <div style={{marginBottom:20}}><BusLogo size={56}/></div>
-          <p style={{color:TEXT,fontSize:17,fontWeight:700,margin:"0 0 10px"}}>Couldn't load your profile</p>
-          <p style={{color:MUTED,fontSize:14,margin:"0 0 24px",maxWidth:320,lineHeight:1.6}}>This usually means a weak connection. Your data is safe — just needs another try to load.</p>
+          <p style={{color:TEXT,fontSize:"1.0625rem",fontWeight:700,margin:"0 0 10px"}}>Couldn't load your profile</p>
+          <p style={{color:MUTED,fontSize:"0.875rem",margin:"0 0 24px",maxWidth:320,lineHeight:1.6}}>This usually means a weak connection. Your data is safe — just needs another try to load.</p>
           <button onClick={()=>window.location.reload()} style={{...btnStyle,maxWidth:280}}>Try again</button>
         </div>
       );
@@ -473,8 +473,8 @@ export default function App() {
   if(loadCorrupted) return (
     <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minHeight:"100vh",background:BG,padding:24,textAlign:"center"}}>
       <div style={{marginBottom:20}}><BusLogo size={56}/></div>
-      <p style={{color:TEXT,fontSize:17,fontWeight:700,margin:"0 0 10px"}}>We couldn't read your saved data</p>
-      <p style={{color:MUTED,fontSize:14,margin:"0 0 24px",maxWidth:320,lineHeight:1.6}}>The data stored on this device looks damaged and can't be opened. Your shifts and leave are also saved to your account — continue, then sign in on this device and they'll come back.</p>
+      <p style={{color:TEXT,fontSize:"1.0625rem",fontWeight:700,margin:"0 0 10px"}}>We couldn't read your saved data</p>
+      <p style={{color:MUTED,fontSize:"0.875rem",margin:"0 0 24px",maxWidth:320,lineHeight:1.6}}>The data stored on this device looks damaged and can't be opened. Your shifts and leave are also saved to your account — continue, then sign in on this device and they'll come back.</p>
       <button onClick={()=>{setLoadCorrupted(false);setLoading(false);}} style={{...btnStyle,maxWidth:280}}>Continue</button>
     </div>
   );
@@ -489,7 +489,7 @@ export default function App() {
   if(screen==="archive"&&archiveViewId&&archivePeriod) return (
     <div style={{background:BG,minHeight:"100vh"}}>
       <div style={{padding:"20px 16px 0"}}>
-        <button onClick={()=>setArchiveViewId(null)} style={{background:"none",border:"none",color:ACCENT,fontSize:20,cursor:"pointer"}}>← Back</button>
+        <button onClick={()=>setArchiveViewId(null)} style={{background:"none",border:"none",color:ACCENT,fontSize:"1.25rem",cursor:"pointer"}}>← Back</button>
       </div>
       <PeriodScreen period={archivePeriod} onEdit={()=>{}} onDelete={()=>{}} onEditDayOff={()=>{}} onDeleteDayOff={()=>{}} readOnly/>
     </div>
@@ -584,14 +584,14 @@ export default function App() {
               do nothing once they unmount. */}
           <style>{`@keyframes pendingSyncPulse{0%,100%{opacity:0.4}50%{opacity:1}}`}</style>
           <span style={{width:7,height:7,borderRadius:"50%",background:ACCENT,flexShrink:0,animation:"pendingSyncPulse 1.4s ease-in-out infinite"}}/>
-          <span style={{fontSize:11.5,color:MUTED,fontWeight:600,whiteSpace:"nowrap"}}>Saved on this phone — not synced yet</span>
+          <span style={{fontSize:"0.71875rem",color:MUTED,fontWeight:600,whiteSpace:"nowrap"}}>Saved on this phone — not synced yet</span>
         </div>
       )}
       {saveError && (
         <div style={{position:"fixed",top:0,left:0,right:0,zIndex:400,background:DANGER,color:"#fff",padding:"12px 16px",display:"flex",alignItems:"center",gap:10,paddingTop:"calc(12px + env(safe-area-inset-top,0px))"}}>
-          <span style={{fontSize:13,fontWeight:600,flex:1}}>Couldn't save — your last change may not have stuck.</span>
-          <button onClick={()=>persist(periods,activePeriodId)} style={{background:"#fff",color:DANGER,border:"none",borderRadius:8,padding:"6px 12px",fontSize:12,fontWeight:800,cursor:"pointer",flexShrink:0}}>Try again</button>
-          <button onClick={()=>setSaveError(false)} style={{background:"none",border:"none",color:"#fff",fontSize:18,cursor:"pointer",padding:"0 2px",lineHeight:1,flexShrink:0}}>×</button>
+          <span style={{fontSize:"0.8125rem",fontWeight:600,flex:1}}>Couldn't save — your last change may not have stuck.</span>
+          <button onClick={()=>persist(periods,activePeriodId)} style={{background:"#fff",color:DANGER,border:"none",borderRadius:8,padding:"6px 12px",fontSize:"0.75rem",fontWeight:800,cursor:"pointer",flexShrink:0}}>Try again</button>
+          <button onClick={()=>setSaveError(false)} style={{background:"none",border:"none",color:"#fff",fontSize:"1.125rem",cursor:"pointer",padding:"0 2px",lineHeight:1,flexShrink:0}}>×</button>
         </div>
       )}
     </div>

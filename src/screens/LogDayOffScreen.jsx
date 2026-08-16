@@ -100,7 +100,7 @@ export function LogDayOffScreen({periods, editDayOff, onSave, onCancel, onOpenSe
                   textAlign:"left", display:"flex",alignItems:"center",gap:10
                 }}>
                   <span style={{width:8,height:8,borderRadius:"50%",background:sel?ACCENT:BORDER,flexShrink:0}}/>
-                  <span style={{color:sel?TEXT:MUTED,fontSize:14,fontWeight:sel?700:500}}>{t}</span>
+                  <span style={{color:sel?TEXT:MUTED,fontSize:"0.875rem",fontWeight:sel?700:500}}>{t}</span>
                 </button>
               );
             })}
@@ -111,21 +111,36 @@ export function LogDayOffScreen({periods, editDayOff, onSave, onCancel, onOpenSe
         {isRange ? (
           <div style={{marginBottom:20}}>
             <FieldLabel>Date range</FieldLabel>
-            <p style={{color:MUTED,fontSize:12,margin:"0 0 10px"}}>Select the first and last day — all days in between will be logged. Logging just one day? Leave From and To the same.</p>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
+            <p style={{color:MUTED,fontSize:"0.75rem",margin:"0 0 10px"}}>Select the first and last day — all days in between will be logged. Logging just one day? Leave From and To the same.</p>
+            {/* Stacked, not side-by-side: two native <input type="date">s
+                sharing a 1fr/1fr row were already 3px too wide for a 375px
+                screen at 100% text size (native date inputs have their own
+                irreducible minimum rendering width for their MM/DD/YYYY
+                segments + calendar icon — width:100% can't shrink them
+                below it), and grew to 215px of real overflow at 200%.
+                minWidth:0 alone stops the grid track from forcing the page
+                wider, but the input's own rendered width stayed pinned at
+                its 167px floor regardless of font size — which, at 32px
+                text, leaves too little room for the icon's fixed 40px
+                padding plus the date text to both fit without the browser's
+                own internal rendering getting cramped in a way this CSS
+                fix can't see or control. Stacking removes the side-by-side
+                squeeze entirely, at every text size, not just the page-level
+                overflow this repo's tests can measure. */}
+            <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:10}}>
               <div>
-                <p style={{color:MUTED,fontSize:11,textTransform:"uppercase",letterSpacing:1,fontWeight:700,margin:"0 0 6px"}}>From</p>
+                <p style={{color:MUTED,fontSize:"0.6875rem",textTransform:"uppercase",letterSpacing:1,fontWeight:700,margin:"0 0 6px"}}>From</p>
                 <DateInput value={date} onChange={e=>setDate(e.target.value)}/>
               </div>
               <div>
-                <p style={{color:MUTED,fontSize:11,textTransform:"uppercase",letterSpacing:1,fontWeight:700,margin:"0 0 6px"}}>To</p>
+                <p style={{color:MUTED,fontSize:"0.6875rem",textTransform:"uppercase",letterSpacing:1,fontWeight:700,margin:"0 0 6px"}}>To</p>
                 <DateInput value={rangeTo < date ? date : rangeTo} onChange={e=>setRangeTo(e.target.value)} min={date}/>
               </div>
             </div>
             {rangeCount > 0 && (
               <div style={{background:`${ACCENT}14`,border:`1px solid ${ACCENT}33`,borderRadius:12,padding:"10px 14px",display:"flex",alignItems:"center",gap:10}}>
-                <span style={{color:ACCENT,fontSize:18}}>📅</span>
-                <p style={{color:ACCENT,fontSize:13,fontWeight:700,margin:0}}>
+                <span style={{color:ACCENT,fontSize:"1.125rem"}}>📅</span>
+                <p style={{color:ACCENT,fontSize:"0.8125rem",fontWeight:700,margin:0}}>
                   {rangeCount} day{rangeCount!==1?"s":""} of {type}
                   {rangeCount > 1 ? ` · ${fmtDate(date)} to ${fmtDate(rangeTo < date ? date : rangeTo)}` : ""}
                 </p>
@@ -142,7 +157,7 @@ export function LogDayOffScreen({periods, editDayOff, onSave, onCancel, onOpenSe
         {conflictDayOffs.length > 0 && (
           <div style={{display:"flex",alignItems:"flex-start",gap:8,marginBottom:16,padding:"10px 12px",background:`${DANGER}14`,border:`1px solid ${DANGER}44`,borderRadius:10}}>
             <span style={{width:6,height:6,borderRadius:"50%",background:DANGER,flexShrink:0,marginTop:6}}/>
-            <p style={{color:DANGER,fontSize:13,margin:0}}>
+            <p style={{color:DANGER,fontSize:"0.8125rem",margin:0}}>
               {conflictDayOffs.length===1
                 ? `${conflictDayOffs[0].type} is already logged on ${fmtDate(conflictDayOffs[0].date)}.`
                 : `${conflictDayOffs.length} of these days already have a day off logged.`} Saving will replace it.
@@ -153,7 +168,7 @@ export function LogDayOffScreen({periods, editDayOff, onSave, onCancel, onOpenSe
         {conflictShifts.length > 0 && (
           <div style={{display:"flex",alignItems:"flex-start",gap:8,marginBottom:16,padding:"10px 12px",background:"#F59E0B14",border:"1px solid #F59E0B44",borderRadius:10}}>
             <span style={{width:6,height:6,borderRadius:"50%",background:"#F59E0B",flexShrink:0,marginTop:6}}/>
-            <p style={{color:"#F59E0B",fontSize:13,margin:0}}>
+            <p style={{color:"#F59E0B",fontSize:"0.8125rem",margin:0}}>
               {conflictShifts.length===1
                 ? `A shift (${conflictShifts[0].roster}) is already logged on ${fmtDate(conflictShifts[0].date)}.`
                 : `${conflictShifts.length} of these days already have a shift logged.`} Saving will replace it.

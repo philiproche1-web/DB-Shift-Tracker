@@ -16,7 +16,7 @@ const inputStyle = {
   border: "1px solid #262B36",
   background: "#0D1017",
   color: TEXT,
-  fontSize: 15,
+  fontSize:"0.9375rem",
   marginBottom: 12,
   boxSizing: "border-box",
 };
@@ -29,7 +29,7 @@ const buttonStyle = {
   background: ACCENT,
   color: "#07090F",
   fontWeight: 700,
-  fontSize: 15,
+  fontSize:"0.9375rem",
   cursor: "pointer",
 };
 
@@ -86,8 +86,8 @@ export default function AuthScreen({ supabase }) {
     return (
       <div style={{ background: BG, minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
         <div style={{ background: CARD, borderRadius: 16, padding: 28, maxWidth: 380, textAlign: "center" }}>
-          <h1 style={{ color: TEXT, fontSize: 20, marginBottom: 12 }}>Check your email</h1>
-          <p style={{ color: MUTED, fontSize: 14, lineHeight: 1.5 }}>
+          <h1 style={{ color: TEXT, fontSize:"1.25rem", marginBottom: 12 }}>Check your email</h1>
+          <p style={{ color: MUTED, fontSize:"0.875rem", lineHeight: 1.5 }}>
             We sent a verification link to <strong style={{ color: TEXT }}>{email}</strong>. Confirm it, then come back and log in.
           </p>
           <button style={{ ...buttonStyle, marginTop: 20 }} onClick={() => { setAwaitingVerification(false); setMode("login"); }}>
@@ -102,8 +102,8 @@ export default function AuthScreen({ supabase }) {
     return (
       <div style={{ background: BG, minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
         <div style={{ background: CARD, borderRadius: 16, padding: 28, maxWidth: 380, textAlign: "center" }}>
-          <h1 style={{ color: TEXT, fontSize: 20, marginBottom: 12 }}>Check your email</h1>
-          <p style={{ color: MUTED, fontSize: 14, lineHeight: 1.5 }}>
+          <h1 style={{ color: TEXT, fontSize:"1.25rem", marginBottom: 12 }}>Check your email</h1>
+          <p style={{ color: MUTED, fontSize:"0.875rem", lineHeight: 1.5 }}>
             We sent a password reset link to <strong style={{ color: TEXT }}>{email}</strong>. Open it on this device to set a new password.
           </p>
           <button style={{ ...buttonStyle, marginTop: 20 }} onClick={() => { setAwaitingReset(false); setMode("login"); }}>
@@ -117,10 +117,10 @@ export default function AuthScreen({ supabase }) {
   return (
     <div style={{ background: BG, minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
       <form onSubmit={handleSubmit} style={{ background: CARD, borderRadius: 16, padding: 28, width: "100%", maxWidth: 380 }}>
-        <h1 style={{ color: TEXT, fontSize: 22, fontWeight: 800, marginBottom: 4 }}>
+        <h1 style={{ color: TEXT, fontSize:"1.375rem", fontWeight: 800, marginBottom: 4 }}>
           {mode === "signup" ? "Create account" : mode === "forgot" ? "Reset password" : "Log in"}
         </h1>
-        <p style={{ color: MUTED, fontSize: 13, marginBottom: 20 }}>
+        <p style={{ color: MUTED, fontSize:"0.8125rem", marginBottom: 20 }}>
           {mode === "signup" ? "Sync your duty logs and settings across devices." : mode === "forgot" ? "Enter your email and we'll send a reset link." : "Welcome back."}
         </p>
 
@@ -129,7 +129,7 @@ export default function AuthScreen({ supabase }) {
           <input style={inputStyle} type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} />
         )}
         {mode === "signup" && (
-          <p style={{ color: MUTED, fontSize: 12, marginTop: -8, marginBottom: 12 }}>
+          <p style={{ color: MUTED, fontSize:"0.75rem", marginTop: -8, marginBottom: 12 }}>
             Use at least 8 characters, mixing letters, numbers, and a symbol.
           </p>
         )}
@@ -151,25 +151,25 @@ export default function AuthScreen({ supabase }) {
             <button
               type="button"
               onClick={() => { setMode("forgot"); setError(null); }}
-              style={{ background: "none", border: "none", color: MUTED, cursor: "pointer", fontSize: 12, padding: 0 }}
+              style={{ background: "none", border: "none", color: MUTED, cursor: "pointer", fontSize:"0.75rem", padding: 0 }}
             >
               Forgot password?
             </button>
           </p>
         )}
 
-        {error && <p style={{ color: DANGER, fontSize: 13, marginBottom: 12 }}>{error}</p>}
+        {error && <p style={{ color: DANGER, fontSize:"0.8125rem", marginBottom: 12 }}>{error}</p>}
 
         <button style={buttonStyle} type="submit" disabled={submitting}>
           {submitting ? "Please wait…" : mode === "signup" ? "Sign up" : mode === "forgot" ? "Send reset link" : "Log in"}
         </button>
 
-        <p style={{ color: MUTED, fontSize: 13, marginTop: 16, textAlign: "center" }}>
+        <p style={{ color: MUTED, fontSize:"0.8125rem", marginTop: 16, textAlign: "center" }}>
           {mode === "forgot" ? (
             <button
               type="button"
               onClick={() => { setMode("login"); setError(null); }}
-              style={{ background: "none", border: "none", color: ACCENT, cursor: "pointer", fontSize: 13, fontWeight: 700, padding: 0 }}
+              style={{ background: "none", border: "none", color: ACCENT, cursor: "pointer", fontSize:"0.8125rem", fontWeight: 700, padding: 0 }}
             >
               Back to login
             </button>
@@ -179,7 +179,7 @@ export default function AuthScreen({ supabase }) {
               <button
                 type="button"
                 onClick={() => { setMode(mode === "signup" ? "login" : "signup"); setError(null); }}
-                style={{ background: "none", border: "none", color: ACCENT, cursor: "pointer", fontSize: 13, fontWeight: 700, padding: 0 }}
+                style={{ background: "none", border: "none", color: ACCENT, cursor: "pointer", fontSize:"0.8125rem", fontWeight: 700, padding: 0 }}
               >
                 {mode === "signup" ? "Log in" : "Sign up"}
               </button>

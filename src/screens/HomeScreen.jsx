@@ -56,30 +56,34 @@ export function TodayDutyCard({shift, label, accentColor, defaultExpanded=true})
       <div style={{padding:"16px 18px 12px",cursor:"pointer"}} onClick={()=>setExpanded(!expanded)}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:12}}>
           <div>
-            <p style={{color:ac,fontSize:11,textTransform:"uppercase",letterSpacing:2,fontWeight:700,margin:"0 0 4px"}}>{label}</p>
-            <p style={{color:TEXT,fontSize:28,fontWeight:800,margin:0,letterSpacing:"-1px"}}>{shift.roster}</p>
+            <p style={{color:ac,fontSize:"0.6875rem",textTransform:"uppercase",letterSpacing:2,fontWeight:700,margin:"0 0 4px"}}>{label}</p>
+            <p style={{color:TEXT,fontSize:"1.75rem",fontWeight:800,margin:0,letterSpacing:"-1px"}}>{shift.roster}</p>
             {dutyNumber(shift.duty) && <span style={{...tag(ACCENT),display:"inline-block",marginTop:4}}>Duty No. {dutyNumber(shift.duty)}</span>}
-            <p style={{color:MUTED,fontSize:13,margin:"3px 0 0"}}>{shift.zone}{shift.isSpare?" · Spare":""}{shift.isRestDay?" · Rest day":""}</p>
+            <p style={{color:MUTED,fontSize:"0.8125rem",margin:"3px 0 0"}}>{shift.zone}{shift.isSpare?" · Spare":""}{shift.isRestDay?" · Rest day":""}</p>
           </div>
           <div style={{textAlign:"right"}}>
-            <p style={{color:TEXT,fontSize:20,fontWeight:800,margin:0}}>{fmtHrs(spread)}</p>
+            <p style={{color:TEXT,fontSize:"1.25rem",fontWeight:800,margin:0}}>{fmtHrs(spread)}</p>
             {getDayType(shift.date)==="sunday"&&<span style={{...tag(SUCCESS),marginTop:4,display:"block"}}>Sunday</span>}
-            <span style={{color:ac,fontSize:12,marginTop:6,display:"block"}}>{expanded?"▲ less":"▼ running board"}</span>
+            <span style={{color:ac,fontSize:"0.75rem",marginTop:6,display:"block"}}>{expanded?"▲ less":"▼ running board"}</span>
           </div>
         </div>
         {/* Key times row */}
         <div style={{display:"grid",gridTemplateColumns:`1fr ${duty?.b?"1fr ":""}1fr`,gap:6}}>
-          <div style={{background:"#07090F55",borderRadius:10,padding:"8px 10px"}}>
-            <p style={{color:MUTED,fontSize:11,textTransform:"uppercase",letterSpacing:1,fontWeight:700,margin:"0 0 2px"}}>Report</p>
-            <p style={{color:ac,fontSize:15,fontWeight:800,margin:0,fontVariantNumeric:"tabular-nums"}}>{shift.reportTime}</p>
+          {/* minWidth:0 overrides the grid item default of min-width:auto — without
+              it, a 1fr column won't shrink below its content's intrinsic width, so
+              at large OS/browser text sizes these three columns push the card wider
+              than its overflow:hidden container instead of wrapping/shrinking. */}
+          <div style={{background:"#07090F55",borderRadius:10,padding:"8px 10px",minWidth:0}}>
+            <p style={{color:MUTED,fontSize:"0.6875rem",textTransform:"uppercase",letterSpacing:1,fontWeight:700,margin:"0 0 2px"}}>Report</p>
+            <p style={{color:ac,fontSize:"0.9375rem",fontWeight:800,margin:0,fontVariantNumeric:"tabular-nums"}}>{shift.reportTime}</p>
           </div>
-          {duty?.b&&<div style={{background:"#07090F55",borderRadius:10,padding:"8px 10px"}}>
-            <p style={{color:MUTED,fontSize:11,textTransform:"uppercase",letterSpacing:1,fontWeight:700,margin:"0 0 2px"}}>Break</p>
-            <p style={{color:"#F59E0B",fontSize:15,fontWeight:800,margin:0,fontVariantNumeric:"tabular-nums"}}>{duty.bs||"–"}</p>
+          {duty?.b&&<div style={{background:"#07090F55",borderRadius:10,padding:"8px 10px",minWidth:0}}>
+            <p style={{color:MUTED,fontSize:"0.6875rem",textTransform:"uppercase",letterSpacing:1,fontWeight:700,margin:"0 0 2px"}}>Break</p>
+            <p style={{color:"#F59E0B",fontSize:"0.9375rem",fontWeight:800,margin:0,fontVariantNumeric:"tabular-nums"}}>{duty.bs||"–"}</p>
           </div>}
-          <div style={{background:"#07090F55",borderRadius:10,padding:"8px 10px"}}>
-            <p style={{color:MUTED,fontSize:11,textTransform:"uppercase",letterSpacing:1,fontWeight:700,margin:"0 0 2px"}}>Finish</p>
-            <p style={{color:SUCCESS,fontSize:15,fontWeight:800,margin:0,fontVariantNumeric:"tabular-nums"}}>{shift.signOffTime}</p>
+          <div style={{background:"#07090F55",borderRadius:10,padding:"8px 10px",minWidth:0}}>
+            <p style={{color:MUTED,fontSize:"0.6875rem",textTransform:"uppercase",letterSpacing:1,fontWeight:700,margin:"0 0 2px"}}>Finish</p>
+            <p style={{color:SUCCESS,fontSize:"0.9375rem",fontWeight:800,margin:0,fontVariantNumeric:"tabular-nums"}}>{shift.signOffTime}</p>
           </div>
         </div>
       </div>
@@ -87,7 +91,7 @@ export function TodayDutyCard({shift, label, accentColor, defaultExpanded=true})
       {/* Inline running board */}
       {expanded && seq.length > 0 && (
         <div style={{borderTop:`1px solid ${ac}22`,padding:"12px 18px 16px"}}>
-          <p style={{color:MUTED,fontSize:10,textTransform:"uppercase",letterSpacing:2,fontWeight:700,margin:"0 0 12px"}}>Running Board</p>
+          <p style={{color:MUTED,fontSize:"0.625rem",textTransform:"uppercase",letterSpacing:2,fontWeight:700,margin:"0 0 12px"}}>Running Board</p>
           <div style={{position:"relative"}}>
             <div style={{position:"absolute",left:7,top:8,bottom:8,width:2,background:`${BORDER}`,borderRadius:1}}/>
             {seq.map((entry, i) => {
@@ -100,10 +104,10 @@ export function TodayDutyCard({shift, label, accentColor, defaultExpanded=true})
                   <div style={{width:16,height:16,borderRadius:"50%",background:dot,flexShrink:0,marginTop:2,boxShadow:`0 0 6px ${dot}66`,zIndex:1}}/>
                   <div style={{flex:1,minWidth:0}}>
                     <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
-                      <span style={{color:color,fontSize:16,fontWeight:800,fontVariantNumeric:"tabular-nums"}}>{time}</span>
-                      {eLabel&&<span style={{background:`${dot}22`,color:dot,borderRadius:5,padding:"1px 7px",fontSize:11,fontWeight:700,letterSpacing:0.5}}>{eLabel}</span>}
+                      <span style={{color:color,fontSize:"1rem",fontWeight:800,fontVariantNumeric:"tabular-nums"}}>{time}</span>
+                      {eLabel&&<span style={{background:`${dot}22`,color:dot,borderRadius:5,padding:"1px 7px",fontSize:"0.6875rem",fontWeight:700,letterSpacing:0.5}}>{eLabel}</span>}
                     </div>
-                    <p style={{color:MUTED,fontSize:13,margin:"2px 0 0",lineHeight:1.3}}>{rest}</p>
+                    <p style={{color:MUTED,fontSize:"0.8125rem",margin:"2px 0 0",lineHeight:1.3}}>{rest}</p>
                   </div>
                 </div>
               );
@@ -114,7 +118,7 @@ export function TodayDutyCard({shift, label, accentColor, defaultExpanded=true})
 
       {expanded && seq.length === 0 && (
         <div style={{borderTop:`1px solid ${ac}22`,padding:"12px 18px 16px"}}>
-          <p style={{color:MUTED,fontSize:13,margin:0,textAlign:"center"}}>No running board available for this duty</p>
+          <p style={{color:MUTED,fontSize:"0.8125rem",margin:0,textAlign:"center"}}>No running board available for this duty</p>
         </div>
       )}
     </div>
@@ -126,9 +130,9 @@ function WeekHighlightsCard({highlights}) {
   if (!highlights || highlights.length === 0) return null;
   return (
     <div style={{background:CARD,border:`1px solid ${BORDER}`,borderRadius:14,padding:"14px 16px",marginBottom:12}}>
-      <p style={{color:MUTED,fontSize:10,textTransform:"uppercase",letterSpacing:1.5,fontWeight:700,margin:"0 0 8px"}}>This Week</p>
+      <p style={{color:MUTED,fontSize:"0.625rem",textTransform:"uppercase",letterSpacing:1.5,fontWeight:700,margin:"0 0 8px"}}>This Week</p>
       {highlights.map((h,i) => (
-        <p key={i} style={{color:TEXT,fontSize:14,fontWeight:600,margin:i<highlights.length-1?"0 0 4px":0}}>{h}</p>
+        <p key={i} style={{color:TEXT,fontSize:"0.875rem",fontWeight:600,margin:i<highlights.length-1?"0 0 4px":0}}>{h}</p>
       ))}
     </div>
   );
@@ -154,16 +158,16 @@ export function UpcomingDayCard({date, isToday, info, onLogDate}) {
     const departLocation = shiftDepartLocation(info.shift);
     body = (
       <>
-        <p style={{color:TEXT,fontSize:13,fontWeight:700,margin:"0 0 2px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{info.shift.roster}</p>
-        <p style={{color:MUTED,fontSize:11,margin:0}}>{info.shift.reportTime}–{info.shift.signOffTime}</p>
-        {departLocation && <p style={{color:ACCENT,fontSize:11,fontWeight:700,margin:"2px 0 0",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{departLocation}</p>}
+        <p style={{color:TEXT,fontSize:"0.8125rem",fontWeight:700,margin:"0 0 2px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{info.shift.roster}</p>
+        <p style={{color:MUTED,fontSize:"0.6875rem",margin:0}}>{info.shift.reportTime}–{info.shift.signOffTime}</p>
+        {departLocation && <p style={{color:ACCENT,fontSize:"0.6875rem",fontWeight:700,margin:"2px 0 0",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{departLocation}</p>}
       </>
     );
   } else if (info.status === "dayoff") {
     const isRest = info.dayOff.type === "Rest Day";
-    body = <p style={{color:isRest?DANGER:ACCENT,fontSize:12,fontWeight:700,margin:0}}>{info.dayOff.type}</p>;
+    body = <p style={{color:isRest?DANGER:ACCENT,fontSize:"0.75rem",fontWeight:700,margin:0}}>{info.dayOff.type}</p>;
   } else {
-    body = <p style={{color:MUTED,fontSize:12,margin:0}}>Not logged yet</p>;
+    body = <p style={{color:MUTED,fontSize:"0.75rem",margin:0}}>Not logged yet</p>;
   }
   const isRestDayCard = info.status === "dayoff" && info.dayOff.type === "Rest Day";
   const clickable = info.status === "unlogged" || isRestDayCard;
@@ -175,10 +179,10 @@ export function UpcomingDayCard({date, isToday, info, onLogDate}) {
         padding:"10px 10px", flex:"0 0 calc(33.333% - 6px)", textAlign:"center",
         scrollSnapAlign:"start", cursor:clickable?"pointer":"default", position:"relative"
       }}>
-      <p style={{color:isToday?ACCENT:MUTED,fontSize:10,textTransform:"uppercase",letterSpacing:0.5,fontWeight:700,margin:"0 0 2px",paddingRight:clickable?20:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{dayLabel} {dateLabel}</p>
+      <p style={{color:isToday?ACCENT:MUTED,fontSize:"0.625rem",textTransform:"uppercase",letterSpacing:0.5,fontWeight:700,margin:"0 0 2px",paddingRight:clickable?20:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{dayLabel} {dateLabel}</p>
       {body}
       {clickable && (
-        <div aria-hidden="true" style={{position:"absolute",top:6,right:6,width:16,height:16,borderRadius:"50%",background:ACCENT,color:"#07090F",fontSize:12,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1}}>+</div>
+        <div aria-hidden="true" style={{position:"absolute",top:6,right:6,width:16,height:16,borderRadius:"50%",background:ACCENT,color:"#07090F",fontSize:"0.75rem",fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1}}>+</div>
       )}
     </div>
   );
@@ -209,7 +213,7 @@ export function UpcomingCarousel({periods, activePeriodId, todayDate, onLogDate}
 
   return (
     <div style={{marginBottom:12}}>
-      <p style={{color:MUTED,fontSize:10,textTransform:"uppercase",letterSpacing:1.5,fontWeight:700,margin:"0 0 6px"}}>Upcoming</p>
+      <p style={{color:MUTED,fontSize:"0.625rem",textTransform:"uppercase",letterSpacing:1.5,fontWeight:700,margin:"0 0 6px"}}>Upcoming</p>
       <div style={{display:"flex",alignItems:"center",gap:6}}>
         <button aria-label="Earlier days" onClick={()=>scrollByCard(-1)} style={carouselArrowStyle}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={MUTED} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
@@ -327,24 +331,24 @@ export function HomeScreen({period, periods, alerts, onViewAlerts, driverFirstNa
           <div style={{flex:1,minWidth:0}}>
             {driverFirstName ? (
               <>
-                <p style={{color:TEXT,fontSize:15,fontWeight:700,margin:"0 0 4px",display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+                <p style={{color:TEXT,fontSize:"0.9375rem",fontWeight:700,margin:"0 0 4px",display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
                   <span>{greetingTimeBand()}, {driverFirstName} — {dutyContext}.</span>
                   {weather && <WeatherChip tempC={weather.tempC} iconKind={weatherIconKind(weather.code)}/>}
                 </p>
                 {shiftStreak >= 2 && (
-                  <p style={{color:ACCENT,fontSize:12,fontWeight:600,margin:"0 0 4px"}}>{shiftStreak} shifts logged in a row — nice work.</p>
+                  <p style={{color:ACCENT,fontSize:"0.75rem",fontWeight:600,margin:"0 0 4px"}}>{shiftStreak} shifts logged in a row — nice work.</p>
                 )}
               </>
             ) : (
-              <p style={{color:MUTED,fontSize:11,margin:"0 0 4px",textTransform:"uppercase",letterSpacing:2,fontWeight:600,display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+              <p style={{color:MUTED,fontSize:"0.6875rem",margin:"0 0 4px",textTransform:"uppercase",letterSpacing:2,fontWeight:600,display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
                 <span>Shift Tracker</span>
                 {weather && <WeatherChip tempC={weather.tempC} iconKind={weatherIconKind(weather.code)}/>}
               </p>
             )}
-            <p style={{color:TEXT,fontSize:22,fontWeight:800,margin:0,letterSpacing:"-0.5px"}}>
+            <p style={{color:TEXT,fontSize:"1.375rem",fontWeight:800,margin:0,letterSpacing:"-0.5px"}}>
               {fmtShort(period.startDate)} <span style={{color:MUTED,fontWeight:400}}>—</span> {fmtShort(addDays(period.startDate,34))}
             </p>
-            <p style={{color:MUTED,fontSize:12,margin:"4px 0 0"}}>Week {wi+1} of 5 · {fmtShort(cw.start)} – {fmtShort(cw.end)}</p>
+            <p style={{color:MUTED,fontSize:"0.75rem",margin:"4px 0 0"}}>Week {wi+1} of 5 · {fmtShort(cw.start)} – {fmtShort(cw.end)}</p>
           </div>
           <SettingsButton onClick={onOpenSettings}/>
         </div>
@@ -370,8 +374,8 @@ export function HomeScreen({period, periods, alerts, onViewAlerts, driverFirstNa
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={SUCCESS} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12.5l2.5 2.5L16 9"/></svg>
               </div>
               <div style={{flex:1}}>
-                <p style={{color:TEXT,fontSize:14,fontWeight:700,margin:"0 0 2px"}}>Resting today</p>
-                <p style={{color:MUTED,fontSize:12,margin:0}}>Scheduled rest day — nothing to log</p>
+                <p style={{color:TEXT,fontSize:"0.875rem",fontWeight:700,margin:"0 0 2px"}}>Resting today</p>
+                <p style={{color:MUTED,fontSize:"0.75rem",margin:0}}>Scheduled rest day — nothing to log</p>
               </div>
             </div>
           ) : (
@@ -380,8 +384,8 @@ export function HomeScreen({period, periods, alerts, onViewAlerts, driverFirstNa
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={SUCCESS} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12.5l2.5 2.5L16 9"/></svg>
               </div>
               <div style={{flex:1}}>
-                <p style={{color:TEXT,fontSize:14,fontWeight:700,margin:"0 0 2px"}}>{todayDayOff.type} today</p>
-                <p style={{color:MUTED,fontSize:12,margin:0}}>Logged as {todayDayOff.type} — nothing to log</p>
+                <p style={{color:TEXT,fontSize:"0.875rem",fontWeight:700,margin:"0 0 2px"}}>{todayDayOff.type} today</p>
+                <p style={{color:MUTED,fontSize:"0.75rem",margin:0}}>Logged as {todayDayOff.type} — nothing to log</p>
               </div>
             </div>
           )
@@ -391,8 +395,8 @@ export function HomeScreen({period, periods, alerts, onViewAlerts, driverFirstNa
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={ACCENT} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
             </div>
             <div style={{flex:1}}>
-              <p style={{color:TEXT,fontSize:14,fontWeight:700,margin:"0 0 2px"}}>No duty logged for today</p>
-              <p style={{color:MUTED,fontSize:12,margin:0}}>Log today's shift or look up your duty below</p>
+              <p style={{color:TEXT,fontSize:"0.875rem",fontWeight:700,margin:"0 0 2px"}}>No duty logged for today</p>
+              <p style={{color:MUTED,fontSize:"0.75rem",margin:0}}>Log today's shift or look up your duty below</p>
             </div>
           </div>
         )}
@@ -415,18 +419,18 @@ export function HomeScreen({period, periods, alerts, onViewAlerts, driverFirstNa
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={ACCENT} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
             </div>
             <div style={{flex:1,minWidth:0}}>
-              <p style={{color:TEXT,fontSize:13.5,fontWeight:700,margin:"0 0 3px"}}>Get a nudge when your break ends</p>
-              <p style={{color:MUTED,fontSize:12,margin:"0 0 10px",lineHeight:1.5}}>We can remind you when your break's about to finish, and if you haven't logged a shift by evening. Off by default until you say yes.</p>
+              <p style={{color:TEXT,fontSize:"0.84375rem",fontWeight:700,margin:"0 0 3px"}}>Get a nudge when your break ends</p>
+              <p style={{color:MUTED,fontSize:"0.75rem",margin:"0 0 10px",lineHeight:1.5}}>We can remind you when your break's about to finish, and if you haven't logged a shift by evening. Off by default until you say yes.</p>
               <div style={{display:"flex",gap:8}}>
-                <button onClick={acceptNotifPrompt} style={{background:ACCENT,color:"#07090F",border:"none",borderRadius:8,padding:"8px 14px",fontSize:12.5,fontWeight:700,cursor:"pointer"}}>Turn on</button>
-                <button onClick={declineNotifPrompt} style={{background:"none",color:MUTED,border:`1px solid ${BORDER}`,borderRadius:8,padding:"8px 14px",fontSize:12.5,fontWeight:600,cursor:"pointer"}}>Not now</button>
+                <button onClick={acceptNotifPrompt} style={{background:ACCENT,color:"#07090F",border:"none",borderRadius:8,padding:"8px 14px",fontSize:"0.78125rem",fontWeight:700,cursor:"pointer"}}>Turn on</button>
+                <button onClick={declineNotifPrompt} style={{background:"none",color:MUTED,border:`1px solid ${BORDER}`,borderRadius:8,padding:"8px 14px",fontSize:"0.78125rem",fontWeight:600,cursor:"pointer"}}>Not now</button>
               </div>
             </div>
           </div>
         )}
 
         {/* Quick action */}
-        <button style={{...btnStyle,fontSize:16,padding:"16px 20px",borderRadius:14,textAlign:"left",marginBottom:12}} onClick={onLog}>
+        <button style={{...btnStyle,fontSize:"1rem",padding:"16px 20px",borderRadius:14,textAlign:"left",marginBottom:12}} onClick={onLog}>
           + Log a Shift
         </button>
 
@@ -438,14 +442,14 @@ export function HomeScreen({period, periods, alerts, onViewAlerts, driverFirstNa
         {/* Remaining hours + week totals */}
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
           <div style={{background:CARD,border:`1px solid ${BORDER}`,borderRadius:14,padding:"14px 16px"}}>
-            <p style={{color:MUTED,fontSize:10,textTransform:"uppercase",letterSpacing:1.5,fontWeight:700,margin:"0 0 4px"}}>Remaining</p>
-            <p style={{color:remainingHrs<20?DANGER:remainingHrs<40?"#F59E0B":TEXT,fontSize:22,fontWeight:800,margin:0,letterSpacing:"-0.5px"}}>{fmtHrs(remainingHrs)}</p>
-            <p style={{color:MUTED,fontSize:11,margin:"2px 0 0"}}>of 190h 4m</p>
+            <p style={{color:MUTED,fontSize:"0.625rem",textTransform:"uppercase",letterSpacing:1.5,fontWeight:700,margin:"0 0 4px"}}>Remaining</p>
+            <p style={{color:remainingHrs<20?DANGER:remainingHrs<40?"#F59E0B":TEXT,fontSize:"1.375rem",fontWeight:800,margin:0,letterSpacing:"-0.5px"}}>{fmtHrs(remainingHrs)}</p>
+            <p style={{color:MUTED,fontSize:"0.6875rem",margin:"2px 0 0"}}>of 190h 4m</p>
           </div>
           <div style={{background:CARD,border:`1px solid ${BORDER}`,borderRadius:14,padding:"14px 16px"}}>
-            <p style={{color:MUTED,fontSize:10,textTransform:"uppercase",letterSpacing:1.5,fontWeight:700,margin:"0 0 4px"}}>This week</p>
-            <p style={{color:TEXT,fontSize:22,fontWeight:800,margin:0,letterSpacing:"-0.5px"}}>{fmtHrs(cw.total)}</p>
-            {cw.sunday>0&&<p style={{color:SUCCESS,fontSize:11,margin:"2px 0 0"}}>Sun {fmtHrs(cw.sunday)}</p>}
+            <p style={{color:MUTED,fontSize:"0.625rem",textTransform:"uppercase",letterSpacing:1.5,fontWeight:700,margin:"0 0 4px"}}>This week</p>
+            <p style={{color:TEXT,fontSize:"1.375rem",fontWeight:800,margin:0,letterSpacing:"-0.5px"}}>{fmtHrs(cw.total)}</p>
+            {cw.sunday>0&&<p style={{color:SUCCESS,fontSize:"0.6875rem",margin:"2px 0 0"}}>Sun {fmtHrs(cw.sunday)}</p>}
           </div>
         </div>
 
@@ -457,41 +461,41 @@ export function HomeScreen({period, periods, alerts, onViewAlerts, driverFirstNa
               border:`1px solid ${i===wi?ACCENT:BORDER}`,
               borderRadius:12, padding:"10px 4px", textAlign:"center", cursor:"pointer"
             }}>
-              <p style={{color:i===wi?ACCENT:MUTED,fontSize:11,margin:"0 0 4px",fontWeight:700,textTransform:"uppercase",letterSpacing:0.5}}>W{i+1}</p>
-              <p style={{color:w.total>0?TEXT:MUTED,fontWeight:700,fontSize:14,margin:0}}>{w.total>0?fmtHrs(w.total):"–"}</p>
-              {w.sunday>0&&<p style={{color:SUCCESS,fontSize:10.5,margin:"2px 0 0"}}>{fmtHrs(w.sunday)}</p>}
+              <p style={{color:i===wi?ACCENT:MUTED,fontSize:"0.6875rem",margin:"0 0 4px",fontWeight:700,textTransform:"uppercase",letterSpacing:0.5}}>W{i+1}</p>
+              <p style={{color:w.total>0?TEXT:MUTED,fontWeight:700,fontSize:"0.875rem",margin:0}}>{w.total>0?fmtHrs(w.total):"–"}</p>
+              {w.sunday>0&&<p style={{color:SUCCESS,fontSize:"0.65625rem",margin:"2px 0 0"}}>{fmtHrs(w.sunday)}</p>}
             </div>
           ))}
         </div>
 
         {/* Period compliance */}
         <div style={{background:CARD,border:`1px solid ${BORDER}`,borderRadius:16,padding:"16px 18px"}}>
-          <p style={{color:MUTED,fontSize:10,textTransform:"uppercase",letterSpacing:1.5,fontWeight:700,margin:"0 0 14px"}}>Period limits</p>
+          <p style={{color:MUTED,fontSize:"0.625rem",textTransform:"uppercase",letterSpacing:1.5,fontWeight:700,margin:"0 0 14px"}}>Period limits</p>
           <div style={{marginBottom:14}}>
             <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
-              <span style={{color:MUTED,fontSize:13}}>Total hours</span>
-              <span style={{color:stats.total>MAX_HOURS?DANGER:ACCENT,fontWeight:700,fontSize:13}}>{fmtHrs(stats.total)} <span style={{color:MUTED,fontWeight:400,fontSize:11}}>/ 190h 4m</span></span>
+              <span style={{color:MUTED,fontSize:"0.8125rem"}}>Total hours</span>
+              <span style={{color:stats.total>MAX_HOURS?DANGER:ACCENT,fontWeight:700,fontSize:"0.8125rem"}}>{fmtHrs(stats.total)} <span style={{color:MUTED,fontWeight:400,fontSize:"0.6875rem"}}>/ 190h 4m</span></span>
             </div>
             <div style={{background:BORDER,borderRadius:4,height:5}}>
               <div style={{width:"100%",transform:`scaleX(${totalPct/100})`,transformOrigin:"left",background:stats.total>MAX_HOURS?DANGER:totalPct>80?"#F59E0B":SUCCESS,height:5,borderRadius:4,transition:"transform 0.4s"}}/>
             </div>
-            {stats.total>MAX_HOURS && <p style={{color:DANGER,fontSize:11,margin:"6px 0 0",fontWeight:600}}>Limit exceeded</p>}
+            {stats.total>MAX_HOURS && <p style={{color:DANGER,fontSize:"0.6875rem",margin:"6px 0 0",fontWeight:600}}>Limit exceeded</p>}
           </div>
           <div style={{marginBottom:14}}>
             <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
-              <span style={{color:MUTED,fontSize:13}}>Sunday hours</span>
-              <span style={{color:stats.sunday>MAX_SUNDAY?DANGER:SUCCESS,fontWeight:700,fontSize:13}}>{fmtHrs(stats.sunday)} <span style={{color:MUTED,fontWeight:400,fontSize:11}}>/ 14h 30m</span></span>
+              <span style={{color:MUTED,fontSize:"0.8125rem"}}>Sunday hours</span>
+              <span style={{color:stats.sunday>MAX_SUNDAY?DANGER:SUCCESS,fontWeight:700,fontSize:"0.8125rem"}}>{fmtHrs(stats.sunday)} <span style={{color:MUTED,fontWeight:400,fontSize:"0.6875rem"}}>/ 14h 30m</span></span>
             </div>
             <div style={{background:BORDER,borderRadius:4,height:5}}>
               <div style={{width:"100%",transform:`scaleX(${sunPct/100})`,transformOrigin:"left",background:stats.sunday>MAX_SUNDAY?DANGER:sunPct>80?"#F59E0B":SUCCESS,height:5,borderRadius:4,transition:"transform 0.4s"}}/>
             </div>
-            {stats.sunday>MAX_SUNDAY && <p style={{color:DANGER,fontSize:11,margin:"6px 0 0",fontWeight:600}}>Limit exceeded</p>}
+            {stats.sunday>MAX_SUNDAY && <p style={{color:DANGER,fontSize:"0.6875rem",margin:"6px 0 0",fontWeight:600}}>Limit exceeded</p>}
           </div>
           {stats.overtime>0 && (
             <div style={{marginTop:14}}>
               <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
-                <span style={{color:MUTED,fontSize:13}}>Overtime</span>
-                <span style={{color:"#F59E0B",fontWeight:700,fontSize:13}}>{fmtHrs(stats.overtime)} <span style={{color:MUTED,fontWeight:400,fontSize:11}}>not counted toward limit</span></span>
+                <span style={{color:MUTED,fontSize:"0.8125rem"}}>Overtime</span>
+                <span style={{color:"#F59E0B",fontWeight:700,fontSize:"0.8125rem"}}>{fmtHrs(stats.overtime)} <span style={{color:MUTED,fontWeight:400,fontSize:"0.6875rem"}}>not counted toward limit</span></span>
               </div>
               <div style={{background:BORDER,borderRadius:4,height:5}}>
                 <div style={{width:"100%",background:"#F59E0B44",height:5,borderRadius:4}}/>
