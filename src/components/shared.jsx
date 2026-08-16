@@ -37,9 +37,9 @@ export function SettingsButton({onClick}) {
 export function HeaderAlertButton({count, onClick}) {
   if (!count) return null;
   return (
-    <button aria-label={`${count} active alert${count!==1?"s":""} for your garage`} onClick={onClick} style={{position:"relative",background:`${ALERT_COLOR}1a`,border:`1px solid ${ALERT_COLOR}66`,color:ALERT_COLOR,borderRadius:10,width:44,height:44,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",padding:0,flexShrink:0}}>
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={ALERT_COLOR} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-      <span style={{position:"absolute",top:-5,right:-5,minWidth:16,height:16,padding:"0 3px",borderRadius:999,background:ALERT_COLOR,color:"#07090F",fontSize:"0.625rem",fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1}}>{count}</span>
+    <button aria-label={`${count} active diversion${count!==1?"s":""} for your garage`} onClick={onClick} style={{background:`${ALERT_COLOR}1a`,border:`1px solid ${ALERT_COLOR}66`,color:ALERT_COLOR,borderRadius:10,height:44,padding:"0 12px",cursor:"pointer",display:"flex",alignItems:"center",gap:6,flexShrink:0}}>
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke={ALERT_COLOR} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink:0}}><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      <span style={{fontSize:"0.8125rem",fontWeight:700,whiteSpace:"nowrap"}}>{count} Diversion{count!==1?"s":""}</span>
     </button>
   );
 }
@@ -246,6 +246,76 @@ export function RouteAlertCard({alert}) {
   );
 }
 
+// Pinch-to-zoom / double-tap-to-zoom / scroll-wheel-zoom image, panned by
+// drag once zoomed in. Base state fits the whole map in view (so the
+// overview + legend read at a glance); zooming in is what makes street
+// names legible. Plain <img width:100%,height:auto> before this had no
+// zoom at all -- fine for a quick glance, useless for reading fine detail.
+function ZoomableImage({src, alt}) {
+  const [scale, setScale] = useState(1);
+  const [pos, setPos] = useState({x:0,y:0});
+  const pointers = useRef(new Map());
+  const gesture = useRef(null); // {mode:"pinch", startDist, startScale} | {mode:"pan", startX, startY, startPos}
+
+  const clampScale = (s) => Math.min(5, Math.max(1, s));
+
+  function onPointerDown(e) {
+    e.currentTarget.setPointerCapture(e.pointerId);
+    pointers.current.set(e.pointerId, {x:e.clientX, y:e.clientY});
+    if (pointers.current.size === 2) {
+      const [a,b] = [...pointers.current.values()];
+      gesture.current = {mode:"pinch", startDist:Math.hypot(a.x-b.x,a.y-b.y), startScale:scale};
+    } else if (pointers.current.size === 1 && scale > 1) {
+      gesture.current = {mode:"pan", startX:e.clientX, startY:e.clientY, startPos:pos};
+    }
+  }
+  function onPointerMove(e) {
+    if (!pointers.current.has(e.pointerId)) return;
+    pointers.current.set(e.pointerId, {x:e.clientX, y:e.clientY});
+    if (gesture.current?.mode === "pinch" && pointers.current.size === 2) {
+      const [a,b] = [...pointers.current.values()];
+      const dist = Math.hypot(a.x-b.x,a.y-b.y);
+      const next = clampScale(gesture.current.startScale * (dist/gesture.current.startDist));
+      setScale(next);
+      if (next === 1) setPos({x:0,y:0});
+    } else if (gesture.current?.mode === "pan") {
+      setPos({x:gesture.current.startPos.x + (e.clientX-gesture.current.startX), y:gesture.current.startPos.y + (e.clientY-gesture.current.startY)});
+    }
+  }
+  function endPointer(e) {
+    pointers.current.delete(e.pointerId);
+    if (pointers.current.size === 1 && scale > 1) {
+      const [[, p]] = pointers.current;
+      gesture.current = {mode:"pan", startX:p.x, startY:p.y, startPos:pos};
+    } else {
+      gesture.current = null;
+    }
+  }
+  function onDoubleClick() {
+    if (scale > 1) { setScale(1); setPos({x:0,y:0}); } else { setScale(2.5); }
+  }
+  function onWheel(e) {
+    e.preventDefault();
+    const next = clampScale(scale + (e.deltaY < 0 ? 0.3 : -0.3));
+    setScale(next);
+    if (next === 1) setPos({x:0,y:0});
+  }
+
+  return (
+    <div
+      onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={endPointer} onPointerCancel={endPointer}
+      onDoubleClick={onDoubleClick} onWheel={onWheel}
+      style={{width:"100%",height:"100%",overflow:"hidden",touchAction:"none",cursor:scale>1?"grab":"zoom-in",background:"#fff"}}
+    >
+      <img src={src} alt={alt} draggable={false} style={{
+        colorScheme:"light",display:"block",width:"100%",height:"100%",objectFit:"contain",
+        transform:`translate(${pos.x}px,${pos.y}px) scale(${scale})`, transformOrigin:"center center",
+        transition: gesture.current ? "none" : "transform 0.15s ease-out",
+      }}/>
+    </div>
+  );
+}
+
 // Full-screen diversion/roadworks map viewer, opened from a RouteAlertCard.
 // Same accessible-modal convention as ConfirmDialog below (focus trap,
 // Escape/backdrop-click to close) rather than a one-off pattern.
@@ -253,14 +323,15 @@ function MapModal({src, onClose}) {
   const ref = useModalA11y(onClose);
   return (
     <div onClick={onClose} style={{position:"fixed",inset:0,background:"#000000cc",display:"flex",alignItems:"center",justifyContent:"center",zIndex:200,padding:16}}>
-      {/* colorScheme:"light" on both the card and the image stops Android's
-          forced-dark-mode from auto-recoloring the map (it tints untagged
-          light images/SVGs blue-ish since it can't tell they're deliberately
-          light) -- real-map street tiles have no way to redraw for dark
-          mode, so opt them out instead of letting the OS mangle them. */}
-      <div ref={ref} role="dialog" aria-modal="true" aria-label="Diversion map" tabIndex={-1} onClick={(e) => e.stopPropagation()} style={{colorScheme:"light",position:"relative",width:"100%",maxWidth:640,maxHeight:"90vh",background:"#fff",borderRadius:14,overflow:"auto",outline:"none"}}>
+      {/* colorScheme:"light" on the card stops Android's forced-dark-mode
+          from auto-recoloring the map (it tints untagged light images/SVGs
+          blue-ish since it can't tell they're deliberately light) --
+          real-map street tiles have no way to redraw for dark mode, so opt
+          them out instead of letting the OS mangle them. */}
+      <div ref={ref} role="dialog" aria-modal="true" aria-label="Diversion map" tabIndex={-1} onClick={(e) => e.stopPropagation()} style={{colorScheme:"light",position:"relative",width:"100%",maxWidth:640,height:"85vh",background:"#fff",borderRadius:14,overflow:"hidden",outline:"none"}}>
         <button onClick={onClose} aria-label="Close map" style={{position:"absolute",top:10,right:10,width:32,height:32,borderRadius:999,background:"#1a1d23cc",border:"none",color:"#fff",fontSize:"1.125rem",lineHeight:1,cursor:"pointer",zIndex:1}}>×</button>
-        <img src={src} alt="Diversion map" style={{colorScheme:"light",display:"block",width:"100%",height:"auto"}}/>
+        <ZoomableImage src={src} alt="Diversion map"/>
+        <p style={{position:"absolute",bottom:8,left:0,right:0,textAlign:"center",color:"#7a7f87",fontSize:"0.6875rem",margin:0,pointerEvents:"none"}}>Pinch or double-tap to zoom</p>
       </div>
     </div>
   );
