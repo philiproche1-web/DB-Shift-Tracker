@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { isActiveOn, alertsForZone, fetchRouteAlerts } from "./routeAlerts.js";
+import { isActiveOn, alertsForZone, alertWindowLabel, fetchRouteAlerts } from "./routeAlerts.js";
 
 beforeEach(() => { localStorage.clear(); });
 
@@ -28,6 +28,28 @@ describe("alertsForZone", () => {
   it("includes zone-matched and garage-wide alerts, excludes other zones and inactive dates", () => {
     const result = alertsForZone(alerts, "Zone 1", "2026-08-05");
     expect(result.map((a) => a.id)).toEqual(["1", "2"]);
+  });
+});
+
+describe("North Street, Swords diversion (41C / 33)", () => {
+  const zone1 = { zone: "Zone 1", type: "diversion", starts_on: "2026-08-11", ends_on: "2026-12-06" };
+  const skerries = { zone: "Skerries", type: "diversion", starts_on: "2026-08-11", ends_on: "2026-12-06" };
+
+  it("41C alert is live on Zone 1 for the full closure window, not before/after", () => {
+    expect(isActiveOn(zone1, "2026-08-10")).toBe(false);
+    expect(isActiveOn(zone1, "2026-08-11")).toBe(true);
+    expect(isActiveOn(zone1, "2026-12-06")).toBe(true);
+    expect(isActiveOn(zone1, "2026-12-07")).toBe(false);
+  });
+
+  it("33 alert only matches Skerries drivers, not Zone 1", () => {
+    const alerts = [zone1, skerries];
+    expect(alertsForZone(alerts, "Zone 1", "2026-09-01").map((a) => a.zone)).toEqual(["Zone 1"]);
+    expect(alertsForZone(alerts, "Skerries", "2026-09-01").map((a) => a.zone)).toEqual(["Skerries"]);
+  });
+
+  it("renders the closure window as a date range", () => {
+    expect(alertWindowLabel(zone1)).toBe("11 Aug – 6 Dec");
   });
 });
 
