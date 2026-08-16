@@ -25,6 +25,7 @@ import { TourOverlay } from "./screens/TourOverlay.jsx";
 import { GarageComingSoonScreen } from "./screens/GarageComingSoonScreen.jsx";
 import AuthScreen from "./screens/AuthScreen.jsx";
 import ResetPasswordScreen from "./screens/ResetPasswordScreen.jsx";
+import { BottomNav } from "./components/shared.jsx";
 
 const noop = () => {};
 const start = sundayOf(today());
@@ -111,6 +112,10 @@ function AuditHarness() {
         </label>
       </div>
       {SCREENS[screenName]}
+      {/* BottomNav is position:fixed in real usage (App.jsx renders it
+          alongside every screen) — included here too so Task 7's sweep
+          covers it, not just the screen bodies. */}
+      <BottomNav active="home" onChange={noop} />
     </div>
   );
 }
