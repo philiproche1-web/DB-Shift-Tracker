@@ -1,0 +1,64 @@
+<svg viewBox="0 0 800 620" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Diversion map: North Street, Swords closed. Routes 41C and 33 divert via Watery Lane and Bridge Street.">
+  <rect x="0" y="0" width="800" height="620" fill="#ffffff"/>
+
+  <!-- Info box -->
+  <g font-family="Arial, sans-serif">
+    <rect x="24" y="24" width="270" height="150" rx="10" fill="#f4f5f7" stroke="#c7cbd1" stroke-width="1.5"/>
+    <text x="42" y="54" font-size="17" font-weight="700" fill="#1a1d23">Road Closure</text>
+    <text x="42" y="76" font-size="14" fill="#3a3f47">North Street, Swords</text>
+    <text x="42" y="96" font-size="13" fill="#3a3f47">Inbound carriageway closed</text>
+    <text x="42" y="114" font-size="13" fill="#3a3f47">11 Aug – 6 Dec 2026</text>
+    <text x="42" y="140" font-size="13" font-weight="700" fill="#c0392b">Routes 41C &amp; 33 divert via</text>
+    <text x="42" y="158" font-size="13" font-weight="700" fill="#c0392b">Watery Lane &amp; Bridge Street</text>
+  </g>
+
+  <!-- Background street context (schematic, not to scale) -->
+  <g stroke="#d5d8dd" stroke-width="10" fill="none" stroke-linecap="round">
+    <path d="M 420 60 L 420 560"/>          <!-- North Street -->
+    <path d="M 420 200 L 620 90"/>          <!-- Glen Ellan Rd -->
+    <path d="M 420 560 L 640 620"/>         <!-- Seatown Rd -->
+  </g>
+  <g font-family="Arial, sans-serif" font-size="13" fill="#7a7f87">
+    <text x="432" y="330" transform="rotate(-90 432 330)">North Street</text>
+  </g>
+
+  <!-- Closed section, marked red -->
+  <path d="M 420 220 L 420 470" stroke="#c0392b" stroke-width="12" fill="none" stroke-linecap="round"/>
+  <g transform="translate(420,345)">
+    <circle r="22" fill="#c0392b"/>
+    <rect x="-14" y="-4" width="28" height="8" rx="2" fill="#ffffff"/>
+  </g>
+  <text x="440" y="349" font-family="Arial, sans-serif" font-size="13" font-weight="700" fill="#c0392b">Closed</text>
+
+  <!-- Diversion loop: Watery Lane (west) + Bridge Street (south), orange with arrows -->
+  <path id="diversion" d="M 420 200
+           C 260 200, 190 260, 190 350
+           C 190 460, 260 545, 380 560
+           L 620 610"
+        stroke="#e07b1a" stroke-width="9" fill="none" stroke-linecap="round" stroke-dasharray="2 16"/>
+
+  <!-- Arrowheads along the diversion -->
+  <g fill="#e07b1a">
+    <path d="M 240 222 l 22 -4 l -8 20 z"/>                     <!-- turning onto Watery Lane -->
+    <path d="M 188 400 l -14 18 l 22 4 z" transform="rotate(4 188 400)"/> <!-- heading south -->
+    <path d="M 300 552 l 4 -22 l 18 12 z"/>                     <!-- onto Bridge Street -->
+    <path d="M 560 597 l 8 -21 l 15 15 z"/>                     <!-- rejoining North Rd south -->
+  </g>
+
+  <g font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#a85c11">
+    <text x="205" y="270" transform="rotate(-78 205 270)">Watery Lane</text>
+    <text x="330" y="600">Bridge Street</text>
+  </g>
+
+  <!-- Route labels -->
+  <g font-family="Arial, sans-serif">
+    <rect x="600" y="70" width="90" height="34" rx="8" fill="#1a1d23"/>
+    <text x="645" y="92" font-size="15" font-weight="700" fill="#ffffff" text-anchor="middle">Route 33</text>
+
+    <rect x="310" y="70" width="100" height="34" rx="8" fill="#1a1d23"/>
+    <text x="360" y="92" font-size="15" font-weight="700" fill="#ffffff" text-anchor="middle">Route 41C</text>
+  </g>
+
+  <!-- North road (south end) label -->
+  <text x="560" y="608" font-family="Arial, sans-serif" font-size="13" fill="#7a7f87">back onto North Street</text>
+</svg>

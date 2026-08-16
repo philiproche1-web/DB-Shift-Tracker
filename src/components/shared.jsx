@@ -211,6 +211,7 @@ export const ALERT_COLOR = "#F59E0B"; // same amber already used for warning-tie
 export const ALERT_TYPE_LABEL = { diversion: "Diversion", roadworks: "Roadworks", other: "Notice" };
 
 export function RouteAlertCard({alert}) {
+  const [mapOpen, setMapOpen] = useState(false);
   return (
     <div style={{background:`${ALERT_COLOR}14`,border:`1px solid ${ALERT_COLOR}44`,borderRadius:12,padding:"12px 14px",marginBottom:10}}>
       <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
@@ -222,10 +223,26 @@ export function RouteAlertCard({alert}) {
       <p style={{color:MUTED,fontSize:"0.6875rem",margin:"0 0 6px",fontWeight:600}}>{alertWindowLabel(alert)}</p>
       <p style={{color:TEXT,fontSize:"0.8125rem",margin:"0 0 8px",lineHeight:1.5}}>{alert.description}</p>
       {alert.map_url && (
-        <a href={alert.map_url} target="_blank" rel="noopener noreferrer" style={{fontSize:"0.75rem",fontWeight:700,color:ALERT_COLOR,textDecoration:"none"}}>
+        <button onClick={() => setMapOpen(true)} style={{fontSize:"0.75rem",fontWeight:700,color:ALERT_COLOR,background:"none",border:"none",padding:0,cursor:"pointer"}}>
           View on map →
-        </a>
+        </button>
       )}
+      {mapOpen && <MapModal src={alert.map_url} onClose={() => setMapOpen(false)}/>}
+    </div>
+  );
+}
+
+// Full-screen diversion/roadworks map viewer, opened from a RouteAlertCard.
+// Same accessible-modal convention as ConfirmDialog below (focus trap,
+// Escape/backdrop-click to close) rather than a one-off pattern.
+function MapModal({src, onClose}) {
+  const ref = useModalA11y(onClose);
+  return (
+    <div onClick={onClose} style={{position:"fixed",inset:0,background:"#000000cc",display:"flex",alignItems:"center",justifyContent:"center",zIndex:200,padding:16}}>
+      <div ref={ref} role="dialog" aria-modal="true" aria-label="Diversion map" tabIndex={-1} onClick={(e) => e.stopPropagation()} style={{position:"relative",width:"100%",maxWidth:640,maxHeight:"90vh",background:"#fff",borderRadius:14,overflow:"auto",outline:"none"}}>
+        <button onClick={onClose} aria-label="Close map" style={{position:"absolute",top:10,right:10,width:32,height:32,borderRadius:999,background:"#1a1d23cc",border:"none",color:"#fff",fontSize:"1.125rem",lineHeight:1,cursor:"pointer",zIndex:1}}>×</button>
+        <img src={src} alt="Diversion map" style={{display:"block",width:"100%",height:"auto"}}/>
+      </div>
     </div>
   );
 }
