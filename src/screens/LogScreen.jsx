@@ -327,7 +327,11 @@ export function LogScreen({period, editShift, lookupDuty, initialDate, initialRe
                   background:active?ACCENT:CARD, color:active?"#07090F":MUTED,
                   border:`1px solid ${active?ACCENT:BORDER}`, borderRadius:10,
                   padding:"10px 6px", fontSize:"0.75rem", fontWeight:600, cursor:"pointer",
-                  textAlign:"center", lineHeight:1.3
+                  textAlign:"center", lineHeight:1.3, minWidth:0
+                  // minWidth:0 lets a 1fr column shrink below its label's
+                  // intrinsic width — without it, "CPC/Training" etc. push
+                  // this 3-column grid past the screen at large text sizes
+                  // instead of wrapping onto a second line.
                 }}>
                   {opt.label}
                   {opt.hours!=null && <div style={{fontSize:"0.625rem",fontWeight:400,opacity:0.85,marginTop:2}}>{fmtHrs(opt.hours)}</div>}
