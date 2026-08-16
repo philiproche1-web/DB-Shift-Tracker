@@ -43,13 +43,13 @@ export class ErrorBoundary extends Component {
         alignItems: "center", justifyContent: "center", padding: 24, textAlign: "center",
       }}>
         <div style={{ marginBottom: 20 }}><BusLogo size={56} /></div>
-        <p style={{ color: TEXT, fontSize: 17, fontWeight: 700, margin: "0 0 10px" }}>
+        <p style={{ color: TEXT, fontSize:"1.0625rem", fontWeight: 700, margin: "0 0 10px" }}>
           Something went wrong
         </p>
-        <p style={{ color: MUTED, fontSize: 14, margin: "0 0 4px", maxWidth: 320, lineHeight: 1.6 }}>
+        <p style={{ color: MUTED, fontSize:"0.875rem", margin: "0 0 4px", maxWidth: 320, lineHeight: 1.6 }}>
           The app hit a problem and couldn't finish loading this screen.
         </p>
-        <p style={{ color: MUTED, fontSize: 14, margin: "0 0 24px", maxWidth: 320, lineHeight: 1.6 }}>
+        <p style={{ color: MUTED, fontSize:"0.875rem", margin: "0 0 24px", maxWidth: 320, lineHeight: 1.6 }}>
           <strong style={{ color: TEXT }}>Your shifts and leave are safe</strong> — they're stored on
           this phone and on your account, and nothing here has changed them.
         </p>
@@ -57,18 +57,18 @@ export class ErrorBoundary extends Component {
           onClick={() => window.location.reload()}
           style={{
             background: ACCENT, color: "#07090F", border: "none", borderRadius: 12,
-            padding: "16px 20px", fontSize: 16, fontWeight: 800, cursor: "pointer",
+            padding: "16px 20px", fontSize:"1rem", fontWeight: 800, cursor: "pointer",
             width: "100%", maxWidth: 280, letterSpacing: "0.3px",
           }}
         >
           Reload the app
         </button>
         <details style={{ marginTop: 28, maxWidth: 320, width: "100%" }}>
-          <summary style={{ color: MUTED, fontSize: 12, cursor: "pointer" }}>
+          <summary style={{ color: MUTED, fontSize:"0.75rem", cursor: "pointer" }}>
             Details to report
           </summary>
           <p style={{
-            color: DANGER, fontSize: 11, margin: "10px 0 0", wordBreak: "break-word",
+            color: DANGER, fontSize:"0.6875rem", margin: "10px 0 0", wordBreak: "break-word",
             fontFamily: "monospace", textAlign: "left", lineHeight: 1.5,
           }}>
             {message}

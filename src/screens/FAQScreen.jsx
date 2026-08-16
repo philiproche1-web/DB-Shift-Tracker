@@ -65,10 +65,10 @@ function FAQItem({ q, a }) {
   return (
     <div style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 12, marginBottom: 8, overflow: "hidden" }}>
       <div onClick={() => setOpen(!open)} style={{ padding: "14px 16px", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
-        <p style={{ color: TEXT, fontSize: 14, fontWeight: 600, margin: 0 }}>{q}</p>
-        <span style={{ color: MUTED, fontSize: 16, flexShrink: 0, lineHeight: 1 }}>{open ? "−" : "+"}</span>
+        <p style={{ color: TEXT, fontSize:"0.875rem", fontWeight: 600, margin: 0 }}>{q}</p>
+        <span style={{ color: MUTED, fontSize:"1rem", flexShrink: 0, lineHeight: 1 }}>{open ? "−" : "+"}</span>
       </div>
-      {open && <p style={{ color: MUTED, fontSize: 13, lineHeight: 1.6, margin: "0 16px 14px" }}>{a}</p>}
+      {open && <p style={{ color: MUTED, fontSize:"0.8125rem", lineHeight: 1.6, margin: "0 16px 14px" }}>{a}</p>}
     </div>
   );
 }
@@ -88,15 +88,15 @@ export function FAQScreen({ onClose, initialCategory }) {
   return (
     <div style={{ background: BG, height: "100vh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
       <div style={{ padding: "32px 20px 16px", background: `linear-gradient(180deg,${CARD2} 0%,${BG} 100%)` }}>
-        <p style={{ color: ACCENT, fontSize: 11, textTransform: "uppercase", letterSpacing: 2, fontWeight: 700, margin: "0 0 6px" }}>Reference</p>
-        <h1 style={{ color: TEXT, fontSize: 24, fontWeight: 800, margin: "0 0 4px", letterSpacing: "-0.5px" }}>FAQ</h1>
-        <p style={{ color: MUTED, fontSize: 13, margin: 0 }}>Common questions from drivers new to the app</p>
+        <p style={{ color: ACCENT, fontSize:"0.6875rem", textTransform: "uppercase", letterSpacing: 2, fontWeight: 700, margin: "0 0 6px" }}>Reference</p>
+        <h1 style={{ color: TEXT, fontSize:"1.5rem", fontWeight: 800, margin: "0 0 4px", letterSpacing: "-0.5px" }}>FAQ</h1>
+        <p style={{ color: MUTED, fontSize:"0.8125rem", margin: 0 }}>Common questions from drivers new to the app</p>
       </div>
 
       <div style={{ flex: 1, overflowY: "auto", padding: "8px 16px 16px" }}>
         {FAQ_CATEGORIES.map(cat => (
           <div key={cat.key} ref={el => (sectionRefs.current[cat.key] = el)} style={{ marginBottom: 20 }}>
-            <p style={{ color: MUTED, fontSize: 11, textTransform: "uppercase", letterSpacing: 1.5, fontWeight: 700, margin: "0 0 10px" }}>{cat.label}</p>
+            <p style={{ color: MUTED, fontSize:"0.6875rem", textTransform: "uppercase", letterSpacing: 1.5, fontWeight: 700, margin: "0 0 10px" }}>{cat.label}</p>
             {cat.items.map((item, i) => <FAQItem key={i} q={item.q} a={item.a} />)}
           </div>
         ))}

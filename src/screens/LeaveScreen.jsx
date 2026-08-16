@@ -5,19 +5,19 @@ import { SettingsButton } from "../components/shared.jsx";
 
 // ─── LEAVE SCREEN HELPERS ─────────────────────────────────────────────────────
 export function DayList({items, emptyMsg, onEdit, onDelete}) {
-  if(items.length===0) return <p style={{color:MUTED,fontSize:13,margin:"8px 0 0",lineHeight:1.5}}>{emptyMsg}</p>;
+  if(items.length===0) return <p style={{color:MUTED,fontSize:"0.8125rem",margin:"8px 0 0",lineHeight:1.5}}>{emptyMsg}</p>;
   return (
     <div style={{marginTop:10,display:"flex",flexDirection:"column",gap:4}}>
       {items.map((d,i)=>(
         <div key={d.id||i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 0",borderBottom:i<items.length-1?`1px solid ${BORDER}`:undefined}}>
           <div>
-            <span style={{color:TEXT,fontSize:13}}>{fmtDate(d.date)}</span>
-            <span style={{color:MUTED,fontSize:12,marginLeft:8}}>{new Date(d.date+"T00:00:00").toLocaleDateString("en-IE",{weekday:"short"})}</span>
+            <span style={{color:TEXT,fontSize:"0.8125rem"}}>{fmtDate(d.date)}</span>
+            <span style={{color:MUTED,fontSize:"0.75rem",marginLeft:8}}>{new Date(d.date+"T00:00:00").toLocaleDateString("en-IE",{weekday:"short"})}</span>
           </div>
           {onDelete && (
             <div style={{display:"flex",gap:6,flexShrink:0}}>
-              {onEdit && <button onClick={()=>onEdit(d)} style={{background:"none",border:`1px solid ${ACCENT}`,color:ACCENT,borderRadius:8,padding:"5px 10px",fontSize:12,fontWeight:600,cursor:"pointer"}}>Edit</button>}
-              <button onClick={()=>onDelete(d.id)} style={{background:"none",border:`1px solid ${DANGER}`,color:DANGER,borderRadius:8,padding:"5px 10px",fontSize:12,fontWeight:600,cursor:"pointer"}}>Del</button>
+              {onEdit && <button onClick={()=>onEdit(d)} style={{background:"none",border:`1px solid ${ACCENT}`,color:ACCENT,borderRadius:8,padding:"5px 10px",fontSize:"0.75rem",fontWeight:600,cursor:"pointer"}}>Edit</button>}
+              <button onClick={()=>onDelete(d.id)} style={{background:"none",border:`1px solid ${DANGER}`,color:DANGER,borderRadius:8,padding:"5px 10px",fontSize:"0.75rem",fontWeight:600,cursor:"pointer"}}>Del</button>
             </div>
           )}
         </div>
@@ -43,21 +43,21 @@ export function LeaveCard({title, subtitle, note, color, used, total, remaining,
           <div style={{display:"flex",alignItems:"center",gap:10}}>
             <TrafficDot color={color}/>
             <div>
-              <p style={{color:TEXT,fontSize:15,fontWeight:700,margin:0}}>{title}</p>
-              {subtitle&&<p style={{color:MUTED,fontSize:12,margin:"2px 0 0"}}>{subtitle}</p>}
-              {note&&<p style={{color:MUTED,fontSize:12,margin:"4px 0 0",lineHeight:1.4}}>{note}</p>}
+              <p style={{color:TEXT,fontSize:"0.9375rem",fontWeight:700,margin:0}}>{title}</p>
+              {subtitle&&<p style={{color:MUTED,fontSize:"0.75rem",margin:"2px 0 0"}}>{subtitle}</p>}
+              {note&&<p style={{color:MUTED,fontSize:"0.75rem",margin:"4px 0 0",lineHeight:1.4}}>{note}</p>}
             </div>
           </div>
           <div style={{textAlign:"right"}}>
             {total!==undefined ? (
               <>
-                <p style={{color:color,fontSize:18,fontWeight:800,margin:0}}>{remaining} <span style={{color:MUTED,fontSize:12,fontWeight:400}}>left</span></p>
-                <p style={{color:MUTED,fontSize:11,margin:"1px 0 0"}}>{used} of {total} used</p>
+                <p style={{color:color,fontSize:"1.125rem",fontWeight:800,margin:0}}>{remaining} <span style={{color:MUTED,fontSize:"0.75rem",fontWeight:400}}>left</span></p>
+                <p style={{color:MUTED,fontSize:"0.6875rem",margin:"1px 0 0"}}>{used} of {total} used</p>
               </>
             ) : (
-              <p style={{color:color,fontSize:18,fontWeight:800,margin:0}}>{used} <span style={{color:MUTED,fontSize:12,fontWeight:400}}>{usedLabel}</span></p>
+              <p style={{color:color,fontSize:"1.125rem",fontWeight:800,margin:0}}>{used} <span style={{color:MUTED,fontSize:"0.75rem",fontWeight:400}}>{usedLabel}</span></p>
             )}
-            <span style={{color:MUTED,fontSize:11,display:"block",marginTop:3}}>{open?"▲ hide":"▼ dates"}</span>
+            <span style={{color:MUTED,fontSize:"0.6875rem",display:"block",marginTop:3}}>{open?"▲ hide":"▼ dates"}</span>
           </div>
         </div>
       </div>
@@ -78,14 +78,14 @@ export function SelfCertCard({scH1, scH2, scColor, onEdit, onDelete}) {
           <div style={{display:"flex",alignItems:"center",gap:10}}>
             <TrafficDot color={scColor(Math.max(scH1.length,scH2.length))}/>
             <div>
-              <p style={{color:TEXT,fontSize:15,fontWeight:700,margin:0}}>Self Cert</p>
-              <p style={{color:MUTED,fontSize:12,margin:"2px 0 0"}}>2 days per half-year · resets 1 Jan &amp; 1 Jul</p>
-              <p style={{color:MUTED,fontSize:11,margin:"2px 0 0"}}>Can't be combined with rest days to create more than 2 consecutive days off (e.g. not the day before or after a weekend).</p>
+              <p style={{color:TEXT,fontSize:"0.9375rem",fontWeight:700,margin:0}}>Self Cert</p>
+              <p style={{color:MUTED,fontSize:"0.75rem",margin:"2px 0 0"}}>2 days per half-year · resets 1 Jan &amp; 1 Jul</p>
+              <p style={{color:MUTED,fontSize:"0.6875rem",margin:"2px 0 0"}}>Can't be combined with rest days to create more than 2 consecutive days off (e.g. not the day before or after a weekend).</p>
             </div>
           </div>
           <div style={{textAlign:"right"}}>
-            <p style={{color:TEXT,fontSize:18,fontWeight:800,margin:0}}>{totalUsed} <span style={{color:MUTED,fontSize:12,fontWeight:400}}>used</span></p>
-            <span style={{color:MUTED,fontSize:11,display:"block",marginTop:3}}>{open?"▲ hide":"▼ dates"}</span>
+            <p style={{color:TEXT,fontSize:"1.125rem",fontWeight:800,margin:0}}>{totalUsed} <span style={{color:MUTED,fontSize:"0.75rem",fontWeight:400}}>used</span></p>
+            <span style={{color:MUTED,fontSize:"0.6875rem",display:"block",marginTop:3}}>{open?"▲ hide":"▼ dates"}</span>
           </div>
         </div>
       </div>
@@ -96,18 +96,18 @@ export function SelfCertCard({scH1, scH2, scColor, onEdit, onDelete}) {
               <div key={label} style={{background:CARD2,borderRadius:12,padding:"12px 14px",border:`1px solid ${scColor(items.length)}44`}}>
                 <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
                   <TrafficDot color={scColor(items.length)}/>
-                  <p style={{color:TEXT,fontSize:13,fontWeight:700,margin:0}}>{label}</p>
+                  <p style={{color:TEXT,fontSize:"0.8125rem",fontWeight:700,margin:0}}>{label}</p>
                 </div>
-                <p style={{color:scColor(items.length),fontSize:22,fontWeight:800,margin:"0 0 1px"}}>{2-items.length} <span style={{color:MUTED,fontSize:12,fontWeight:400}}>left</span></p>
-                <p style={{color:MUTED,fontSize:11,margin:0}}>{items.length} of 2 used</p>
+                <p style={{color:scColor(items.length),fontSize:"1.375rem",fontWeight:800,margin:"0 0 1px"}}>{2-items.length} <span style={{color:MUTED,fontSize:"0.75rem",fontWeight:400}}>left</span></p>
+                <p style={{color:MUTED,fontSize:"0.6875rem",margin:0}}>{items.length} of 2 used</p>
                 {items.length>0&&<div style={{marginTop:8,borderTop:`1px solid ${BORDER}`,paddingTop:6}}>
                   {items.map((d,i)=>(
                     <div key={d.id||i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:6,padding:"3px 0"}}>
-                      <p style={{color:MUTED,fontSize:12,margin:0}}>{fmtDate(d.date)}</p>
+                      <p style={{color:MUTED,fontSize:"0.75rem",margin:0}}>{fmtDate(d.date)}</p>
                       {onEdit && onDelete && (
                         <div style={{display:"flex",gap:4,flexShrink:0}}>
-                          <button onClick={()=>onEdit(d)} style={{background:"none",border:`1px solid ${ACCENT}`,color:ACCENT,borderRadius:6,padding:"3px 7px",fontSize:11,fontWeight:600,cursor:"pointer"}}>Edit</button>
-                          <button onClick={()=>onDelete(d.id)} style={{background:"none",border:`1px solid ${DANGER}`,color:DANGER,borderRadius:6,padding:"3px 7px",fontSize:11,fontWeight:600,cursor:"pointer"}}>Del</button>
+                          <button onClick={()=>onEdit(d)} style={{background:"none",border:`1px solid ${ACCENT}`,color:ACCENT,borderRadius:6,padding:"3px 7px",fontSize:"0.6875rem",fontWeight:600,cursor:"pointer"}}>Edit</button>
+                          <button onClick={()=>onDelete(d.id)} style={{background:"none",border:`1px solid ${DANGER}`,color:DANGER,borderRadius:6,padding:"3px 7px",fontSize:"0.6875rem",fontWeight:600,cursor:"pointer"}}>Del</button>
                         </div>
                       )}
                     </div>
@@ -132,13 +132,13 @@ function ForceMajeureCard({fm12, fm36, fmColor, onEdit, onDelete}) {
           <div style={{display:"flex",alignItems:"center",gap:10}}>
             <TrafficDot color={cardColor}/>
             <div>
-              <p style={{color:TEXT,fontSize:15,fontWeight:700,margin:0}}>Force Majeure</p>
-              <p style={{color:MUTED,fontSize:12,margin:"2px 0 0"}}>Unforeseen family emergencies — capped at 3 days per rolling 12 months, 5 days per rolling 36 months.</p>
+              <p style={{color:TEXT,fontSize:"0.9375rem",fontWeight:700,margin:0}}>Force Majeure</p>
+              <p style={{color:MUTED,fontSize:"0.75rem",margin:"2px 0 0"}}>Unforeseen family emergencies — capped at 3 days per rolling 12 months, 5 days per rolling 36 months.</p>
             </div>
           </div>
           <div style={{textAlign:"right"}}>
-            <p style={{color:TEXT,fontSize:18,fontWeight:800,margin:0}}>{fm36.length} <span style={{color:MUTED,fontSize:12,fontWeight:400}}>used (36mo)</span></p>
-            <span style={{color:MUTED,fontSize:11,display:"block",marginTop:3}}>{open?"▲ hide":"▼ dates"}</span>
+            <p style={{color:TEXT,fontSize:"1.125rem",fontWeight:800,margin:0}}>{fm36.length} <span style={{color:MUTED,fontSize:"0.75rem",fontWeight:400}}>used (36mo)</span></p>
+            <span style={{color:MUTED,fontSize:"0.6875rem",display:"block",marginTop:3}}>{open?"▲ hide":"▼ dates"}</span>
           </div>
         </div>
       </div>
@@ -149,24 +149,24 @@ function ForceMajeureCard({fm12, fm36, fmColor, onEdit, onDelete}) {
               <div key={label} style={{background:CARD2,borderRadius:12,padding:"12px 14px",border:`1px solid ${fmColor(items.length,cap)}44`}}>
                 <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
                   <TrafficDot color={fmColor(items.length,cap)}/>
-                  <p style={{color:TEXT,fontSize:13,fontWeight:700,margin:0}}>{label}</p>
+                  <p style={{color:TEXT,fontSize:"0.8125rem",fontWeight:700,margin:0}}>{label}</p>
                 </div>
-                <p style={{color:fmColor(items.length,cap),fontSize:22,fontWeight:800,margin:"0 0 1px"}}>{cap-items.length} <span style={{color:MUTED,fontSize:12,fontWeight:400}}>left</span></p>
-                <p style={{color:MUTED,fontSize:11,margin:0}}>{items.length} of {cap} used</p>
+                <p style={{color:fmColor(items.length,cap),fontSize:"1.375rem",fontWeight:800,margin:"0 0 1px"}}>{cap-items.length} <span style={{color:MUTED,fontSize:"0.75rem",fontWeight:400}}>left</span></p>
+                <p style={{color:MUTED,fontSize:"0.6875rem",margin:0}}>{items.length} of {cap} used</p>
                 {items.length>0&&<div style={{marginTop:8,borderTop:`1px solid ${BORDER}`,paddingTop:6}}>
                   {items.map((d,i)=>(
                     <div key={d.id||i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:6,padding:"3px 0"}}>
-                      <p style={{color:MUTED,fontSize:12,margin:0}}>{fmtDate(d.date)}</p>
+                      <p style={{color:MUTED,fontSize:"0.75rem",margin:0}}>{fmtDate(d.date)}</p>
                       {onEdit && onDelete && (
                         <div style={{display:"flex",gap:4,flexShrink:0}}>
-                          <button onClick={()=>onEdit(d)} style={{background:"none",border:`1px solid ${ACCENT}`,color:ACCENT,borderRadius:6,padding:"3px 7px",fontSize:11,fontWeight:600,cursor:"pointer"}}>Edit</button>
-                          <button onClick={()=>onDelete(d.id)} style={{background:"none",border:`1px solid ${DANGER}`,color:DANGER,borderRadius:6,padding:"3px 7px",fontSize:11,fontWeight:600,cursor:"pointer"}}>Del</button>
+                          <button onClick={()=>onEdit(d)} style={{background:"none",border:`1px solid ${ACCENT}`,color:ACCENT,borderRadius:6,padding:"3px 7px",fontSize:"0.6875rem",fontWeight:600,cursor:"pointer"}}>Edit</button>
+                          <button onClick={()=>onDelete(d.id)} style={{background:"none",border:`1px solid ${DANGER}`,color:DANGER,borderRadius:6,padding:"3px 7px",fontSize:"0.6875rem",fontWeight:600,cursor:"pointer"}}>Del</button>
                         </div>
                       )}
                     </div>
                   ))}
                 </div>}
-                {items.length===0&&<p style={{color:MUTED,fontSize:12,margin:"8px 0 0"}}>No force majeure logged</p>}
+                {items.length===0&&<p style={{color:MUTED,fontSize:"0.75rem",margin:"8px 0 0"}}>No force majeure logged</p>}
               </div>
             ))}
           </div>
@@ -219,9 +219,9 @@ export function LeaveScreen({periods, leaveSettings, onLogDayOff, onEditDayOff, 
       <div style={{padding:"28px 20px 16px",background:`linear-gradient(180deg,${CARD2} 0%,${BG} 100%)`}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:12}}>
           <div style={{flex:1,minWidth:0}}>
-            <p style={{color:ACCENT,fontSize:11,textTransform:"uppercase",letterSpacing:2,fontWeight:700,margin:"0 0 4px"}}>Calendar year {year}</p>
-            <h1 style={{color:TEXT,fontSize:24,fontWeight:800,margin:"0 0 4px",letterSpacing:"-0.5px"}}>Leave Tracker</h1>
-            <p style={{color:MUTED,fontSize:13,margin:0}}>Based on day-off entries logged in the app</p>
+            <p style={{color:ACCENT,fontSize:"0.6875rem",textTransform:"uppercase",letterSpacing:2,fontWeight:700,margin:"0 0 4px"}}>Calendar year {year}</p>
+            <h1 style={{color:TEXT,fontSize:"1.5rem",fontWeight:800,margin:"0 0 4px",letterSpacing:"-0.5px"}}>Leave Tracker</h1>
+            <p style={{color:MUTED,fontSize:"0.8125rem",margin:0}}>Based on day-off entries logged in the app</p>
           </div>
           <SettingsButton onClick={onOpenSettings}/>
         </div>
@@ -243,7 +243,7 @@ export function LeaveScreen({periods, leaveSettings, onLogDayOff, onEditDayOff, 
           color={sickColor} used={sick.length}>
           {sick.length>=13 && (
             <div style={{background:`${DANGER}18`,border:`1px solid ${DANGER}44`,borderRadius:10,padding:"10px 12px",marginBottom:10}}>
-              <p style={{color:DANGER,fontSize:13,fontWeight:700,margin:0}}>You've hit the ACP threshold — 13+ certified sick days in a calendar year.</p>
+              <p style={{color:DANGER,fontSize:"0.8125rem",fontWeight:700,margin:0}}>You've hit the ACP threshold — 13+ certified sick days in a calendar year.</p>
             </div>
           )}
           <DayList items={sick} emptyMsg="No sick days logged this year" onEdit={onEditDayOff} onDelete={onDeleteDayOff}/>
@@ -259,7 +259,7 @@ export function LeaveScreen({periods, leaveSettings, onLogDayOff, onEditDayOff, 
         </LeaveCard>
 
         {onViewFAQ && (
-          <button onClick={()=>onViewFAQ("leave")} style={{background:"none",border:"none",color:ACCENT,fontSize:13,fontWeight:600,cursor:"pointer",padding:"8px 0",width:"100%",textAlign:"center"}}>
+          <button onClick={()=>onViewFAQ("leave")} style={{background:"none",border:"none",color:ACCENT,fontSize:"0.8125rem",fontWeight:600,cursor:"pointer",padding:"8px 0",width:"100%",textAlign:"center"}}>
             Questions about leave? See FAQ →
           </button>
         )}

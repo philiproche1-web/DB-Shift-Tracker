@@ -26,7 +26,7 @@ export function PeriodScreen({period, onEdit, onDelete, onEditDayOff, onDeleteDa
         right={
           <div style={{display:"flex",gap:8,alignItems:"center"}}>
             {!readOnly && (
-              <button onClick={()=>exportPDF(period,stats)} style={{background:ACCENT,color:"#07090F",border:"none",borderRadius:10,padding:"10px 16px",fontSize:13,fontWeight:800,cursor:"pointer",flexShrink:0,whiteSpace:"nowrap"}}>
+              <button onClick={()=>exportPDF(period,stats)} style={{background:ACCENT,color:"#07090F",border:"none",borderRadius:10,padding:"10px 16px",fontSize:"0.8125rem",fontWeight:800,cursor:"pointer",flexShrink:0,whiteSpace:"nowrap"}}>
                 Export PDF
               </button>
             )}
@@ -42,30 +42,30 @@ export function PeriodScreen({period, onEdit, onDelete, onEditDayOff, onDeleteDa
         {stats.overtime>0 && (
           <div style={{...cardStyle,padding:"12px 16px"}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-              <span style={{color:MUTED,fontSize:13,fontWeight:600,textTransform:"uppercase",letterSpacing:0.5}}>Overtime</span>
-              <span style={{color:"#F59E0B",fontWeight:800,fontSize:16}}>{fmtHrs(stats.overtime)}</span>
+              <span style={{color:MUTED,fontSize:"0.8125rem",fontWeight:600,textTransform:"uppercase",letterSpacing:0.5}}>Overtime</span>
+              <span style={{color:"#F59E0B",fontWeight:800,fontSize:"1rem"}}>{fmtHrs(stats.overtime)}</span>
             </div>
-            <p style={{color:MUTED,fontSize:11,margin:"3px 0 0"}}>Not counted toward 190h limit</p>
+            <p style={{color:MUTED,fontSize:"0.6875rem",margin:"3px 0 0"}}>Not counted toward 190h limit</p>
           </div>
         )}
       </div>
 
       <div style={{...cardStyle,marginBottom:12}}>
-        <p style={{color:TEXT,fontWeight:600,margin:"0 0 8px",fontSize:14}}>Period Summary</p>
+        <p style={{color:TEXT,fontWeight:600,margin:"0 0 8px",fontSize:"0.875rem"}}>Period Summary</p>
         <div style={{display:"flex",justifyContent:"space-between",padding:"4px 0"}}>
-          <span style={{color:MUTED,fontSize:13}}>Max consecutive days</span>
+          <span style={{color:MUTED,fontSize:"0.8125rem"}}>Max consecutive days</span>
           <span style={{color:TEXT,fontWeight:600}}>{stats.consec}</span>
         </div>
         <div style={{display:"flex",justifyContent:"space-between",padding:"4px 0"}}>
-          <span style={{color:MUTED,fontSize:13}}>Total shifts</span>
+          <span style={{color:MUTED,fontSize:"0.8125rem"}}>Total shifts</span>
           <span style={{color:TEXT,fontWeight:600}}>{period.shifts?.length||0}</span>
         </div>
         {tallyEntries.length > 0 && (
           <div style={{borderTop:`1px solid ${BORDER}`,marginTop:8,paddingTop:8}}>
-            <p style={{color:MUTED,fontSize:12,margin:"0 0 6px",textTransform:"uppercase",letterSpacing:0.5}}>Days Off</p>
+            <p style={{color:MUTED,fontSize:"0.75rem",margin:"0 0 6px",textTransform:"uppercase",letterSpacing:0.5}}>Days Off</p>
             {tallyEntries.map(({type,count})=>(
               <div key={type} style={{display:"flex",justifyContent:"space-between",padding:"3px 0"}}>
-                <span style={{color:MUTED,fontSize:13}}>{type}</span>
+                <span style={{color:MUTED,fontSize:"0.8125rem"}}>{type}</span>
                 <span style={{color:TEXT,fontWeight:600}}>{count}</span>
               </div>
             ))}
@@ -75,11 +75,11 @@ export function PeriodScreen({period, onEdit, onDelete, onEditDayOff, onDeleteDa
 
       {!readOnly && (
         <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:12}}>
-          <button onClick={onViewArchive} style={{...btnStyle,padding:"12px 16px",fontSize:13}}>
+          <button onClick={onViewArchive} style={{...btnStyle,padding:"12px 16px",fontSize:"0.8125rem"}}>
             View Period Archive
           </button>
           {onViewFAQ && (
-            <button onClick={()=>onViewFAQ("compliance")} style={{background:"none",border:"none",color:ACCENT,fontSize:13,fontWeight:600,cursor:"pointer",padding:"4px 0",textAlign:"center"}}>
+            <button onClick={()=>onViewFAQ("compliance")} style={{background:"none",border:"none",color:ACCENT,fontSize:"0.8125rem",fontWeight:600,cursor:"pointer",padding:"4px 0",textAlign:"center"}}>
               Questions about your hours? See FAQ →
             </button>
           )}
@@ -96,15 +96,15 @@ export function PeriodScreen({period, onEdit, onDelete, onEditDayOff, onDeleteDa
           <div key={i} style={{...cardStyle,marginBottom:10,...(isCurrentWeek?{border:`1px solid ${ACCENT}`,boxShadow:`0 0 0 2px ${ACCENT}40`}:{})}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",cursor:"pointer"}} onClick={()=>setOpen(open===i?-1:i)}>
               <div>
-                <p style={{color:MUTED,fontSize:11,margin:0,textTransform:"uppercase"}}>Week {i+1}</p>
+                <p style={{color:MUTED,fontSize:"0.6875rem",margin:0,textTransform:"uppercase"}}>Week {i+1}</p>
                 <p style={{color:TEXT,fontWeight:600,margin:"3px 0 0"}}>{fmtShort(w.start)} – {fmtShort(w.end)}</p>
-                <p style={{color:MUTED,fontSize:12,margin:"2px 0 0"}}>{w.shifts.length} shift{w.shifts.length!==1?"s":""}{(w.daysOff?.length||0)>0?` · ${w.daysOff.length} day off`:""}</p>
+                <p style={{color:MUTED,fontSize:"0.75rem",margin:"2px 0 0"}}>{w.shifts.length} shift{w.shifts.length!==1?"s":""}{(w.daysOff?.length||0)>0?` · ${w.daysOff.length} day off`:""}</p>
               </div>
               <div style={{textAlign:"right",display:"flex",flexDirection:"column",alignItems:"flex-end",gap:6}}>
-                <p style={{color:w.total>0?ACCENT:MUTED,fontWeight:700,fontSize:16,margin:0}}>{fmtHrs(w.total)}</p>
-                {w.sunday>0&&<p style={{color:SUCCESS,fontSize:12,margin:0}}>Sun: {fmtHrs(w.sunday)}</p>}
-                {w.overtime>0&&<p style={{color:"#F59E0B",fontSize:12,margin:0}}>OT: {fmtHrs(w.overtime)}</p>}
-                <span style={{color:MUTED,fontSize:13,transform:open===i?"rotate(180deg)":"none",transition:"transform 0.2s",display:"inline-block"}}>▾</span>
+                <p style={{color:w.total>0?ACCENT:MUTED,fontWeight:700,fontSize:"1rem",margin:0}}>{fmtHrs(w.total)}</p>
+                {w.sunday>0&&<p style={{color:SUCCESS,fontSize:"0.75rem",margin:0}}>Sun: {fmtHrs(w.sunday)}</p>}
+                {w.overtime>0&&<p style={{color:"#F59E0B",fontSize:"0.75rem",margin:0}}>OT: {fmtHrs(w.overtime)}</p>}
+                <span style={{color:MUTED,fontSize:"0.8125rem",transform:open===i?"rotate(180deg)":"none",transition:"transform 0.2s",display:"inline-block"}}>▾</span>
               </div>
             </div>
             {open===i&&(
@@ -119,7 +119,7 @@ export function PeriodScreen({period, onEdit, onDelete, onEditDayOff, onDeleteDa
                   <div key={item.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 0",borderBottom:`1px solid ${BORDER}`}}>
                     <div style={{flex:1,minWidth:0}}>
                       <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:3,flexWrap:"wrap"}}>
-                        <span style={{color:item.isRestDay?DANGER:TEXT,fontSize:15,fontWeight:700}}>{item.roster}</span>
+                        <span style={{color:item.isRestDay?DANGER:TEXT,fontSize:"0.9375rem",fontWeight:700}}>{item.roster}</span>
                         <span style={tag(getDayType(item.date)==="sunday"?SUCCESS:getDayType(item.date)==="saturday"?"#60a5fa":MUTED)}>
                           {getDayType(item.date)==="sunday"?"Sun":getDayType(item.date)==="saturday"?"Sat":"M-F"}
                         </span>
@@ -128,17 +128,17 @@ export function PeriodScreen({period, onEdit, onDelete, onEditDayOff, onDeleteDa
                         {item.overtimeHours>0&&!item.isRestDay&&<span style={tag("#F59E0B")}>OT {fmtHrs(item.overtimeHours)}</span>}
                         {dutyNumber(item.duty) && <span style={tag(ACCENT)}>Duty No. {dutyNumber(item.duty)}</span>}
                       </div>
-                      <p style={{color:MUTED,fontSize:12,margin:"0 0 1px"}}>{fmtDate(item.date)} · {item.zone}</p>
-                      <p style={{color:MUTED,fontSize:12,margin:0}}>{item.reportTime} – {item.signOffTime} · Spread: {fmtHrs(calcSpreadover(item.reportTime,item.signOffTime))}</p>
-                      {item.overtimeNote&&<p style={{color:"#F59E0B",fontSize:12,margin:"3px 0 0",fontStyle:"italic"}}>OT: {item.overtimeNote}</p>}
-                      {item.notes && <p style={{color:"#60a5fa",fontSize:12,margin:"3px 0 0",fontStyle:"italic"}}>{item.notes}</p>}
+                      <p style={{color:MUTED,fontSize:"0.75rem",margin:"0 0 1px"}}>{fmtDate(item.date)} · {item.zone}</p>
+                      <p style={{color:MUTED,fontSize:"0.75rem",margin:0}}>{item.reportTime} – {item.signOffTime} · Spread: {fmtHrs(calcSpreadover(item.reportTime,item.signOffTime))}</p>
+                      {item.overtimeNote&&<p style={{color:"#F59E0B",fontSize:"0.75rem",margin:"3px 0 0",fontStyle:"italic"}}>OT: {item.overtimeNote}</p>}
+                      {item.notes && <p style={{color:"#60a5fa",fontSize:"0.75rem",margin:"3px 0 0",fontStyle:"italic"}}>{item.notes}</p>}
                     </div>
                     <div style={{textAlign:"right",marginLeft:10,flexShrink:0}}>
                       <p style={{color:item.isRestDay?DANGER:ACCENT,fontWeight:700,margin:"0 0 6px"}}>{fmtHrs(item.workHours||0)}</p>
                       {!readOnly&&(
                         <div style={{display:"flex",flexDirection:"column",gap:6}}>
-                          <button onClick={()=>onEdit(item)} style={{background:"none",border:`1px solid ${ACCENT}`,color:ACCENT,borderRadius:8,padding:"8px 14px",fontSize:13,fontWeight:600,cursor:"pointer"}}>Edit</button>
-                          <button onClick={()=>onDelete(item.id)} style={{background:"none",border:`1px solid ${DANGER}`,color:DANGER,borderRadius:8,padding:"8px 14px",fontSize:13,fontWeight:600,cursor:"pointer"}}>Del</button>
+                          <button onClick={()=>onEdit(item)} style={{background:"none",border:`1px solid ${ACCENT}`,color:ACCENT,borderRadius:8,padding:"8px 14px",fontSize:"0.8125rem",fontWeight:600,cursor:"pointer"}}>Edit</button>
+                          <button onClick={()=>onDelete(item.id)} style={{background:"none",border:`1px solid ${DANGER}`,color:DANGER,borderRadius:8,padding:"8px 14px",fontSize:"0.8125rem",fontWeight:600,cursor:"pointer"}}>Del</button>
                         </div>
                       )}
                     </div>
@@ -147,25 +147,25 @@ export function PeriodScreen({period, onEdit, onDelete, onEditDayOff, onDeleteDa
                   <div key={item.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 0",borderBottom:`1px solid ${BORDER}`}}>
                     <div>
                       <div style={{display:"flex",alignItems:"center",gap:6}}>
-                        <p style={{color:MUTED,fontSize:13,fontStyle:"italic",margin:0}}>{item.type}</p>
+                        <p style={{color:MUTED,fontSize:"0.8125rem",fontStyle:"italic",margin:0}}>{item.type}</p>
                         {item.fixed && <span style={tag(MUTED)}>Fixed</span>}
                       </div>
-                      <p style={{color:MUTED,fontSize:12,margin:"2px 0 0"}}>{fmtDate(item.date)}</p>
+                      <p style={{color:MUTED,fontSize:"0.75rem",margin:"2px 0 0"}}>{fmtDate(item.date)}</p>
                     </div>
                     {!readOnly&&(
                       (item.fixed || item.type === "Bank Holiday In Lieu") ? (
-                        <button onClick={()=>onDeleteDayOff(item.id)} style={{background:"none",border:`1px solid ${BORDER}`,color:MUTED,borderRadius:8,padding:"8px 14px",fontSize:13,fontWeight:600,cursor:"pointer"}}>Remove</button>
+                        <button onClick={()=>onDeleteDayOff(item.id)} style={{background:"none",border:`1px solid ${BORDER}`,color:MUTED,borderRadius:8,padding:"8px 14px",fontSize:"0.8125rem",fontWeight:600,cursor:"pointer"}}>Remove</button>
                       ) : (
                         <div style={{display:"flex",flexDirection:"column",gap:6}}>
-                          <button onClick={()=>onEditDayOff(item)} style={{background:"none",border:`1px solid ${ACCENT}`,color:ACCENT,borderRadius:8,padding:"8px 14px",fontSize:13,fontWeight:600,cursor:"pointer"}}>Edit</button>
-                          <button onClick={()=>onDeleteDayOff(item.id)} style={{background:"none",border:`1px solid ${DANGER}`,color:DANGER,borderRadius:8,padding:"8px 14px",fontSize:13,fontWeight:600,cursor:"pointer"}}>Del</button>
+                          <button onClick={()=>onEditDayOff(item)} style={{background:"none",border:`1px solid ${ACCENT}`,color:ACCENT,borderRadius:8,padding:"8px 14px",fontSize:"0.8125rem",fontWeight:600,cursor:"pointer"}}>Edit</button>
+                          <button onClick={()=>onDeleteDayOff(item.id)} style={{background:"none",border:`1px solid ${DANGER}`,color:DANGER,borderRadius:8,padding:"8px 14px",fontSize:"0.8125rem",fontWeight:600,cursor:"pointer"}}>Del</button>
                         </div>
                       )
                     )}
                   </div>
                 ))}
                 <div style={{display:"flex",justifyContent:"space-between",padding:"10px 0 0",marginTop:4}}>
-                  <span style={{color:MUTED,fontSize:13,fontWeight:600}}>Week {i+1} Total</span>
+                  <span style={{color:MUTED,fontSize:"0.8125rem",fontWeight:600}}>Week {i+1} Total</span>
                   <span style={{color:ACCENT,fontWeight:700}}>{fmtHrs(w.total)}
                     {w.sunday>0&&<span style={{color:SUCCESS,fontWeight:400}}> / Sun: {fmtHrs(w.sunday)}</span>}
                     {w.overtime>0&&<span style={{color:"#F59E0B",fontWeight:400}}> / OT: {fmtHrs(w.overtime)}</span>}

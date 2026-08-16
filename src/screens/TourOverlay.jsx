@@ -82,7 +82,7 @@ export function TourOverlay({onDone}) {
       <div style={{width:"100%",maxWidth:420,background:CARD,borderRadius:24,padding:28,border:`1px solid ${BORDER}`}}>
 
         {/* Slide counter dots + step number */}
-        <p style={{color:MUTED,fontSize:12,textAlign:"center",margin:"0 0 10px",fontWeight:600}}>Step {slide+1} of {TOUR_SLIDES.length}</p>
+        <p style={{color:MUTED,fontSize:"0.75rem",textAlign:"center",margin:"0 0 10px",fontWeight:600}}>Step {slide+1} of {TOUR_SLIDES.length}</p>
         <div style={{display:"flex",justifyContent:"center",gap:6,marginBottom:28}}>
           {TOUR_SLIDES.map((_,i) => (
             <div key={i} style={{
@@ -97,14 +97,14 @@ export function TourOverlay({onDone}) {
         {/* Content */}
         <div style={{textAlign:"center",marginBottom:28}}>
           <div style={{marginBottom:20}}><TourIcon type={s.icon}/></div>
-          <h2 style={{color:TEXT,fontSize:23,fontWeight:800,margin:"0 0 12px",lineHeight:1.2,whiteSpace:"pre-line",letterSpacing:"-0.5px"}}>{s.title}</h2>
-          <p style={{color:MUTED,fontSize:15,lineHeight:1.6,margin:0}}>{s.body}</p>
+          <h2 style={{color:TEXT,fontSize:"1.4375rem",fontWeight:800,margin:"0 0 12px",lineHeight:1.2,whiteSpace:"pre-line",letterSpacing:"-0.5px"}}>{s.title}</h2>
+          <p style={{color:MUTED,fontSize:"0.9375rem",lineHeight:1.6,margin:0}}>{s.body}</p>
         </div>
 
         {/* Buttons */}
         <div style={{display:"grid",gridTemplateColumns: slide===0 ? "1fr" : "auto 1fr",gap:12}}>
           {slide > 0 && (
-            <button onClick={()=>setSlide(slide-1)} style={{background:"none",border:`1px solid ${BORDER}`,color:TEXT,borderRadius:12,padding:"15px 20px",fontSize:18,cursor:"pointer",lineHeight:1}}>←</button>
+            <button onClick={()=>setSlide(slide-1)} style={{background:"none",border:`1px solid ${BORDER}`,color:TEXT,borderRadius:12,padding:"15px 20px",fontSize:"1.125rem",cursor:"pointer",lineHeight:1}}>←</button>
           )}
           <button onClick={()=> isLast ? onDone() : setSlide(slide+1)} style={btnStyle}>
             {isLast ? "Get Started" : "Next"}
@@ -113,7 +113,7 @@ export function TourOverlay({onDone}) {
 
         {/* Skip */}
         {!isLast && (
-          <button onClick={onDone} style={{background:"none",border:"none",color:MUTED,fontSize:13,cursor:"pointer",width:"100%",marginTop:16,padding:"4px 0"}}>
+          <button onClick={onDone} style={{background:"none",border:"none",color:MUTED,fontSize:"0.8125rem",cursor:"pointer",width:"100%",marginTop:16,padding:"4px 0"}}>
             Skip
           </button>
         )}

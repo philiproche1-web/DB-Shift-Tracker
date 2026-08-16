@@ -30,9 +30,9 @@ export function WhatsNewScreen({onDone, onSkipTour}) {
   return (
     <div style={{background:BG,minHeight:"100vh",display:"flex",flexDirection:"column"}}>
       <div style={{padding:"32px 20px 16px",background:`linear-gradient(180deg,${CARD2} 0%,${BG} 100%)`}}>
-        <p style={{color:ACCENT,fontSize:11,textTransform:"uppercase",letterSpacing:2,fontWeight:700,margin:"0 0 6px"}}>Just updated</p>
-        <h1 style={{color:TEXT,fontSize:24,fontWeight:800,margin:"0 0 4px",letterSpacing:"-0.5px"}}>{WHATS_NEW.title}</h1>
-        <p style={{color:MUTED,fontSize:13,margin:0}}>Here's what's changed since your last version</p>
+        <p style={{color:ACCENT,fontSize:"0.6875rem",textTransform:"uppercase",letterSpacing:2,fontWeight:700,margin:"0 0 6px"}}>Just updated</p>
+        <h1 style={{color:TEXT,fontSize:"1.5rem",fontWeight:800,margin:"0 0 4px",letterSpacing:"-0.5px"}}>{WHATS_NEW.title}</h1>
+        <p style={{color:MUTED,fontSize:"0.8125rem",margin:0}}>Here's what's changed since your last version</p>
       </div>
 
       <div style={{flex:1,overflowY:"auto",padding:"8px 16px 16px"}}>
@@ -40,8 +40,8 @@ export function WhatsNewScreen({onDone, onSkipTour}) {
           <div key={i} style={{background:CARD,border:`1px solid ${BORDER}`,borderRadius:14,padding:"14px 16px",marginBottom:10,display:"flex",gap:14,alignItems:"flex-start"}}>
             <WhatsNewIcon type={f.icon}/>
             <div>
-              <p style={{color:TEXT,fontSize:14,fontWeight:700,margin:"0 0 4px"}}>{f.heading}</p>
-              <p style={{color:MUTED,fontSize:13,margin:0,lineHeight:1.5}}>{f.body}</p>
+              <p style={{color:TEXT,fontSize:"0.875rem",fontWeight:700,margin:"0 0 4px"}}>{f.heading}</p>
+              <p style={{color:MUTED,fontSize:"0.8125rem",margin:0,lineHeight:1.5}}>{f.body}</p>
             </div>
           </div>
         ))}
@@ -49,7 +49,7 @@ export function WhatsNewScreen({onDone, onSkipTour}) {
           Got it — let's go
         </button>
         {onSkipTour && (
-          <button onClick={onSkipTour} style={{background:"none",border:"none",color:MUTED,fontSize:13,fontWeight:600,cursor:"pointer",width:"100%",padding:"14px 0 0"}}>
+          <button onClick={onSkipTour} style={{background:"none",border:"none",color:MUTED,fontSize:"0.8125rem",fontWeight:600,cursor:"pointer",width:"100%",padding:"14px 0 0"}}>
             Skip the tour — I know the app
           </button>
         )}
