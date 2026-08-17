@@ -10,7 +10,12 @@ let initialized = false;
 export function initAnalytics() {
   if (initialized || !POSTHOG_KEY) return;
   posthog.init(POSTHOG_KEY, {
-    api_host: POSTHOG_HOST,
+    // Production routes through /ingest (see public/_redirects), which
+    // Netlify rewrites to POSTHOG_HOST server-side — dodges ad blockers
+    // that drop requests to known tracker domains. The rewrite only exists
+    // on the deployed site, so dev talks to POSTHOG_HOST directly.
+    api_host: import.meta.env.PROD ? "/ingest" : POSTHOG_HOST,
+    ui_host: POSTHOG_HOST,
     // This is a single-page app — there's no real page load per screen, so
     // the library's own history-based autocapture never fires. We call
     // trackScreen() ourselves whenever the `screen` state changes instead.

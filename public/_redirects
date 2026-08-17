@@ -1,0 +1,5 @@
+# PostHog reverse proxy — routes analytics calls through this domain instead
+# of eu.i.posthog.com directly, so ad blockers that block known tracker
+# domains don't drop the requests. See src/lib/analytics.js (api_host: "/ingest").
+/ingest/static/*  https://eu-assets.i.posthog.com/static/:splat  200
+/ingest/*         https://eu.i.posthog.com/:splat  200
