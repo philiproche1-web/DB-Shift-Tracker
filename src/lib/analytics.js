@@ -15,6 +15,10 @@ export function initAnalytics() {
     // the library's own history-based autocapture never fires. We call
     // trackScreen() ourselves whenever the `screen` state changes instead.
     capture_pageview: false,
+    // capture_pageleave defaults to "if_capture_pageview" — disabling
+    // capture_pageview above silently disables this too unless forced on.
+    // Without it, PostHog can't compute session duration or bounce rate.
+    capture_pageleave: true,
     autocapture: true,
     persistence: "localStorage+cookie",
   });
