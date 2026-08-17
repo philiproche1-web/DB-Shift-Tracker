@@ -5,6 +5,9 @@ import App from './App.jsx'
 import { ErrorBoundary } from './components/ErrorBoundary.jsx'
 import { applyTheme } from './lib/theme.js'
 import { loadSettings } from './lib/persistence.js'
+import { initAnalytics } from './lib/analytics.js'
+
+initAnalytics()
 
 // Apply the saved theme before first render. App.jsx also does this in an
 // effect, but the error boundary can render INSTEAD of App — if App's own

@@ -17,6 +17,7 @@ import {
   loadSettings, writeSettingsLocally,
 } from "./lib/persistence.js";
 import { BusLogo, BottomNav, ConfirmDialog, useModalA11y } from "./components/shared.jsx";
+import { trackScreen, trackEvent, identifyUser, resetAnalytics } from "./lib/analytics.js";
 import { GarageComingSoonScreen } from "./screens/GarageComingSoonScreen.jsx";
 import { TermsScreen } from "./screens/TermsScreen.jsx";
 import { FAQScreen } from "./screens/FAQScreen.jsx";
@@ -119,9 +120,15 @@ export default function App() {
       clearTimeout(timeout);
       setSession(newSession);
       if (event === "PASSWORD_RECOVERY") setPasswordRecovery(true);
+      if (event === "SIGNED_IN" && newSession?.user?.id) identifyUser(newSession.user.id);
+      if (event === "SIGNED_OUT") resetAnalytics();
     });
     return () => { clearTimeout(timeout); subscription.unsubscribe(); };
   }, []);
+
+  // One $pageview per screen switch — this is an SPA so there's no real
+  // navigation event for PostHog to catch on its own.
+  useEffect(() => { trackScreen(screen); }, [screen]);
 
   useEffect(() => {
     setSyncedOnce(false);
@@ -381,6 +388,8 @@ export default function App() {
     // without React — see periodMutations.test.js. This function keeps only
     // persistence and navigation.
     const updated = applyShiftSave(periods, activePeriodId, shiftOrArray, bankHolidayInLieuEntries);
+    const items = Array.isArray(shiftOrArray) ? shiftOrArray : [shiftOrArray];
+    trackEvent("shift_logged", { isEdit: !!editShift, isBulk: items.length > 1, count: items.length, types: [...new Set(items.map(s => s.type))] });
     persist(updated,activePeriodId); setEditShift(null); setLookupDuty(null); setLogInitDate(null); setLogInitRestDay(false); setScreen("home");
   }
 
@@ -388,6 +397,8 @@ export default function App() {
     // See periodMutations.js — that module owns the period-routing and
     // duplicate-guard rules, and periodMutations.test.js locks them.
     const updated = applyDayOffSave(periods, activePeriodId, dayOffOrArray, replaceShiftIds, replaceDayOffIds);
+    const items = Array.isArray(dayOffOrArray) ? dayOffOrArray : [dayOffOrArray];
+    trackEvent("day_off_logged", { isEdit: !!editDayOff, isBulk: items.length > 1, count: items.length, types: [...new Set(items.map(d => d.type))] });
     persist(updated, activePeriodId);
     setEditDayOff(null);
     setScreen(dayOffFrom === "leave" ? "leave" : "period");
