@@ -223,6 +223,27 @@ export default function App() {
   }, [driverGarage]);
 
   useEffect(() => {
+    // Fetches fresher duty/running-board/rest-day data for the driver's own
+    // garage in the background so a roster update can go live without an
+    // app rebuild — never blocks first render; if it resolves after the
+    // user's already looking at a screen, bumping rosterVersion forces the
+    // whole tree to re-render with it. Keyed on driverGarage (not a
+    // mount-only effect) so a driver who changes garage in Settings gets
+    // their new garage's roster applied immediately, not on next app open —
+    // loadRosterData(garage) only ever returns that garage's own block or
+    // its own cache, never another garage's.
+    if (!driverGarage || !hasLiveRoster(driverGarage)) return;
+    let cancelled = false;
+    loadRosterData(driverGarage).then(remote => {
+      if (remote && !cancelled) {
+        applyRosterData(remote);
+        setRosterVersion(v => v+1);
+      }
+    });
+    return () => { cancelled = true; };
+  }, [driverGarage]);
+
+  useEffect(() => {
     // Belt-and-braces alongside the direct pendingSync updates in persist()
     // and the sync effect above: those cover shifts/periods (the case that
     // actually prompted this — logging a shift with no signal looking
@@ -256,16 +277,6 @@ export default function App() {
     const media = window.matchMedia("(prefers-color-scheme: dark)");
     const handleSchemeChange = () => applyTheme(loadSettings().appearance, () => setThemeKey(k => k + 1));
     media.addEventListener("change", handleSchemeChange);
-    // Fetches fresher duty/running-board/rest-day data in the background so a
-    // roster update can go live without an app rebuild — never blocks first
-    // render; if it resolves after the user's already looking at a screen,
-    // bumping rosterVersion forces the whole tree to re-render with it.
-    loadRosterData().then(remote => {
-      if(remote) {
-        applyRosterData(remote);
-        setRosterVersion(v => v+1);
-      }
-    });
     loadData().then(({data,corrupted})=>{
       if(corrupted) { setLoadCorrupted(true); setLoading(false); return; }
       if(data){setPeriods(data.periods||[]);setActivePeriodId(data.activePeriodId||null);}

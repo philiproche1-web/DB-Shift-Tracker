@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { isActiveOn, alertsForZone, alertWindowLabel, fetchRouteAlerts } from "./routeAlerts.js";
+import { isActiveOn, alertsForZone, alertWindowLabel, fetchRouteAlerts, alertsCacheKey } from "./routeAlerts.js";
 
 beforeEach(() => { localStorage.clear(); });
 
@@ -61,11 +61,11 @@ describe("fetchRouteAlerts", () => {
     const result = await fetchRouteAlerts(supabase, "Summerhill");
 
     expect(result).toEqual(data);
-    expect(JSON.parse(localStorage.getItem("dbus_route_alerts_cache"))).toEqual(data);
+    expect(JSON.parse(localStorage.getItem(alertsCacheKey("Summerhill")))).toEqual(data);
   });
 
   it("falls back to the cache when the fetch errors", async () => {
-    localStorage.setItem("dbus_route_alerts_cache", JSON.stringify([{ id: "cached" }]));
+    localStorage.setItem(alertsCacheKey("Summerhill"), JSON.stringify([{ id: "cached" }]));
     const supabase = { from: () => ({ select: () => ({ eq: () => ({ eq: () => ({ order: () => Promise.resolve({ data: null, error: new Error("offline") }) }) }) }) }) };
 
     const result = await fetchRouteAlerts(supabase, "Summerhill");
@@ -74,6 +74,30 @@ describe("fetchRouteAlerts", () => {
   });
 
   it("returns an empty array when the fetch errors and there's no cache", async () => {
+    const supabase = { from: () => ({ select: () => ({ eq: () => ({ eq: () => ({ order: () => Promise.resolve({ data: null, error: new Error("offline") }) }) }) }) }) };
+
+    const result = await fetchRouteAlerts(supabase, "Summerhill");
+
+    expect(result).toEqual([]);
+  });
+
+  // Same integrity guarantee as roster.js's rosterCacheKey — one garage's
+  // alerts (or a failed fetch's fallback) must never bleed into another's.
+  it("caches each garage under its own key, not a shared one", async () => {
+    const shData = [{ id: "1", garage: "Summerhill" }];
+    const dbData = [{ id: "2", garage: "Donnybrook" }];
+    let call = 0;
+    const supabase = { from: () => ({ select: () => ({ eq: () => ({ eq: () => ({ order: () => Promise.resolve({ data: call++ === 0 ? shData : dbData, error: null }) }) }) }) }) };
+
+    await fetchRouteAlerts(supabase, "Summerhill");
+    await fetchRouteAlerts(supabase, "Donnybrook");
+
+    expect(JSON.parse(localStorage.getItem(alertsCacheKey("Summerhill")))).toEqual(shData);
+    expect(JSON.parse(localStorage.getItem(alertsCacheKey("Donnybrook")))).toEqual(dbData);
+  });
+
+  it("never falls back to a different garage's cache when its own fetch fails", async () => {
+    localStorage.setItem(alertsCacheKey("Donnybrook"), JSON.stringify([{ id: "cached-donnybrook" }]));
     const supabase = { from: () => ({ select: () => ({ eq: () => ({ eq: () => ({ order: () => Promise.resolve({ data: null, error: new Error("offline") }) }) }) }) }) };
 
     const result = await fetchRouteAlerts(supabase, "Summerhill");

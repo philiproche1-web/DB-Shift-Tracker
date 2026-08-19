@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { getDayType, isBankHoliday, addDays, fmtDate, fmtShort, fmtHrs, today, uid, sundayOf, calcSpreadover, addDuration, inPeriod } from "../lib/dutyMath.js";
 import { alertsForZone } from "../lib/routeAlerts.js";
-import { ZONES, FIXED_DUTY_TYPES, getDuties } from "../lib/roster.js";
+import { getZones, FIXED_DUTY_TYPES, getDuties } from "../lib/roster.js";
 import { BG, CARD, BORDER, CARD2, TEXT, MUTED, ACCENT, SUCCESS, DANGER, cardStyle, inputStyle, btnStyle, tag } from "../lib/theme.js";
 import { PageHeader, FieldLabel, DateInput, SegGroup, DutyPicker, RouteAlertCard, ConfirmDialog, SettingsButton } from "../components/shared.jsx";
 
@@ -29,7 +29,7 @@ function BankHolidayChoiceDialog({date, onChoose}) {
 // ─── LOG SHIFT SCREEN ─────────────────────────────────────────────────────────
 export function LogScreen({period, editShift, lookupDuty, initialDate, initialRestDay, alerts, onSave, onCancel, onEditConflict, onOpenSettings}) {
   // lookupDuty = {d: dutyObj, dt: dayType} from the Lookup screen
-  const initZone = lookupDuty?.d.z || editShift?.zone || "Zone 1";
+  const initZone = lookupDuty?.d.z || editShift?.zone || getZones()[0];
   const [date, setDate] = useState(lookupDuty?.date || editShift?.date || initialDate || today());
   const [zone, setZone] = useState(initZone);
   const [rIdx, setRIdx] = useState(-1);
@@ -302,7 +302,7 @@ export function LogScreen({period, editShift, lookupDuty, initialDate, initialRe
         {/* Zone */}
         <div style={{marginBottom:16}}>
           <FieldLabel>Zone</FieldLabel>
-          <SegGroup options={ZONES} value={zone} cols={4}
+          <SegGroup options={getZones()} value={zone} cols={4}
             onChange={z=>{
               if (z===zone) return;
               guardedRun("Changing zone will clear the times you've already entered. Continue?", ()=>{

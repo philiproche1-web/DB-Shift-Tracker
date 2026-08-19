@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { isCalendarSunday, addDays, fmtShort } from "../lib/dutyMath.js";
-import { ZONES, DUTIES, ROSTER_VERSION } from "../lib/roster.js";
+import { getZones, DUTIES, ROSTER_VERSION } from "../lib/roster.js";
 import { garageOptions } from "../lib/garages.js";
 import { CARD, CARD2, BORDER, TEXT, MUTED, SUCCESS, DANGER, ACCENT, cardStyle, inputStyle, btnStyle } from "../lib/theme.js";
 import { loadSettings, saveSettings, APP_VERSION } from "../lib/persistence.js";
@@ -250,7 +250,7 @@ export function SettingsPanel({period, onClose, onThemeChange, leaveSettings, on
         <p style={{color:MUTED,fontSize:"0.6875rem",textTransform:"uppercase",letterSpacing:1.5,fontWeight:700,margin:"0 0 10px"}}>Default zone</p>
         <p style={{color:MUTED,fontSize:"0.75rem",margin:"0 0 10px"}}>Pre-selected when you open Lookup or Log a Shift.</p>
         <div style={{marginBottom:20}}>
-          <SegGroup options={ZONES} value={settings.defaultZone} cols={4} onChange={setZone}/>
+          <SegGroup options={getZones()} value={settings.defaultZone} cols={4} onChange={setZone}/>
         </div>
 
         {/* Period start date */}
@@ -391,16 +391,17 @@ export function SettingsPanel({period, onClose, onThemeChange, leaveSettings, on
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
             <div>
               <p style={{color:MUTED,fontSize:"0.75rem",margin:"0 0 2px"}}>Dublin Bus Shift Tracker</p>
-              {/* DUTIES.length/ZONES.length read live — this used to be a
-                  hardcoded "390 duties · 4 zones" that would have silently
+              {/* DUTIES.length/getZones().length read live — this used to be
+                  a hardcoded "390 duties · 4 zones" that would have silently
                   gone stale the moment a live roster fetch changed either
                   number. ROSTER_VERSION says which roster copy is actually
                   running: "bundled" means the fetch never succeeded and
                   this device is still on the fallback baked in at build
                   time, otherwise it's the payload's own version string —
                   the thing to check first if a driver reports duty data
-                  that looks wrong. */}
-              <p style={{color:MUTED,fontSize:"0.6875rem",margin:0}}>Summerhill depot · {DUTIES.length} duties · {ZONES.length} zones · roster {ROSTER_VERSION}</p>
+                  that looks wrong. driverGarage (not a hardcoded "Summerhill")
+                  so this stays correct once other garages go live. */}
+              <p style={{color:MUTED,fontSize:"0.6875rem",margin:0}}>{driverGarage} depot · {DUTIES.length} duties · {getZones().length} zones · roster {ROSTER_VERSION}</p>
             </div>
             <span style={{background:CARD2,color:MUTED,borderRadius:8,padding:"4px 10px",fontSize:"0.75rem",fontWeight:700}}>v{APP_VERSION}</span>
           </div>

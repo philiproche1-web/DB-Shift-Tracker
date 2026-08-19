@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { getDayType, isBankHoliday, addDays, fmtHrs, today, calcSpreadover, dutyNumber } from "../lib/dutyMath.js";
 import { alertsForZone } from "../lib/routeAlerts.js";
-import { ZONES, getDuties, getSeq } from "../lib/roster.js";
+import { getZones, getDuties, getSeq } from "../lib/roster.js";
 import { BG, CARD, CARD2, BORDER, TEXT, MUTED, ACCENT, SUCCESS, btnStyle, tag } from "../lib/theme.js";
 import { SegGroup, DutyPicker, RouteAlertCard, SettingsButton } from "../components/shared.jsx";
 
@@ -13,7 +13,7 @@ export function parseEntry(e) {
 // ─── DUTY LOOKUP SCREEN ───────────────────────────────────────────────────────
 export function DutyLookup({alerts, onLogShift, onOpenSettings}) {
   // Remember last used zone across sessions
-  const savedZone = localStorage.getItem("dbus_last_zone") || "Zone 1";
+  const savedZone = localStorage.getItem("dbus_last_zone") || getZones()[0];
   const [zone, setZone] = useState(savedZone);
   const [dayType, setDayType] = useState(getDayType(today()));
   const [rIdx, setRIdx] = useState(-1);
@@ -73,7 +73,7 @@ export function DutyLookup({alerts, onLogShift, onOpenSettings}) {
         {/* Zone selector */}
         <div style={{marginBottom:12}}>
           <p style={{color:MUTED,fontSize:"0.6875rem",textTransform:"uppercase",letterSpacing:1.5,fontWeight:600,margin:"0 0 8px"}}>Zone</p>
-          <SegGroup options={ZONES} value={zone} cols={4} onChange={handleZoneChange}/>
+          <SegGroup options={getZones()} value={zone} cols={4} onChange={handleZoneChange}/>
         </div>
 
         {zoneAlerts.map(a => <RouteAlertCard key={a.id} alert={a}/>)}

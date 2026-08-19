@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
-import { greetingDutyContext, computeShiftStreak, dayInfo, periodForDate, weekHighlights, getSeq, DUTIES, SEQ, FIXED_REST_PATTERN, ROSTER_VERSION, setCustomRestConfig, rollPeriodsForward, applyRosterData, isValidRosterPayload } from "./roster.js";
+import { greetingDutyContext, computeShiftStreak, dayInfo, periodForDate, weekHighlights, getSeq, getZones, DUTIES, SEQ, FIXED_REST_PATTERN, ROSTER_VERSION, setCustomRestConfig, rollPeriodsForward, applyRosterData, isValidRosterPayload, loadRosterData, rosterCacheKey } from "./roster.js";
 import { addDays, isBankHoliday } from "./dutyMath.js";
 
 // Captured before any test runs, while these live bindings still hold the
@@ -645,6 +645,37 @@ describe("applyRosterData / ROSTER_VERSION", () => {
   });
 });
 
+// Zone names are per-garage (Summerhill's "Zone 1"/"Zone 2"/"Skerries"/"150"
+// won't mean anything at another garage), so this must read live off
+// whichever roster is currently applied rather than a fixed list — else
+// every garage's zone picker would keep showing Summerhill's zones.
+describe("getZones", () => {
+  afterEach(() => {
+    applyRosterData({ duties: BUNDLED_DUTIES, seq: BUNDLED_SEQ, fixedRestPattern: BUNDLED_PATTERN, version: BUNDLED_VERSION });
+  });
+
+  it("returns the distinct zones present in the currently-applied roster, in first-seen order", () => {
+    applyRosterData({
+      duties: [
+        { z: "Route A", t: "weekday", r: "X/01", d2: "001" },
+        { z: "Route B", t: "weekday", r: "X/02", d2: "002" },
+        { z: "Route A", t: "weekday", r: "X/03", d2: "003" },
+      ],
+      seq: {}, fixedRestPattern: [[0]], version: "test",
+    });
+
+    expect(getZones()).toEqual(["Route A", "Route B"]);
+  });
+
+  it("reflects a newly-applied roster, not the roster active when the module first loaded", () => {
+    const before = getZones();
+    applyRosterData({ duties: [{ z: "Only Zone", t: "weekday", r: "X/01", d2: "001" }], seq: {}, fixedRestPattern: [[0]], version: "test" });
+
+    expect(getZones()).toEqual(["Only Zone"]);
+    expect(getZones()).not.toEqual(before);
+  });
+});
+
 describe("isValidRosterPayload", () => {
   it("accepts a well-formed payload regardless of whether version is present", () => {
     expect(isValidRosterPayload({ duties: [{}], seq: {}, fixedRestPattern: [[0]] })).toBe(true);
@@ -663,5 +694,68 @@ describe("isValidRosterPayload", () => {
     expect(isValidRosterPayload({ duties: [], seq: {}, fixedRestPattern: [[0]] })).toBeFalsy(); // empty duties
     expect(isValidRosterPayload({ duties: [{}], seq: null, fixedRestPattern: [[0]] })).toBeFalsy();
     expect(isValidRosterPayload({ duties: [{}], seq: {}, fixedRestPattern: [] })).toBeFalsy(); // empty pattern
+  });
+});
+
+// roster-data.json is garage-keyed ({ Summerhill: {...}, Donnybrook: {...} })
+// so multiple garages can share one file. These tests are the actual
+// integrity guarantee behind that: a driver must only ever receive (and
+// only ever fall back to) their own garage's block, never another one's,
+// whether the source is a live fetch or the offline cache.
+describe("loadRosterData / garage scoping", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    localStorage.clear();
+  });
+
+  function mockFetchJson(json) {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve(json) }));
+  }
+
+  const summerhill = { duties: [{ z: "Zone 1", t: "weekday", r: "S/01", d2: "001" }], seq: {}, fixedRestPattern: [[0]], version: "sh-1" };
+  const donnybrook = { duties: [{ z: "Route A", t: "weekday", r: "D/01", d2: "001" }], seq: {}, fixedRestPattern: [[1]], version: "db-1" };
+
+  it("picks the requested garage's block out of the garage-keyed payload", async () => {
+    mockFetchJson({ Summerhill: summerhill, Donnybrook: donnybrook });
+
+    const result = await loadRosterData("Donnybrook");
+
+    expect(result).toEqual(donnybrook);
+  });
+
+  it("caches each garage under its own key, not a shared one", async () => {
+    mockFetchJson({ Summerhill: summerhill, Donnybrook: donnybrook });
+
+    await loadRosterData("Summerhill");
+    await loadRosterData("Donnybrook");
+
+    expect(JSON.parse(localStorage.getItem(rosterCacheKey("Summerhill")))).toEqual(summerhill);
+    expect(JSON.parse(localStorage.getItem(rosterCacheKey("Donnybrook")))).toEqual(donnybrook);
+  });
+
+  it("never falls back to a different garage's cache when its own fetch fails", async () => {
+    localStorage.setItem(rosterCacheKey("Donnybrook"), JSON.stringify(donnybrook));
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
+
+    const result = await loadRosterData("Summerhill");
+
+    expect(result).toBeNull();
+  });
+
+  it("falls back to that garage's own cache when the fetch fails", async () => {
+    localStorage.setItem(rosterCacheKey("Summerhill"), JSON.stringify(summerhill));
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
+
+    const result = await loadRosterData("Summerhill");
+
+    expect(result).toEqual(summerhill);
+  });
+
+  it("returns null when the payload has no block for the requested garage", async () => {
+    mockFetchJson({ Summerhill: summerhill });
+
+    const result = await loadRosterData("Donnybrook");
+
+    expect(result).toBeNull();
   });
 });

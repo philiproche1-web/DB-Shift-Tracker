@@ -3,7 +3,9 @@
 // way the roster is, so an alert seen once still shows with no signal.
 import { fmtShort } from "./dutyMath.js";
 
-const ALERTS_CACHE_KEY = "dbus_route_alerts_cache";
+// Garage-scoped so a driver whose fetch fails falls back to their own
+// garage's last-known alerts, never another garage's cache.
+export function alertsCacheKey(garage) { return `dbus_route_alerts_cache_${garage}`; }
 
 // Day-granularity match — an alert counts as relevant for a whole day it
 // covers, regardless of time. Used wherever alerts are matched to a specific
@@ -61,11 +63,11 @@ export async function fetchRouteAlerts(supabase, garage) {
       .eq("active", true)
       .order("starts_on", { ascending: true });
     if (error || !data) throw error || new Error("no data");
-    try { localStorage.setItem(ALERTS_CACHE_KEY, JSON.stringify(data)); } catch {}
+    try { localStorage.setItem(alertsCacheKey(garage), JSON.stringify(data)); } catch {}
     return data;
   } catch {
     try {
-      const cached = JSON.parse(localStorage.getItem(ALERTS_CACHE_KEY) || "null");
+      const cached = JSON.parse(localStorage.getItem(alertsCacheKey(garage)) || "null");
       return Array.isArray(cached) ? cached : [];
     } catch { return []; }
   }
