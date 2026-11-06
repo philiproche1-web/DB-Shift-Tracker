@@ -87,10 +87,13 @@ export function startAlarm({ sound = true, vibrate = true } = {}) {
 }
 
 export function stopAlarm() {
+  const wasBuzzing = !!buzzTimer;
   if (beepTimer) clearInterval(beepTimer);
   if (buzzTimer) clearInterval(buzzTimer);
   beepTimer = buzzTimer = null;
-  try { navigator.vibrate?.(0); } catch { /* ignore */ }
+  // Only cancel a vibration we started; calling it before any tap logs a
+  // browser error.
+  if (wasBuzzing) { try { navigator.vibrate?.(0); } catch { /* ignore */ } }
 }
 
 // Share the two switches with the service worker (it can't read
