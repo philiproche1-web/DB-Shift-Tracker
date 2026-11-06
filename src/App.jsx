@@ -72,6 +72,7 @@ export default function App() {
   const [logInitDate, setLogInitDate] = useState(null);
   const [logInitRestDay, setLogInitRestDay] = useState(false);
   const [logFocusOT, setLogFocusOT] = useState(false); // opened from a Home card OT button
+  const [logReturn, setLogReturn] = useState(null);     // screen to go back to from Log (e.g. "home")
   const [session, setSession] = useState(undefined); // undefined = not checked yet, null = signed out
   const [syncedOnce, setSyncedOnce] = useState(false);
   const [usageTick, setUsageTick] = useState(0);          // bumps when a usage counter changes
@@ -603,7 +604,7 @@ export default function App() {
   return (
     <div style={{background:BG,minHeight:"100vh"}}>
       {screen==="log"&&<LogScreen key={editShift?.id||"new"} period={activePeriod} editShift={editShift} lookupDuty={lookupDuty} initialDate={logInitDate} initialRestDay={logInitRestDay} focusMoreOptions={logFocusOT}
-        onSave={saveShift} onCancel={()=>{setEditShift(null);setLookupDuty(null);setLogInitDate(null);setLogInitRestDay(false);setLogFocusOT(false);setScreen(logFocusOT?"home":editShift?"period":lookupDuty?"lookup":"home");}}
+        onSave={saveShift} onCancel={()=>{setEditShift(null);setLookupDuty(null);setLogInitDate(null);setLogInitRestDay(false);setLogFocusOT(false);setLogReturn(null);setScreen(logReturn||(logFocusOT?"home":editShift?"period":lookupDuty?"lookup":"home"));}}
         onEditConflict={setEditShift}
         onOpenSettings={()=>setShowSettings(true)}/>}
       {screen==="dayoff"&&<LogDayOffScreen periods={periods} editDayOff={editDayOff}
@@ -619,7 +620,9 @@ export default function App() {
         userId={session?.user?.id}
         onLog={()=>{setEditShift(null);setLogInitDate(null);setLogInitRestDay(false);setScreen("log");}}
         onLogDate={(date,opts)=>{setEditShift(null);setLookupDuty(null);setLogInitDate(date);setLogInitRestDay(!!opts?.isRestDay);setScreen("log");}}
-        onEditShiftOT={s=>{setLookupDuty(null);setLogInitDate(null);setLogInitRestDay(false);setEditShift(s);setLogFocusOT(true);setScreen("log");}}
+        onEditShiftOT={s=>{setLookupDuty(null);setLogInitDate(null);setLogInitRestDay(false);setEditShift(s);setLogFocusOT(true);setLogReturn("home");setScreen("log");}}
+        onEditShift={s=>{setLookupDuty(null);setLogInitDate(null);setLogInitRestDay(false);setLogFocusOT(false);setEditShift(s);setLogReturn("home");setScreen("log");}}
+        onEditDayOff={d=>{setEditDayOff(d);setDayOffFrom("home");setScreen("dayoff");}}
         onGoWeek={i=>{setOpenWeek(i);setScreen("period");}}
         justRolledPeriod={justRolledPeriod} onDismissRolloverBanner={()=>setJustRolledPeriod(null)}
         onOpenSettings={()=>setShowSettings(true)}/>}

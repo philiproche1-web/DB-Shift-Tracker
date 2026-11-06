@@ -1,13 +1,14 @@
-import { useState, useEffect, useMemo, useRef, useLayoutEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { MAX_HOURS, MAX_SUNDAY, getDayType, addDays, fmtShort, fmtHrs, today, calcSpreadover, greetingTimeBand, dutyNumber } from "../lib/dutyMath.js";
 import { alertsForTodaysDuty } from "../lib/routeAlerts.js";
-import { displayRoster, DUTIES, shiftDepartLocation, pStats, periodForDate, dayInfo, getSeq, greetingDutyContext, computeShiftStreak, weekHighlights } from "../lib/roster.js";
+import { displayRoster, DUTIES, pStats, getSeq, greetingDutyContext, computeShiftStreak, weekHighlights } from "../lib/roster.js";
 import { BG, CARD, BORDER, CARD2, TEXT, MUTED, ACCENT, SUCCESS, DANGER, btnStyle, cardStyle, tag } from "../lib/theme.js";
 import { notifyOnce, loadSettings, saveSettings } from "../lib/persistence.js";
 import { subscribeToPush } from "../lib/push.js";
 import { fetchWeather, weatherIconKind } from "../lib/weather.js";
-import { HeaderAlertButton, NewPeriodBanner, WeatherChip, SettingsButton } from "../components/shared.jsx";
+import { HeaderAlertButton, NewPeriodBanner, WeatherChip, SettingsButton, useModalA11y } from "../components/shared.jsx";
 import { ShareDutySheet } from "../components/ShareDutySheet.jsx";
+import { WeekStrip } from "../components/WeekStrip.jsx";
 import { Badge } from "../components/Badge.jsx";
 import { describeKey } from "../lib/achievements.js";
 import { shareDataFromShift } from "../lib/dutyShare.js";
@@ -170,103 +171,51 @@ function WeekHighlightsCard({highlights}) {
   );
 }
 
-// ─── UPCOMING CAROUSEL ──────────────────────────────────────────────────────
-// Fixed 29-day window (7 back, today, 21 forward) in a native scroll-snap
-// strip, defaulted scrolled so today is the first of 3 visible cards. No
-// infinite loading — if a driver ever wants to swipe further than 3 weeks
-// out, that's a follow-up, not needed for the initial ask.
-export const CAROUSEL_DAYS_BACK = 7;
-export const CAROUSEL_DAYS_FORWARD = 21;
-// 44x44 minimum touch target (WCAG 2.5.5) — was 32x32, the smallest tap
-// targets in the app and used one-handed while a driver's moving. The arrow
-// icon inside stays visually small; only the tappable area grows.
-const carouselArrowStyle = {background:CARD,border:`1px solid ${BORDER}`,color:MUTED,borderRadius:10,width:44,height:44,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",padding:0,flexShrink:0};
-
-export function UpcomingDayCard({date, isToday, info, onLogDate}) {
-  const dayLabel = new Date(date+"T12:00:00").toLocaleDateString("en-IE", {weekday:"short"});
-  const dateLabel = fmtShort(date);
-  let body;
-  if (info.status === "shift") {
-    const departLocation = shiftDepartLocation(info.shift);
-    body = (
-      <>
-        <p style={{color:TEXT,fontSize:"0.8125rem",fontWeight:700,margin:"0 0 2px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{info.shift.roster}</p>
-        <p style={{color:MUTED,fontSize:"0.6875rem",margin:0}}>{info.shift.reportTime}–{info.shift.signOffTime}</p>
-        {departLocation && <p style={{color:ACCENT,fontSize:"0.6875rem",fontWeight:700,margin:"2px 0 0",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{departLocation}</p>}
-      </>
-    );
-  } else if (info.status === "dayoff") {
-    const isRest = info.dayOff.type === "Rest Day";
-    body = <p style={{color:isRest?DANGER:ACCENT,fontSize:"0.75rem",fontWeight:700,margin:0}}>{info.dayOff.type}</p>;
-  } else {
-    body = <p style={{color:MUTED,fontSize:"0.75rem",margin:0}}>Not logged yet</p>;
-  }
-  const isRestDayCard = info.status === "dayoff" && info.dayOff.type === "Rest Day";
-  const clickable = info.status === "unlogged" || isRestDayCard;
+// ─── DAY CARD (from the week strip) ─────────────────────────────────────
+// Opens over Home when a green (logged) day is tapped: the full duty card
+// with Edit, OT/rest day/notes and Share, or the day off with Edit.
+export function DaySheet({day, onClose, onShare, onOT, onEditShift, onEditDayOff, onLogDate}) {
+  const ref = useModalA11y(onClose);
+  const {date, info} = day;
+  const label = new Date(date + "T12:00:00").toLocaleDateString("en-IE", {weekday:"long", day:"numeric", month:"long"});
+  const secondary = {background:"none",border:`1px solid ${ACCENT}`,color:ACCENT,borderRadius:12,padding:"13px 0",fontSize:"0.9375rem",fontWeight:700,cursor:"pointer",minWidth:0};
   return (
-    <div
-      onClick={clickable ? () => onLogDate(date, isRestDayCard ? {isRestDay:true} : undefined) : undefined}
-      style={{
-        background:CARD, border:`1px solid ${isToday?ACCENT:BORDER}`, borderRadius:14,
-        padding:"10px 10px", flex:"0 0 calc(33.333% - 6px)", textAlign:"center",
-        scrollSnapAlign:"start", cursor:clickable?"pointer":"default", position:"relative"
-      }}>
-      <p style={{color:isToday?ACCENT:MUTED,fontSize:"0.625rem",textTransform:"uppercase",letterSpacing:0.5,fontWeight:700,margin:"0 0 2px",paddingRight:clickable?20:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{dayLabel} {dateLabel}</p>
-      {body}
-      {clickable && (
-        <div aria-hidden="true" style={{position:"absolute",top:6,right:6,width:16,height:16,borderRadius:"50%",background:ACCENT,color:"#07090F",fontSize:"0.75rem",fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1}}>+</div>
-      )}
-    </div>
-  );
-}
-
-export function UpcomingCarousel({periods, activePeriodId, todayDate, onLogDate}) {
-  const containerRef = useRef(null);
-  const dates = useMemo(() => {
-    const arr = [];
-    for (let i = -CAROUSEL_DAYS_BACK; i <= CAROUSEL_DAYS_FORWARD; i++) arr.push(addDays(todayDate, i));
-    return arr;
-  }, [todayDate]);
-  const todayIndex = CAROUSEL_DAYS_BACK;
-
-  useLayoutEffect(() => {
-    const el = containerRef.current;
-    if (!el || !el.children[todayIndex]) return;
-    el.scrollLeft = el.children[todayIndex].offsetLeft;
-  }, [todayIndex]);
-
-  function scrollByCard(dir) {
-    const el = containerRef.current;
-    if (!el || !el.children[0]) return;
-    const cardEl = el.children[0];
-    const gap = parseFloat(getComputedStyle(el).columnGap || getComputedStyle(el).gap || "0");
-    el.scrollBy({ left: dir * (cardEl.offsetWidth + gap), behavior: "smooth" });
-  }
-
-  return (
-    <div style={{marginBottom:12}}>
-      <p style={{color:MUTED,fontSize:"0.625rem",textTransform:"uppercase",letterSpacing:1.5,fontWeight:700,margin:"0 0 6px"}}>Upcoming</p>
-      <div style={{display:"flex",alignItems:"center",gap:6}}>
-        <button aria-label="Earlier days" onClick={()=>scrollByCard(-1)} style={carouselArrowStyle}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={MUTED} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-        </button>
-        <div ref={containerRef} className="upcoming-carousel-track" style={{display:"flex",gap:8,overflowX:"auto",scrollSnapType:"x mandatory",flex:1}}>
-          {dates.map((date, i) => (
-            <UpcomingDayCard key={date} date={date} isToday={i===todayIndex} info={dayInfo(periodForDate(periods, date, activePeriodId), date)} onLogDate={onLogDate}/>
-          ))}
+    <div onClick={onClose} style={{position:"fixed",inset:0,background:"#000000aa",zIndex:200,display:"flex",alignItems:"flex-end",justifyContent:"center",padding:10}}>
+      <div ref={ref} role="dialog" aria-modal="true" aria-label={label} tabIndex={-1} onClick={(e)=>e.stopPropagation()}
+        style={{width:"100%",maxWidth:480,maxHeight:"88vh",overflowY:"auto",background:BG,border:`1px solid ${BORDER}`,borderRadius:20,padding:"14px 12px 12px",outline:"none",boxSizing:"border-box"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8,margin:"0 4px 10px"}}>
+          <p style={{color:TEXT,fontSize:"1rem",fontWeight:800,margin:0}}>{label}</p>
+          <button type="button" onClick={onClose} aria-label="Close" style={{width:44,height:44,borderRadius:12,background:"none",border:`1px solid ${BORDER}`,color:TEXT,fontSize:"1.375rem",lineHeight:1,cursor:"pointer",flexShrink:0}}>×</button>
         </div>
-        <button aria-label="Later days" onClick={()=>scrollByCard(1)} style={carouselArrowStyle}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={MUTED} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-        </button>
+        {info.status === "shift" ? (
+          <>
+            <TodayDutyCard shift={info.shift} label={date === today() ? "Today's Duty" : "Duty"} accentColor={ACCENT}
+              onShare={() => onShare(info.shift)} onOT={onOT && (() => onOT(info.shift))}/>
+            {onEditShift && <button type="button" onClick={() => onEditShift(info.shift)} style={{...secondary,width:"100%"}}>Edit duty</button>}
+          </>
+        ) : (
+          <div style={{...cardStyle,padding:"16px 18px"}}>
+            <p style={{color:info.dayOff.type === "Rest Day" ? SUCCESS : ACCENT,fontSize:"1.125rem",fontWeight:800,margin:"0 0 4px"}}>{info.dayOff.type}</p>
+            <p style={{color:MUTED,fontSize:"0.8125rem",margin:"0 0 14px"}}>{info.dayOff.fixed ? "From your fixed rest-day pattern" : "Logged"}</p>
+            <div style={{display:"grid",gap:8}}>
+              {info.dayOff.type === "Rest Day" && (
+                <button type="button" onClick={() => onLogDate(date, {isRestDay:true})} style={btnStyle}>Working this rest day? Log it</button>
+              )}
+              {!info.dayOff.fixed && info.dayOff.type !== "Bank Holiday In Lieu" && onEditDayOff && (
+                <button type="button" onClick={() => onEditDayOff(info.dayOff)} style={secondary}>Edit</button>
+              )}
+            </div>
+          </div>
+        )}
       </div>
-      <style>{`.upcoming-carousel-track{-webkit-overflow-scrolling:touch;scrollbar-width:none}.upcoming-carousel-track::-webkit-scrollbar{display:none}`}</style>
     </div>
   );
 }
 
 // ─── HOME SCREEN ──────────────────────────────────────────────────────────────
-export function HomeScreen({period, periods, alerts, onViewAlerts, todayBadges = {keys:[], retroCount:0}, onOpenAchievements, driverFirstName, userId, onLog, onLogDate, onEditShiftOT, onGoWeek, justRolledPeriod, onDismissRolloverBanner, onOpenSettings}) {
+export function HomeScreen({period, periods, alerts, onViewAlerts, todayBadges = {keys:[], retroCount:0}, onOpenAchievements, driverFirstName, userId, onLogDate, onEditShiftOT, onEditShift, onEditDayOff, onGoWeek, justRolledPeriod, onDismissRolloverBanner, onOpenSettings}) {
   const [shareShift, setShareShift] = useState(null);
+  const [openDay, setOpenDay] = useState(null); // {date, info} from the week strip
   const stats = useMemo(() => pStats(period), [period]);
   const [weather, setWeather] = useState(null);
   const [showNotifPrompt, setShowNotifPrompt] = useState(false);
@@ -392,6 +341,11 @@ export function HomeScreen({period, periods, alerts, onViewAlerts, todayBadges =
 
       <div style={{padding:"0 16px"}}>
 
+        {/* Week strip (Phil 2026-11-06): straight under the date. Tap a red
+            or yellow day to log it; tap a green day to open it. */}
+        <WeekStrip periods={periods} activePeriodId={period.id} todayDate={todayDate}
+          onSelect={(date, info) => info.status === "unlogged" ? onLogDate(date) : setOpenDay({date, info})}/>
+
         {/* Full-width so it doesn't fight the greeting/date for horizontal
             room the way a header pill did (that squeezed "Good afternoon,
             Phil..." down to five/six wrapped lines on a phone). Sits above
@@ -494,15 +448,12 @@ export function HomeScreen({period, periods, alerts, onViewAlerts, todayBadges =
           </div>
         )}
 
-        {/* Quick action */}
-        <button style={{...btnStyle,fontSize:"1rem",padding:"16px 20px",borderRadius:14,textAlign:"left",marginBottom:12}} onClick={onLog}>
-          + Log a Shift
-        </button>
+        {/* The "+ Log a Shift" button was removed (Phil 2026-11-06): today's
+            circle in the week strip and the Log tab both do it. */}
 
         {/* Planning context — demoted below the time-critical cards above. */}
         <WeekHighlightsCard highlights={thisWeekHighlights}/>
 
-        <UpcomingCarousel periods={periods} activePeriodId={period.id} todayDate={todayDate} onLogDate={onLogDate}/>
 
         {/* Remaining hours + week totals */}
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
@@ -570,6 +521,12 @@ export function HomeScreen({period, periods, alerts, onViewAlerts, todayBadges =
         </div>
 
       </div>
+      {openDay && <DaySheet day={openDay} onClose={()=>setOpenDay(null)}
+        onShare={(s)=>{ setOpenDay(null); setShareShift(s); }}
+        onOT={onEditShiftOT && ((s)=>{ setOpenDay(null); onEditShiftOT(s); })}
+        onEditShift={onEditShift && ((s)=>{ setOpenDay(null); onEditShift(s); })}
+        onEditDayOff={onEditDayOff && ((d)=>{ setOpenDay(null); onEditDayOff(d); })}
+        onLogDate={(d, o)=>{ setOpenDay(null); onLogDate(d, o); }}/>}
       {shareShift && <ShareDutySheet duty={shareDataFromShift(shareShift)} source="home" onClose={()=>setShareShift(null)}/>}
     </div>
   );

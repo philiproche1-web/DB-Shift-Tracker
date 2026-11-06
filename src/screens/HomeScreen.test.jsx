@@ -57,7 +57,7 @@ describe("HomeScreen today-card branching", () => {
     const period = basePeriod({ shifts: [shift("s1", todayDate)] });
     mounted = render(<HomeScreen {...homeProps(period)} />);
     expect(mounted.container.textContent).toContain("Today's Duty");
-    expect(mounted.container.textContent).toContain("SZ1/01");
+    expect(mounted.container.textContent).toContain("Z1/01");
     expect(mounted.container.textContent).not.toContain("No duty logged for today");
   });
 
