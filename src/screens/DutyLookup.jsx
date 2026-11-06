@@ -3,6 +3,8 @@ import { getDayType, isBankHoliday, addDays, fmtHrs, today, calcSpreadover, duty
 import { getZones, getDuties, getSeq } from "../lib/roster.js";
 import { BG, CARD, CARD2, BORDER, TEXT, MUTED, ACCENT, SUCCESS, btnStyle, tag } from "../lib/theme.js";
 import { SegGroup, DutyPicker, SettingsButton } from "../components/shared.jsx";
+import { ShareDutySheet } from "../components/ShareDutySheet.jsx";
+import { shareDataFromDuty } from "../lib/dutyShare.js";
 
 export function parseEntry(e) {
   const m=e.match(/^(\d{1,2}:\d{2})\s*-\s*(.+)$/);
@@ -16,6 +18,7 @@ export function DutyLookup({onLogShift, onOpenSettings}) {
   const [zone, setZone] = useState(savedZone);
   const [dayType, setDayType] = useState(getDayType(today()));
   const [rIdx, setRIdx] = useState(-1);
+  const [sharing, setSharing] = useState(false);
   const duties = useMemo(()=>getDuties(zone,dayType),[zone,dayType]);
   const duty = rIdx>=0 ? duties[rIdx] : null;
   const sequence = useMemo(()=> duty ? getSeq(duty.z, duty.t, duty.r) : [], [duty]);
@@ -107,7 +110,7 @@ export function DutyLookup({onLogShift, onOpenSettings}) {
           <>
             {/* Duty summary strip */}
             <div style={{background:CARD2,border:`1px solid ${BORDER}`,borderRadius:14,padding:"16px 18px",marginBottom:4}}>
-              <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
+              <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8,flexWrap:"wrap"}}>
                 <span style={{color:ACCENT,fontSize:"1.5rem",fontWeight:800,letterSpacing:"-0.5px"}}>{duty.r}</span>
                 <span style={{background:ACCENT+"22",color:ACCENT,borderRadius:6,padding:"2px 8px",fontSize:"0.6875rem",fontWeight:700,letterSpacing:1,textTransform:"uppercase"}}>{dayOpts.find(o=>o.v===dayType)?.l}</span>
                 {dutyNumber(duty.d2) && <span style={{...tag(ACCENT),marginLeft:"auto"}}>Duty No. {dutyNumber(duty.d2)}</span>}
@@ -131,7 +134,13 @@ export function DutyLookup({onLogShift, onOpenSettings}) {
 
             {/* Running board timeline */}
             <div style={{background:CARD,border:`1px solid ${BORDER}`,borderRadius:14,padding:"20px 18px",marginBottom:16}}>
-              <p style={{color:MUTED,fontSize:"0.625rem",textTransform:"uppercase",letterSpacing:2,fontWeight:700,margin:"0 0 18px"}}>Running Board</p>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,margin:"-6px 0 12px"}}>
+                <p style={{color:MUTED,fontSize:"0.625rem",textTransform:"uppercase",letterSpacing:2,fontWeight:700,margin:0}}>Running Board</p>
+                <button type="button" aria-label="Share this duty" onClick={()=>setSharing(true)}
+                  style={{width:44,height:44,borderRadius:12,background:`${ACCENT}14`,border:`1px solid ${ACCENT}44`,color:ACCENT,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",padding:0,flexShrink:0}}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                </button>
+              </div>
               {sequence.length > 0 ? sequence.map((entry,i) => {
                 const {time, desc} = parseEntry(entry);
                 const dc = dotColor(entry);
@@ -164,8 +173,10 @@ export function DutyLookup({onLogShift, onOpenSettings}) {
               }) : <p style={{color:MUTED,fontSize:"0.875rem",textAlign:"center",padding:"12px 0",margin:0}}>No running board available for this duty</p>}
             </div>
 
+            {sharing && <ShareDutySheet duty={shareDataFromDuty(duty, sequence)} dayType={dayType} source="lookup" onClose={()=>setSharing(false)}/>}
+
             {onLogShift && (
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+              <div style={{display:"grid",gridTemplateColumns:"minmax(0,1fr) minmax(0,1fr)",gap:8}}>
                 <button style={btnStyle} onClick={()=>onLogShift(duty, dayType, today())}>
                   Log for Today
                 </button>
