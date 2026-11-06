@@ -64,6 +64,7 @@ export default function App() {
   const [_rosterVersion, setRosterVersion] = useState(0); // value unused by design — only the setter forces a re-render on fresher roster data
   const [logInitDate, setLogInitDate] = useState(null);
   const [logInitRestDay, setLogInitRestDay] = useState(false);
+  const [logFocusOT, setLogFocusOT] = useState(false); // opened from a Home card OT button
   const [session, setSession] = useState(undefined); // undefined = not checked yet, null = signed out
   const [syncedOnce, setSyncedOnce] = useState(false);
   const [passwordRecovery, setPasswordRecovery] = useState(false);
@@ -401,7 +402,7 @@ export default function App() {
     const updated = applyShiftSave(periods, activePeriodId, shiftOrArray, bankHolidayInLieuEntries);
     const items = Array.isArray(shiftOrArray) ? shiftOrArray : [shiftOrArray];
     trackEvent("shift_logged", { isEdit: !!editShift, isBulk: items.length > 1, count: items.length, types: [...new Set(items.map(s => s.type))] });
-    persist(updated,activePeriodId); setEditShift(null); setLookupDuty(null); setLogInitDate(null); setLogInitRestDay(false); setScreen("home");
+    persist(updated,activePeriodId); setEditShift(null); setLookupDuty(null); setLogInitDate(null); setLogInitRestDay(false); setLogFocusOT(false); setScreen("home");
   }
 
   function saveDayOff(dayOffOrArray, replaceShiftIds, replaceDayOffIds) {
@@ -519,8 +520,8 @@ export default function App() {
 
   return (
     <div style={{background:BG,minHeight:"100vh"}}>
-      {screen==="log"&&<LogScreen key={editShift?.id||"new"} period={activePeriod} editShift={editShift} lookupDuty={lookupDuty} initialDate={logInitDate} initialRestDay={logInitRestDay} alerts={routeAlerts}
-        onSave={saveShift} onCancel={()=>{setEditShift(null);setLookupDuty(null);setLogInitDate(null);setLogInitRestDay(false);setScreen(editShift?"period":lookupDuty?"lookup":"home");}}
+      {screen==="log"&&<LogScreen key={editShift?.id||"new"} period={activePeriod} editShift={editShift} lookupDuty={lookupDuty} initialDate={logInitDate} initialRestDay={logInitRestDay} focusMoreOptions={logFocusOT} alerts={routeAlerts}
+        onSave={saveShift} onCancel={()=>{setEditShift(null);setLookupDuty(null);setLogInitDate(null);setLogInitRestDay(false);setLogFocusOT(false);setScreen(logFocusOT?"home":editShift?"period":lookupDuty?"lookup":"home");}}
         onEditConflict={setEditShift}
         onOpenSettings={()=>setShowSettings(true)}/>}
       {screen==="dayoff"&&<LogDayOffScreen periods={periods} editDayOff={editDayOff}
@@ -534,6 +535,7 @@ export default function App() {
         userId={session?.user?.id}
         onLog={()=>{setEditShift(null);setLogInitDate(null);setLogInitRestDay(false);setScreen("log");}}
         onLogDate={(date,opts)=>{setEditShift(null);setLookupDuty(null);setLogInitDate(date);setLogInitRestDay(!!opts?.isRestDay);setScreen("log");}}
+        onEditShiftOT={s=>{setLookupDuty(null);setLogInitDate(null);setLogInitRestDay(false);setEditShift(s);setLogFocusOT(true);setScreen("log");}}
         onGoWeek={i=>{setOpenWeek(i);setScreen("period");}}
         justRolledPeriod={justRolledPeriod} onDismissRolloverBanner={()=>setJustRolledPeriod(null)}
         onOpenSettings={()=>setShowSettings(true)}/>}
@@ -557,7 +559,7 @@ export default function App() {
         // Navigating away from an in-progress shift/day-off edit discards it,
         // same as that screen's own Cancel — otherwise stale editShift/
         // editDayOff state would resurface next time Log opens.
-        setEditShift(null);setLookupDuty(null);setLogInitDate(null);setLogInitRestDay(false);setEditDayOff(null);
+        setEditShift(null);setLookupDuty(null);setLogInitDate(null);setLogInitRestDay(false);setLogFocusOT(false);setEditDayOff(null);
         if(tab==="period")setOpenWeek(null);
         setScreen(tab);
       }}/>

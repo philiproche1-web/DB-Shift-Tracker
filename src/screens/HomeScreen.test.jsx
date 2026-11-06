@@ -101,3 +101,43 @@ describe("HomeScreen today-card branching", () => {
     expect(mounted.container.textContent).toContain("No duty logged for today");
   });
 });
+
+describe("HomeScreen diversion alert — only when today's logged duty is affected", () => {
+  const live = (id, zone) => ({ id, zone, starts_on: addDays(todayDate, -1), ends_on: null, type: "diversion", description: "x" });
+  const alertBtn = (c) => c.querySelector('[aria-label*="active diversion"]');
+
+  it("hides every alert when no duty is logged for today", () => {
+    const period = basePeriod();
+    mounted = render(<HomeScreen {...homeProps(period)} alerts={[live("a", "Zone 1"), live("b", null)]} />);
+    expect(alertBtn(mounted.container)).toBeNull();
+  });
+
+  it("hides an alert for a different zone", () => {
+    const period = basePeriod({ shifts: [shift("s1", todayDate, { zone: "Zone 2" })] });
+    mounted = render(<HomeScreen {...homeProps(period)} alerts={[live("a", "Zone 1")]} />);
+    expect(alertBtn(mounted.container)).toBeNull();
+  });
+
+  it("shows same-zone and garage-wide alerts for today's duty", () => {
+    const period = basePeriod({ shifts: [shift("s1", todayDate)] });
+    mounted = render(<HomeScreen {...homeProps(period)} alerts={[live("a", "Zone 1"), live("b", null), live("c", "Zone 2")]} />);
+    expect(alertBtn(mounted.container).getAttribute("aria-label")).toBe("2 active diversions for your garage");
+  });
+});
+
+describe("HomeScreen duty card camera + OT buttons", () => {
+  it("OT opens the logged shift via onEditShiftOT", () => {
+    const s = shift("s1", todayDate);
+    let got = null;
+    mounted = render(<HomeScreen {...homeProps(basePeriod({ shifts: [s] }))} onEditShiftOT={(x) => { got = x; }} />);
+    act(() => { mounted.container.querySelector('[aria-label="Log overtime or rest day"]').click(); });
+    expect(got?.id).toBe("s1");
+  });
+
+  it("camera opens the share sheet with the swap caption", () => {
+    mounted = render(<HomeScreen {...homeProps(basePeriod({ shifts: [shift("s1", todayDate)] }))} />);
+    act(() => { mounted.container.querySelector('[aria-label="Share this duty"]').click(); });
+    const caption = document.querySelector("#share-caption");
+    expect(caption.value).toMatch(/^Looking to swap SZ1\/01 – .+\. Report 05:40, finish 13:55\.\nLooking for: early finish before 12:00$/);
+  });
+});

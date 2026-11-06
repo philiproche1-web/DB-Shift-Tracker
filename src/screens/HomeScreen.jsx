@@ -7,6 +7,8 @@ import { notifyOnce, loadSettings, saveSettings } from "../lib/persistence.js";
 import { subscribeToPush } from "../lib/push.js";
 import { fetchWeather, weatherIconKind } from "../lib/weather.js";
 import { HeaderAlertButton, NewPeriodBanner, WeatherChip, SettingsButton } from "../components/shared.jsx";
+import { ShareDutySheet } from "../components/ShareDutySheet.jsx";
+import { shareDataFromShift } from "../lib/dutyShare.js";
 
 // Makes sure this device actually has a push subscription registered, given
 // the driver already has reminders on and OS permission granted. The Settings
@@ -32,7 +34,23 @@ async function ensurePushSubscription(userId) {
 }
 
 // ─── TODAY DUTY CARD ──────────────────────────────────────────────────────────
-export function TodayDutyCard({shift, label, accentColor, defaultExpanded=true}) {
+// Camera (share) + OT buttons. Vertical beside the running board when the
+// card is open (that column was empty space), a right-aligned row when it is
+// collapsed so they're never hidden behind an extra tap.
+function DutyCardActions({ac, onShare, onOT, vertical}) {
+  if (!onShare && !onOT) return null;
+  const b = {width:44,height:44,borderRadius:12,background:"#07090F55",border:`1px solid ${ac}44`,color:ac,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",padding:0,flexShrink:0};
+  return (
+    <div style={{display:"flex",flexDirection:vertical?"column":"row",gap:8,flexShrink:0,justifyContent:"flex-end"}}>
+      {onShare && <button type="button" aria-label="Share this duty" onClick={(e)=>{e.stopPropagation();onShare();}} style={b}>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+      </button>}
+      {onOT && <button type="button" aria-label="Log overtime or rest day" onClick={(e)=>{e.stopPropagation();onOT();}} style={{...b,fontSize:"0.8125rem",fontWeight:800,letterSpacing:0.5}}>OT</button>}
+    </div>
+  );
+}
+
+export function TodayDutyCard({shift, label, accentColor, defaultExpanded=true, onShare, onOT}) {
   const [expanded, setExpanded] = useState(defaultExpanded);
   const seq = useMemo(()=>getSeq(shift.zone, getDayType(shift.date), shift.roster),[shift]);
   const duty = DUTIES.find(d=>d.r===shift.roster&&d.t===getDayType(shift.date)&&d.z===shift.zone);
@@ -86,13 +104,15 @@ export function TodayDutyCard({shift, label, accentColor, defaultExpanded=true})
             <p style={{color:SUCCESS,fontSize:"0.9375rem",fontWeight:800,margin:0,fontVariantNumeric:"tabular-nums"}}>{shift.signOffTime}</p>
           </div>
         </div>
+        {!expanded && (onShare||onOT) && <div style={{marginTop:10}}><DutyCardActions ac={ac} onShare={onShare} onOT={onOT}/></div>}
       </div>
 
       {/* Inline running board */}
       {expanded && seq.length > 0 && (
         <div style={{borderTop:`1px solid ${ac}22`,padding:"12px 18px 16px"}}>
           <p style={{color:MUTED,fontSize:"0.625rem",textTransform:"uppercase",letterSpacing:2,fontWeight:700,margin:"0 0 12px"}}>Running Board</p>
-          <div style={{position:"relative"}}>
+          <div style={{display:"flex",gap:12,alignItems:"flex-start"}}>
+          <div style={{position:"relative",flex:1,minWidth:0}}>
             <div style={{position:"absolute",left:7,top:8,bottom:8,width:2,background:`${BORDER}`,borderRadius:1}}/>
             {seq.map((entry, i) => {
               const timeMatch = entry.match(/^(\d{1,2}:\d{2})/);
@@ -113,12 +133,15 @@ export function TodayDutyCard({shift, label, accentColor, defaultExpanded=true})
               );
             })}
           </div>
+          <DutyCardActions ac={ac} onShare={onShare} onOT={onOT} vertical/>
+          </div>
         </div>
       )}
 
       {expanded && seq.length === 0 && (
-        <div style={{borderTop:`1px solid ${ac}22`,padding:"12px 18px 16px"}}>
-          <p style={{color:MUTED,fontSize:"0.8125rem",margin:0,textAlign:"center"}}>No running board available for this duty</p>
+        <div style={{borderTop:`1px solid ${ac}22`,padding:"12px 18px 16px",display:"flex",gap:12,alignItems:"center"}}>
+          <p style={{color:MUTED,fontSize:"0.8125rem",margin:0,textAlign:"center",flex:1}}>No running board available for this duty</p>
+          <DutyCardActions ac={ac} onShare={onShare} onOT={onOT} vertical/>
         </div>
       )}
     </div>
@@ -233,7 +256,8 @@ export function UpcomingCarousel({periods, activePeriodId, todayDate, onLogDate}
 }
 
 // ─── HOME SCREEN ──────────────────────────────────────────────────────────────
-export function HomeScreen({period, periods, alerts, onViewAlerts, driverFirstName, userId, onLog, onLogDate, onGoWeek, justRolledPeriod, onDismissRolloverBanner, onOpenSettings}) {
+export function HomeScreen({period, periods, alerts, onViewAlerts, driverFirstName, userId, onLog, onLogDate, onEditShiftOT, onGoWeek, justRolledPeriod, onDismissRolloverBanner, onOpenSettings}) {
+  const [shareShift, setShareShift] = useState(null);
   const stats = useMemo(() => pStats(period), [period]);
   const [weather, setWeather] = useState(null);
   const [showNotifPrompt, setShowNotifPrompt] = useState(false);
@@ -265,7 +289,12 @@ export function HomeScreen({period, periods, alerts, onViewAlerts, driverFirstNa
   const dutyContext = useMemo(() => greetingDutyContext(period, todayDate), [period, todayDate]);
   const shiftStreak = useMemo(() => computeShiftStreak(periods, period.id, todayDate), [periods, period.id, todayDate]);
 
-  const activeAlerts = useMemo(() => (alerts||[]).filter(a => isLiveNow(a)), [alerts, todayDate]);
+  // Only when a duty is logged for today AND the alert touches it: same zone,
+  // or garage-wide (no zone). Phil 2026-11-06: no logged duty, no alert. The
+  // Alerts screen itself still lists everything.
+  const activeAlerts = useMemo(() => todayShift
+    ? (alerts||[]).filter(a => isLiveNow(a) && (!a.zone || a.zone === todayShift.zone))
+    : [], [alerts, todayDate, todayShift]);
 
   useEffect(() => {
     // Used to call Notification.requestPermission() unconditionally here on
@@ -373,7 +402,7 @@ export function HomeScreen({period, periods, alerts, onViewAlerts, driverFirstNa
             one thing they opened the app for. Everything demoted below it is
             planning context, useful but not time-critical. */}
         {todayShift ? (
-          <TodayDutyCard shift={todayShift} label="Today's Duty" accentColor={ACCENT} />
+          <TodayDutyCard shift={todayShift} label="Today's Duty" accentColor={ACCENT} onShare={()=>setShareShift(todayShift)} onOT={onEditShiftOT && (()=>onEditShiftOT(todayShift))} />
         ) : todayDayOff ? (
           todayDayOff.type === "Rest Day" ? (
             <div style={{background:CARD,border:`1px solid ${BORDER}`,borderRadius:18,padding:"16px 18px",marginBottom:12,display:"flex",alignItems:"center",gap:14}}>
@@ -409,7 +438,7 @@ export function HomeScreen({period, periods, alerts, onViewAlerts, driverFirstNa
         )}
 
         {tomorrowShift && (
-          <TodayDutyCard shift={tomorrowShift} label="Tomorrow's Duty" accentColor="#60a5fa" defaultExpanded={false} />
+          <TodayDutyCard shift={tomorrowShift} label="Tomorrow's Duty" accentColor="#60a5fa" defaultExpanded={false} onShare={()=>setShareShift(tomorrowShift)} onOT={onEditShiftOT && (()=>onEditShiftOT(tomorrowShift))} />
         )}
 
         {/* Explains what's being asked before the OS permission dialog
@@ -508,6 +537,7 @@ export function HomeScreen({period, periods, alerts, onViewAlerts, driverFirstNa
         </div>
 
       </div>
+      {shareShift && <ShareDutySheet duty={shareDataFromShift(shareShift)} source="home" onClose={()=>setShareShift(null)}/>}
     </div>
   );
 }

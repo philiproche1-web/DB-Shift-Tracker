@@ -23,13 +23,17 @@ function render(element) {
   act(() => { root.render(element); });
   return { container, unmount: () => act(() => root.unmount()) };
 }
+function saveButtons(container) {
+  return [...container.querySelectorAll("button")].filter(b => /Log Shift|Save Changes|Log \d+ days/.test(b.textContent));
+}
 function saveButton(container) {
-  const matches = [...container.querySelectorAll("button")].filter(b => /Log Shift|Save Changes|Log \d+ days/.test(b.textContent));
-  // The two Save positions (normal duty pick vs Spare/CPC) are meant to be
-  // mutually exclusive — asserting exactly one here means a regression that
-  // renders both at once fails loudly instead of this helper silently
-  // picking whichever happens to be first.
-  expect(matches.length).toBeLessThanOrEqual(1);
+  const matches = saveButtons(container);
+  // Exactly one "early" Save (before Shift details for a normal duty, after
+  // it for Spare/CPC — mutually exclusive) plus, once a duty is chosen, the
+  // bottom copy under Notes (Phil 2026-11-06). Never more than two, and the
+  // copies must always agree on enabled/disabled.
+  expect(matches.length).toBeLessThanOrEqual(2);
+  if (matches.length === 2) expect(matches[0].disabled).toBe(matches[1].disabled);
   return matches[0];
 }
 function textNode(container, text) {
@@ -181,12 +185,34 @@ describe("LogScreen Save button position", () => {
     expect(mounted.container.querySelectorAll("button").length).toBeGreaterThan(0);
   });
 
-  it("never renders two Save buttons at once, for either path", () => {
+  it("renders exactly one early Save plus one bottom Save (after Notes), for either path", () => {
     const period = { id: "p1", startDate: start, shifts: [], daysOff: [] };
     mounted = render(<LogScreen period={period} editShift={null} lookupDuty={null} initialDate={addDays(start, 2)}
       initialRestDay={false} alerts={[]} onSave={noop} onCancel={noop} onOpenSettings={noop} />);
     const cpcBtn = [...mounted.container.querySelectorAll("button")].find(b => b.textContent.includes("CPC/Training"));
     click(cpcBtn);
-    expect([...mounted.container.querySelectorAll("button")].filter(b => /Log Shift|Save Changes|Log \d+ days/.test(b.textContent)).length).toBe(1);
+    const saves = saveButtons(mounted.container);
+    expect(saves.length).toBe(2);
+    const notes = mounted.container.querySelector("#log-notes");
+    expect(notes.compareDocumentPosition(saves[1]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+});
+
+describe("LogScreen OT shortcut (Home card OT button)", () => {
+  it("opens More options (rest day + overtime) when focusMoreOptions is set", () => {
+    const s = shift("s1", addDays(start, 2));
+    const period = { id: "p1", startDate: start, shifts: [s], daysOff: [] };
+    mounted = render(<LogScreen period={period} editShift={s} lookupDuty={null} initialDate={null} focusMoreOptions
+      initialRestDay={false} alerts={[]} onSave={noop} onCancel={noop} onOpenSettings={noop} />);
+    expect(mounted.container.textContent).toContain("Working on a rest day");
+    expect(mounted.container.querySelector("#log-ot-h")).toBeTruthy();
+  });
+
+  it("keeps More options closed for the same shift opened normally", () => {
+    const s = shift("s1", addDays(start, 2));
+    const period = { id: "p1", startDate: start, shifts: [s], daysOff: [] };
+    mounted = render(<LogScreen period={period} editShift={s} lookupDuty={null} initialDate={null}
+      initialRestDay={false} alerts={[]} onSave={noop} onCancel={noop} onOpenSettings={noop} />);
+    expect(mounted.container.textContent).not.toContain("Working on a rest day");
   });
 });

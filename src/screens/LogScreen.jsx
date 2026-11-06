@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { getDayType, isBankHoliday, addDays, fmtDate, fmtShort, fmtHrs, today, uid, sundayOf, calcSpreadover, addDuration, inPeriod } from "../lib/dutyMath.js";
 import { alertsForZone } from "../lib/routeAlerts.js";
 import { getZones, FIXED_DUTY_TYPES, getDuties } from "../lib/roster.js";
@@ -27,7 +27,7 @@ function BankHolidayChoiceDialog({date, onChoose}) {
 }
 
 // ─── LOG SHIFT SCREEN ─────────────────────────────────────────────────────────
-export function LogScreen({period, editShift, lookupDuty, initialDate, initialRestDay, alerts, onSave, onCancel, onEditConflict, onOpenSettings}) {
+export function LogScreen({period, editShift, lookupDuty, initialDate, initialRestDay, focusMoreOptions, alerts, onSave, onCancel, onEditConflict, onOpenSettings}) {
   // lookupDuty = {d: dutyObj, dt: dayType} from the Lookup screen
   const initZone = lookupDuty?.d.z || editShift?.zone || getZones()[0];
   const [date, setDate] = useState(lookupDuty?.date || editShift?.date || initialDate || today());
@@ -74,9 +74,21 @@ export function LogScreen({period, editShift, lookupDuty, initialDate, initialRe
   // auto-expanded when editing a shift that already has either set, or when
   // a rest-day carousel card launch pre-sets isRestDay, so nothing already-saved
   // or pre-set is ever hidden behind an extra tap.
+  // focusMoreOptions: opened from a Home card's OT button — open the
+  // section and bring it on screen so rest day / overtime / notes are right
+  // there without hunting.
   const [moreOptionsOpen, setMoreOptionsOpen] = useState(
-    isRestDay || overtimeH > 0 || overtimeM > 0
+    !!focusMoreOptions || isRestDay || overtimeH > 0 || overtimeM > 0
   );
+  // The section only renders once the duty index is resolved (an effect sets
+  // rIdx from editShift after mount), so scroll the first time it exists.
+  const moreOptionsRef = useRef(null);
+  const didFocusMoreOptions = useRef(false);
+  useEffect(() => {
+    if (!focusMoreOptions || didFocusMoreOptions.current || !moreOptionsRef.current) return;
+    didFocusMoreOptions.current = true;
+    moreOptionsRef.current.scrollIntoView?.({block:"start",behavior:"smooth"});
+  });
 
   function hasEnteredTimes() {
     return !!reportTime || signOffVal!=="00:00" || workH>0 || workM>0 || reliefH>0 || reliefM>0;
@@ -248,6 +260,21 @@ export function LogScreen({period, editShift, lookupDuty, initialDate, initialRe
     maybeStartBankHolidaySave();
   }
 
+  // Same Save button + block reason, rendered up to three times: above
+  // Shift details for a normal duty pick, after Shift details for spare/
+  // fixed types, and always at the very bottom under Notes (Phil 2026-11-06:
+  // after editing OT/notes you shouldn't scroll back up to save).
+  const saveBlock = (
+    <>
+            <button style={{...btnStyle,opacity:canSave?1:0.4,cursor:canSave?"pointer":"not-allowed",marginBottom:20}} onClick={handleSave} disabled={!canSave}>
+              {editShift ? "Save Changes" : extraDays.length>0 ? `Log ${1+extraDays.length} days` : "Log Shift"}
+            </button>
+            {!canSave && saveBlockReason && (
+              <p style={{color:MUTED,fontSize:"0.75rem",margin:"-12px 0 20px",textAlign:"center"}}>{saveBlockReason}</p>
+            )}
+    </>
+  );
+
   return (
     <div style={{background:BG,minHeight:"100vh",paddingBottom:100}}>
       {initialRestDay && isRestDay && (
@@ -398,12 +425,7 @@ export function LogScreen({period, editShift, lookupDuty, initialDate, initialRe
             yet. Phil caught this split on first look at the moved button. */}
         {!isSpare && !fixedType && (
           <>
-            <button style={{...btnStyle,opacity:canSave?1:0.4,cursor:canSave?"pointer":"not-allowed",marginBottom:20}} onClick={handleSave} disabled={!canSave}>
-              {editShift ? "Save Changes" : extraDays.length>0 ? `Log ${1+extraDays.length} days` : "Log Shift"}
-            </button>
-            {!canSave && saveBlockReason && (
-              <p style={{color:MUTED,fontSize:"0.75rem",margin:"-12px 0 20px",textAlign:"center"}}>{saveBlockReason}</p>
-            )}
+            {saveBlock}
           </>
         )}
 
@@ -480,12 +502,7 @@ export function LogScreen({period, editShift, lookupDuty, initialDate, initialRe
             in Shift details above, so Save goes here instead of before it. */}
         {(isSpare || fixedType) && (
           <>
-            <button style={{...btnStyle,opacity:canSave?1:0.4,cursor:canSave?"pointer":"not-allowed",marginBottom:20}} onClick={handleSave} disabled={!canSave}>
-              {editShift ? "Save Changes" : extraDays.length>0 ? `Log ${1+extraDays.length} days` : "Log Shift"}
-            </button>
-            {!canSave && saveBlockReason && (
-              <p style={{color:MUTED,fontSize:"0.75rem",margin:"-12px 0 20px",textAlign:"center"}}>{saveBlockReason}</p>
-            )}
+            {saveBlock}
           </>
         )}
 
@@ -496,7 +513,7 @@ export function LogScreen({period, editShift, lookupDuty, initialDate, initialRe
           if (!isRestDay && (overtimeH > 0 || overtimeM > 0)) summaryParts.push(`+${fmtHrs(overtimeH + overtimeM/60)} overtime`);
           const summary = summaryParts.join(" · ");
           return (
-            <div style={{...cardStyle,marginBottom:16,padding:0,overflow:"hidden"}}>
+            <div ref={moreOptionsRef} style={{...cardStyle,marginBottom:16,padding:0,overflow:"hidden",scrollMarginTop:16}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"14px 16px",cursor:"pointer"}} onClick={()=>setMoreOptionsOpen(!moreOptionsOpen)}>
                 <div>
                   <p style={{color:TEXT,fontSize:"0.875rem",fontWeight:600,margin:0}}>More options</p>
@@ -554,6 +571,9 @@ export function LogScreen({period, editShift, lookupDuty, initialDate, initialRe
               style={{...inputStyle,minHeight:72,resize:"vertical",fontFamily:"inherit",lineHeight:1.5}} />
           </div>
         )}
+
+        {/* Bottom Save — see saveBlock */}
+        {(rIdx>=0 || isSpare || fixedType) && saveBlock}
 
         {pendingAction && (
           <ConfirmDialog msg={pendingAction.msg} yesLabel="Continue" danger={false}
