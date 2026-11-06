@@ -106,14 +106,14 @@ export function TourOverlay({onDone}) {
           {slide > 0 && (
             <button onClick={()=>setSlide(slide-1)} style={{background:"none",border:`1px solid ${BORDER}`,color:TEXT,borderRadius:12,padding:"15px 20px",fontSize:"1.125rem",cursor:"pointer",lineHeight:1}}>←</button>
           )}
-          <button onClick={()=> isLast ? onDone() : setSlide(slide+1)} style={btnStyle}>
+          <button onClick={()=> isLast ? onDone(true) : setSlide(slide+1)} style={btnStyle}>
             {isLast ? "Get Started" : "Next"}
           </button>
         </div>
 
         {/* Skip */}
         {!isLast && (
-          <button onClick={onDone} style={{background:"none",border:"none",color:MUTED,fontSize:"0.8125rem",cursor:"pointer",width:"100%",marginTop:16,padding:"4px 0"}}>
+          <button onClick={()=>onDone(false)} style={{background:"none",border:"none",color:MUTED,fontSize:"0.8125rem",cursor:"pointer",width:"100%",marginTop:16,padding:"4px 0"}}>
             Skip
           </button>
         )}

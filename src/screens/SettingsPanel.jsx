@@ -88,6 +88,11 @@ export function SettingsPanel({period, onClose, onThemeChange, leaveSettings, on
       }
     });
   }
+  function toggleBadgeSound() {
+    const next = {...settings, badgeSound: settings.badgeSound === false};
+    setSettings(next); persistSettings(next);
+  }
+
   function toggleBreakReminder() {
     const next = {...settings, breakReminderEnabled: !settings.breakReminderEnabled};
     setSettings(next); persistSettings(next);
@@ -362,6 +367,22 @@ export function SettingsPanel({period, onClose, onThemeChange, leaveSettings, on
             </div>
           )}
           {breakMinError && <p style={{color:DANGER,fontSize:"0.75rem",margin:"6px 0 0"}}>{breakMinError}</p>}
+          {settings.breakReminderEnabled && (
+            <p style={{color:MUTED,fontSize:"0.71875rem",margin:"10px 0 0",lineHeight:1.5}}>
+              Want it louder? The reminder stays on screen and vibrates, but the sound is set by your phone. On Android: Settings › Apps › Roster Buddy (or Chrome) › Notifications, then pick a loud sound and turn on "Pop on screen".
+            </p>
+          )}
+        </div>
+
+        {/* Badge sound */}
+        <div style={{...cardStyle,padding:"14px 16px",marginBottom:20,display:"flex",justifyContent:"space-between",alignItems:"center",cursor:"pointer"}} onClick={toggleBadgeSound}>
+          <div>
+            <p style={{color:TEXT,fontSize:"0.875rem",fontWeight:600,margin:0}}>Badge sound</p>
+            <p style={{color:MUTED,fontSize:"0.75rem",margin:"2px 0 0"}}>Play a short "ta-da" when you earn a badge.</p>
+          </div>
+          <div style={{width:44,height:26,borderRadius:13,background:settings.badgeSound!==false?SUCCESS:BORDER,position:"relative",transition:"background 0.2s",flexShrink:0}}>
+            <div style={{width:20,height:20,borderRadius:"50%",background:"#fff",position:"absolute",top:3,left:settings.badgeSound!==false?21:3,transition:"left 0.2s"}}/>
+          </div>
         </div>
 
         {/* Annual Leave Entitlement */}

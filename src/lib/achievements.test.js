@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildContext, earnedKeys, reconcile, coverageCounts, bestStreak, badgeRows, describeKey, earnedToday, BADGES } from "./achievements.js";
+import { buildContext, earnedKeys, reconcile, coverageCounts, bestStreak, badgeRows, describeKey, earnedToday, earnedTodaySummary, pendingPopups, markSeen, BADGES } from "./achievements.js";
 import { applyUsage } from "./usage.js";
 import { addDays } from "./dutyMath.js";
 
@@ -108,25 +108,32 @@ describe("app usage", () => {
   });
 });
 
-describe("reconcile", () => {
-  it("first run stores everything as retro with one summary", () => {
+describe("reconcile + pop-up queue", () => {
+  it("first run stores everything as retro behind one summary that waits until closed", () => {
     const r = reconcile(undefined, ["duties:1", "first_sick"], TODAY);
-    expect(r.popups).toEqual([]);
-    expect(r.summary).toEqual({ count: 2, firstRun: true });
+    expect(r.changed).toBe(true);
     expect(r.state.earned["duties:1"]).toEqual({ at: TODAY, retro: true });
     expect(r.state.welcomed).toBe(true);
+    expect(pendingPopups(r.state)).toEqual([{ kind: "summary", count: 2, firstRun: true }]);
+    // a reload re-reads the same state: still pending
+    const again = reconcile(r.state, ["duties:1", "first_sick"], TODAY);
+    expect(again.changed).toBe(false);
+    expect(pendingPopups(again.state)).toHaveLength(1);
+    expect(pendingPopups(markSeen(r.state, { kind: "summary" }))).toEqual([]);
   });
   it("first run with nothing earned shows nothing but still welcomes", () => {
     const r = reconcile(undefined, [], TODAY);
-    expect(r.summary).toBeNull();
+    expect(pendingPopups(r.state)).toEqual([]);
     expect(r.state.welcomed).toBe(true);
   });
-  it("afterwards, a new badge pops up on its own and is kept", () => {
-    const first = reconcile(undefined, ["duties:1"], "2026-11-01").state;
+  it("afterwards, a new badge queues its own pop-up until seen", () => {
+    const first = markSeen(reconcile(undefined, ["duties:1"], "2026-11-01").state, { kind: "summary" });
     const r = reconcile(first, ["duties:1", "night_owl"], TODAY);
-    expect(r.popups).toEqual(["night_owl"]);
-    expect(r.summary).toBeNull();
+    expect(pendingPopups(r.state)).toEqual([{ kind: "badge", key: "night_owl" }]);
     expect(earnedToday(r.state.earned, TODAY)).toEqual(["night_owl"]);
+    const seen = markSeen(r.state, { kind: "badge", key: "night_owl" });
+    expect(pendingPopups(seen)).toEqual([]);
+    expect(seen.earned.night_owl.at).toBe(TODAY);
   });
   it("never revokes a badge that's no longer computed", () => {
     const first = reconcile(undefined, ["duties:1"], "2026-11-01").state;
@@ -135,9 +142,64 @@ describe("reconcile", () => {
   it("more than 5 at once becomes one summary, not a flood", () => {
     const first = reconcile(undefined, [], "2026-11-01").state;
     const r = reconcile(first, ["a", "b", "c", "d", "e", "f"], TODAY);
-    expect(r.popups).toEqual([]);
-    expect(r.summary).toEqual({ count: 6, firstRun: false });
-    expect(earnedToday(r.state.earned, TODAY)).toEqual([]);
+    expect(pendingPopups(r.state)).toEqual([{ kind: "summary", count: 6, firstRun: false }]);
+    expect(earnedTodaySummary(r.state.earned, TODAY)).toEqual({ keys: [], retroCount: 6 });
+  });
+});
+
+describe("new badges", () => {
+  it("first duty in each zone (Route 33 = Skerries)", () => {
+    const k = keysFor({ periods: one([sh("2026-08-03", { zone: "Skerries" }), sh("2026-08-04", { zone: "150" })]) });
+    expect(k).toEqual(expect.arrayContaining(["zone_33", "zone_150"]));
+    expect(k).not.toContain("zone_1");
+  });
+  it("winter week: 5 AL + 2 rest days in a row; summer: 10 AL + 4 rest days", () => {
+    const al = (start, n) => Array.from({ length: n }, (_, i) => off(addDays(start, i), "Annual Leave"));
+    const rd = (...ds) => ds.map((d) => off(d, "Rest Day"));
+    // Mon 3 - Fri 7 Aug AL, Sat 8 + Sun 9 rest => 7 in a row
+    const winter = [...al("2026-08-03", 5), ...rd("2026-08-08", "2026-08-09")];
+    const p = (dOff) => [{ id: "p", startDate: "2026-08-02", shifts: [], daysOff: dOff, removedFixedRestDates: Array.from({ length: 35 }, (_, i) => addDays("2026-08-02", i)) }];
+    const kw = keysFor({ periods: p(winter) });
+    expect(kw).toContain("winter_week:2026");
+    expect(kw).not.toContain("summer_weeks:2026");
+    // break the run with a shift in the middle
+    expect(keysFor({ periods: [{ ...p(winter)[0], shifts: [sh("2026-08-05")], daysOff: winter.filter((d) => d.date !== "2026-08-05") }] })).not.toContain("winter_week:2026");
+    const summer = [...al("2026-08-03", 5), ...rd("2026-08-08", "2026-08-09"), ...al("2026-08-10", 5), ...rd("2026-08-15", "2026-08-16")];
+    const ks = keysFor({ periods: p(summer) });
+    expect(ks).toContain("summer_weeks:2026");
+    expect(ks).not.toContain("winter_week:2026");
+  });
+  it("winter week needs 7 in a row: 5 AL alone, or 5 AL + rest days elsewhere, don't count", () => {
+    const al = (start, count) => Array.from({ length: count }, (_, i) => off(addDays(start, i), "Annual Leave"));
+    const noAuto = { removedFixedRestDates: Array.from({ length: 35 }, (_, i) => addDays("2026-08-02", i)) };
+    const p = (dOff, shifts = []) => [{ id: "p", startDate: "2026-08-02", shifts, daysOff: dOff, ...noAuto }];
+    expect(keysFor({ periods: p(al("2026-08-03", 5), [sh("2026-08-08")]) })).not.toContain("winter_week:2026");
+    expect(keysFor({ periods: p([...al("2026-08-03", 5), off("2026-08-15", "Rest Day"), off("2026-08-16", "Rest Day")]) })).not.toContain("winter_week:2026");
+  });
+  it("your five ignores annual leave that's part of a winter week", () => {
+    const noAuto = { removedFixedRestDates: Array.from({ length: 35 }, (_, i) => addDays("2026-08-02", i)) };
+    const winter = [...Array.from({ length: 5 }, (_, i) => off(addDays("2026-08-03", i), "Annual Leave")), off("2026-08-08", "Rest Day"), off("2026-08-09", "Rest Day")];
+    const loose4 = ["2026-08-18", "2026-08-25", "2026-09-01", "2026-09-03"].map((d) => off(d, "Annual Leave"));
+    const k = keysFor({ periods: [{ id: "p", startDate: "2026-08-02", shifts: [], daysOff: [...winter, ...loose4], ...noAuto }] });
+    expect(k).toContain("winter_week:2026");
+    expect(k).not.toContain("your_five:2026");
+  });
+  it("your five: 5 annual leave days outside the winter/summer blocks", () => {
+    const loose = ["2026-08-04", "2026-08-11", "2026-08-18", "2026-08-25", "2026-09-01"].map((d) => off(d, "Annual Leave"));
+    const p = [{ id: "p", startDate: "2026-08-02", shifts: [], daysOff: loose, removedFixedRestDates: Array.from({ length: 35 }, (_, i) => addDays("2026-08-02", i)) }];
+    expect(keysFor({ periods: p })).toContain("your_five:2026");
+    expect(keysFor({ periods: [{ ...p[0], daysOff: loose.slice(1) }] })).not.toContain("your_five:2026");
+  });
+  it("welcome, tour, replay, FAQ and feedback", () => {
+    const k = keysFor({ periods: one(), usage: { toursCompleted: 1, tourReplays: 1, faqViews: 2, feedbackSent: 1 } });
+    expect(k).toEqual(expect.arrayContaining(["welcome", "tour_done", "tour_replay", "faq", "feedback"]));
+    expect(keysFor({ periods: [] })).not.toContain("welcome");
+  });
+  it("longer streak levels", () => {
+    const days = Array.from({ length: 14 }, (_, i) => addDays("2026-10-24", i));
+    const k = keysFor({ periods: [], usage: { openDays: days } });
+    expect(k).toEqual(expect.arrayContaining(["regular:3", "regular:7", "regular:14"]));
+    expect(k).not.toContain("regular:30");
   });
 });
 

@@ -258,7 +258,7 @@ export function UpcomingCarousel({periods, activePeriodId, todayDate, onLogDate}
 }
 
 // ─── HOME SCREEN ──────────────────────────────────────────────────────────────
-export function HomeScreen({period, periods, alerts, onViewAlerts, todayBadges = [], onOpenAchievements, driverFirstName, userId, onLog, onLogDate, onEditShiftOT, onGoWeek, justRolledPeriod, onDismissRolloverBanner, onOpenSettings}) {
+export function HomeScreen({period, periods, alerts, onViewAlerts, todayBadges = {keys:[], retroCount:0}, onOpenAchievements, driverFirstName, userId, onLog, onLogDate, onEditShiftOT, onGoWeek, justRolledPeriod, onDismissRolloverBanner, onOpenSettings}) {
   const [shareShift, setShareShift] = useState(null);
   const stats = useMemo(() => pStats(period), [period]);
   const [weather, setWeather] = useState(null);
@@ -392,10 +392,20 @@ export function HomeScreen({period, periods, alerts, onViewAlerts, todayBadges =
             Phil..." down to five/six wrapped lines on a phone). Sits above
             Today's Duty so it's seen before scrolling, not squeezed into
             the header row. */}
-        {todayBadges.length > 0 && (() => {
-          const latest = describeKey(todayBadges[todayBadges.length - 1]);
+        {todayBadges.retroCount > 0 && todayBadges.keys.length === 0 && (
+          <button type="button" onClick={onOpenAchievements} aria-label={`${todayBadges.retroCount} badges unlocked today`}
+            style={{width:"100%",textAlign:"left",background:`${ACCENT}14`,border:`1px solid ${ACCENT}55`,borderRadius:14,padding:"10px 14px",marginBottom:12,cursor:"pointer",display:"flex",alignItems:"center",gap:12}}>
+            <span aria-hidden="true" style={{width:40,height:40,borderRadius:"50%",border:`3px solid ${ACCENT}`,background:`${ACCENT}22`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:"1.25rem",flexShrink:0}}>🏆</span>
+            <span style={{minWidth:0}}>
+              <span style={{display:"block",color:MUTED,fontSize:"0.6875rem",textTransform:"uppercase",letterSpacing:1.2,fontWeight:700}}>Achievements unlocked</span>
+              <span style={{display:"block",color:TEXT,fontSize:"0.9375rem",fontWeight:800}}>{todayBadges.retroCount} badges earned so far · see them</span>
+            </span>
+          </button>
+        )}
+        {todayBadges.keys.length > 0 && (() => {
+          const latest = describeKey(todayBadges.keys[todayBadges.keys.length - 1]);
           if (!latest) return null;
-          const extra = todayBadges.length - 1;
+          const extra = todayBadges.keys.length - 1 + todayBadges.retroCount;
           return (
             <button type="button" onClick={onOpenAchievements} aria-label={`New badge today: ${latest.name}`}
               style={{width:"100%",textAlign:"left",background:`${latest.badge.color}14`,border:`1px solid ${latest.badge.color}55`,borderRadius:14,padding:"10px 14px",marginBottom:12,cursor:"pointer",display:"flex",alignItems:"center",gap:12}}>

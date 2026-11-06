@@ -7,25 +7,24 @@ import { loadSettings, saveSettings } from "./persistence.js";
 export const USAGE_EVENT = "rb-usage";
 const OPEN_DAYS_KEPT = 60;
 
+const COUNTERS = {
+  lookup: "lookups", share: "shares", alerts: "alertsViewed", pdf: "pdfExports",
+  tour: "toursCompleted", tourReplay: "tourReplays", faq: "faqViews", feedback: "feedbackSent",
+};
+
 export function emptyAchievementState() {
-  return { v: 1, earned: {}, usage: { lookups: 0, shares: 0, alertsViewed: 0, pdfExports: 0, tabs: [], openDays: [] } };
+  const usage = { tabs: [], openDays: [] };
+  Object.values(COUNTERS).forEach((k) => { usage[k] = 0; });
+  return { v: 1, earned: {}, usage };
 }
 
-// Pure: returns the next usage object.
+// Pure: returns the next usage object (the same object when nothing changed).
 export function applyUsage(usage, kind, value) {
   const u = { ...emptyAchievementState().usage, ...(usage || {}) };
-  switch (kind) {
-    case "lookup": return { ...u, lookups: u.lookups + 1 };
-    case "share": return { ...u, shares: u.shares + 1 };
-    case "alerts": return { ...u, alertsViewed: u.alertsViewed + 1 };
-    case "pdf": return { ...u, pdfExports: u.pdfExports + 1 };
-    case "tab": return u.tabs.includes(value) ? u : { ...u, tabs: [...u.tabs, value] };
-    case "open": {
-      if (u.openDays.includes(value)) return u;
-      return { ...u, openDays: [...u.openDays, value].sort().slice(-OPEN_DAYS_KEPT) };
-    }
-    default: return u;
-  }
+  if (COUNTERS[kind]) return { ...u, [COUNTERS[kind]]: (u[COUNTERS[kind]] || 0) + 1 };
+  if (kind === "tab") return u.tabs.includes(value) ? usage : { ...u, tabs: [...u.tabs, value] };
+  if (kind === "open") return u.openDays.includes(value) ? usage : { ...u, openDays: [...u.openDays, value].sort().slice(-OPEN_DAYS_KEPT) };
+  return usage;
 }
 
 export function recordUsage(kind, value) {

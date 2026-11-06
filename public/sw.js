@@ -88,6 +88,17 @@ self.addEventListener("push", (event) => {
       body: payload.body,
       icon: "/icon-192.png",
       data: { url: payload.url || "/" },
+      // Phil 2026-11-06: break reminder arrived as a quiet notification.
+      // A web app can't ring a real alarm; the most it can ask for is to
+      // stay on screen until dismissed, vibrate hard, and alert again
+      // rather than merging quietly into an older one. Sound and
+      // "pop on screen" are set per app in the phone's notification
+      // settings (see the hint under the toggle in Settings).
+      tag: /break/i.test(payload.title) ? "break-reminder" : "reminder",
+      renotify: true,
+      requireInteraction: /break/i.test(payload.title),
+      silent: false,
+      vibrate: [500, 200, 500, 200, 500, 200, 800],
     })
   );
 });

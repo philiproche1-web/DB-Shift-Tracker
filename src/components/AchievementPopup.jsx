@@ -3,6 +3,7 @@ import { CARD, TEXT, MUTED, ACCENT, btnStyle } from "../lib/theme.js";
 import { describeKey } from "../lib/achievements.js";
 import { Badge } from "./Badge.jsx";
 import { useModalA11y } from "./shared.jsx";
+import { playBadgeSound } from "../lib/badgeSound.js";
 
 export const POPUP_MS = 3200;
 const CONFETTI = ["#FFCD00", "#00C896", "#60a5fa", "#FF4455", "#C084FC", "#F59E0B"];
@@ -16,6 +17,7 @@ export function AchievementPopup({item, onClose, onOpenPage}) {
   // would otherwise restart the auto-close timer on every App re-render.
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
+  useEffect(() => { playBadgeSound(); }, [item]);
   useEffect(() => {
     if (item.kind !== "badge") return;
     const t = setTimeout(() => closeRef.current(), POPUP_MS);

@@ -78,11 +78,15 @@ describe("HomeScreen new-badge banner", () => {
     onGoWeek: () => {}, justRolledPeriod: null, onDismissRolloverBanner: () => {}, onOpenSettings: () => {} };
   it("shows today's newest badge and opens the page on tap", () => {
     let opened = 0;
-    mounted = render(<HomeScreen {...props} todayBadges={["first_sick", "night_owl"]} onOpenAchievements={() => opened++}/>);
+    mounted = render(<HomeScreen {...props} todayBadges={{ keys: ["first_sick", "night_owl"], retroCount: 0 }} onOpenAchievements={() => opened++}/>);
     const btn = mounted.container.querySelector('[aria-label="New badge today: Night Owl"]');
     expect(btn.textContent).toContain("+1 more");
     act(() => { btn.click(); });
     expect(opened).toBe(1);
+  });
+  it("shows the first-run batch as one 'badges earned' banner", () => {
+    mounted = render(<HomeScreen {...props} todayBadges={{ keys: [], retroCount: 13 }} onOpenAchievements={() => {}}/>);
+    expect(mounted.container.querySelector('[aria-label="13 badges unlocked today"]')).toBeTruthy();
   });
   it("shows nothing with no badges today", () => {
     mounted = render(<HomeScreen {...props}/>);

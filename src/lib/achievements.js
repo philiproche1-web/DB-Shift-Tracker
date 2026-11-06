@@ -97,6 +97,48 @@ function spentUpYears(c) {
   return Object.keys(al).filter((y) => al[y] >= base + (bhil[y] || 0) * 1.25).sort();
 }
 
+// ─── Holiday blocks ──────────────────────────────────────────────────────
+// Dublin Bus gives annual leave partly as set blocks: a winter week (5 annual
+// leave days + the week's 2 rest days = 7 days off in a row) and the summer
+// weeks (10 annual leave + 4 rest days = 14 in a row). A block is a run of
+// consecutive days off (annual leave, rest day — auto or logged — or bank
+// holiday in lieu); it's credited to the year of its first annual leave day.
+const BLOCK_TYPES = new Set(["Annual Leave", "Rest Day", "Bank Holiday In Lieu"]);
+export function holidayBlocks(periods) {
+  const offByDate = new Map();
+  for (const p of periods) {
+    if (!p?.startDate) continue;
+    for (let i = 0; i < 35; i++) {
+      const d = addDays(p.startDate, i);
+      const info = dayInfo(p, d);
+      if (info.status === "dayoff" && BLOCK_TYPES.has(info.dayOff.type)) offByDate.set(d, info.dayOff.type);
+    }
+  }
+  const dates = [...offByDate.keys()].sort();
+  const blocks = [];
+  let run = [];
+  const flush = () => {
+    const al = run.filter((d) => offByDate.get(d) === "Annual Leave");
+    if (al.length) blocks.push({ start: run[0], length: run.length, alDates: al, year: year(al[0]) });
+    run = [];
+  };
+  for (const d of dates) {
+    if (run.length && addDays(run[run.length - 1], 1) !== d) flush();
+    run.push(d);
+  }
+  if (run.length) flush();
+  return blocks.map((b) => ({
+    ...b,
+    kind: b.alDates.length >= 10 && b.length >= 14 ? "summer" : b.alDates.length >= 5 && b.length >= 7 ? "winter" : null,
+  }));
+}
+const blockYears = (c, kind) => [...new Set(c.blocks.filter((b) => b.kind === kind).map((b) => b.year))].sort();
+// Annual leave days outside any winter/summer block: "your own five".
+function ownDaysByYear(c) {
+  const inBlock = new Set(c.blocks.filter((b) => b.kind).flatMap((b) => b.alDates));
+  return countBy(ofType(c, "Annual Leave").filter((d) => !inBlock.has(d.date)), (d) => year(d.date));
+}
+
 const yearCount = (c, type) => countBy(ofType(c, type), (d) => year(d.date));
 const halfCount = (c, type, half) => countBy(ofType(c, type).filter((d) => (half === 1 ? month(d.date) <= 6 : month(d.date) >= 7)), (d) => year(d.date));
 
@@ -118,6 +160,14 @@ export const BADGES = [
     test: (c) => c.shifts.some((s) => s.reportTime && s.reportTime < "05:30") },
   { id: "night_owl", cat: "duties", emoji: "🦉", color: "#FFCD00", name: "Night Owl", rule: "Sign off at 21:00 or later", joke: "The depot cat salutes you.",
     test: (c) => c.shifts.some((s) => s.signOffTime && (s.signOffTime >= "21:00" || (s.reportTime && s.signOffTime < s.reportTime))) },
+  { id: "zone_1", cat: "duties", emoji: "1️⃣", color: "#FFCD00", name: "Zone 1 Debut", rule: "Work a Zone 1 duty", joke: "New patch unlocked.",
+    test: (c) => c.shifts.some((s) => s.zone === "Zone 1") },
+  { id: "zone_2", cat: "duties", emoji: "2️⃣", color: "#FFCD00", name: "Zone 2 Debut", rule: "Work a Zone 2 duty", joke: "New patch unlocked.",
+    test: (c) => c.shifts.some((s) => s.zone === "Zone 2") },
+  { id: "zone_150", cat: "duties", emoji: "🔵", color: "#FFCD00", name: "150 Debut", rule: "Work a 150 duty", joke: "New patch unlocked.",
+    test: (c) => c.shifts.some((s) => s.zone === "150") },
+  { id: "zone_33", cat: "duties", emoji: "🌊", color: "#FFCD00", name: "Route 33 Debut", rule: "Work a Route 33 (Skerries) duty", joke: "New patch unlocked.",
+    test: (c) => c.shifts.some((s) => s.zone === "Skerries") },
   { id: "all_zones", cat: "duties", emoji: "🗺️", color: "#FFCD00", name: "All Zones", rule: "Work a duty in every zone",
     joke: "Seen the lot.",
     value: (c) => c.zones.filter((z) => c.shifts.some((s) => s.zone === z)).length,
@@ -131,6 +181,15 @@ export const BADGES = [
     test: (c) => ofType(c, "Annual Leave").length > 0 },
   { id: "spent_up", cat: "leave", emoji: "🧳", color: "#00C896", name: "Spent Up", yearly: true, rule: "Use all your annual leave in a year",
     joke: "Not a day left on the table.", years: spentUpYears },
+  { id: "winter_week", cat: "leave", emoji: "❄️", color: "#00C896", name: "Winter Week", yearly: true,
+    rule: "Log your winter week: 5 days annual leave plus rest days, 7 off in a row", joke: "Hibernation mode.",
+    years: (c) => blockYears(c, "winter") },
+  { id: "summer_weeks", cat: "leave", emoji: "☀️", color: "#00C896", name: "Summer Weeks", yearly: true,
+    rule: "Log your summer weeks: 10 days annual leave plus rest days, 14 off in a row", joke: "Factor 50 at the ready.",
+    years: (c) => blockYears(c, "summer") },
+  { id: "your_five", cat: "leave", emoji: "🎟️", color: "#00C896", name: "Your Five", yearly: true,
+    rule: "Log the 5 annual leave days that are yours to pick", joke: "Spent wisely. Probably.",
+    years: (c) => yearsWhere(ownDaysByYear(c), 5) },
   { id: "first_sick", cat: "leave", emoji: "🤒", color: "#00C896", name: "First Sick Day", rule: "Log a sick day", joke: "Get well soon. Or don't, it's paid.",
     test: (c) => ofType(c, "Sick Day").length > 0 },
   { id: "full_five", cat: "leave", emoji: "🖐️", color: "#00C896", name: "Full Five", yearly: true, rule: "Use all 5 paid sick days in a year",
@@ -169,17 +228,27 @@ export const BADGES = [
     } },
 
   // Covered days
-  { id: "full_week", cat: "covered", emoji: "📅", color: "#60a5fa", levels: [1, 4], names: ["Full Week", "4 Full Weeks"],
+  { id: "full_week", cat: "covered", emoji: "📅", color: "#60a5fa", levels: [1, 4, 8, 26, 52], names: ["Full Week", "4 Full Weeks", "8 Full Weeks", "26 Full Weeks", "52 Full Weeks"],
     rule: (n) => n === 1 ? "Every day of a week (Sun–Sat) logged" : `${n} weeks with every day logged`, joke: "Seven for seven.",
     value: (c) => c.coverage.weeks },
-  { id: "full_month", cat: "covered", emoji: "🗓️", color: "#60a5fa", levels: [1], names: ["Full Month"],
-    rule: () => "Every day of a calendar month logged", joke: "A whole month, no gaps.", value: (c) => c.coverage.months, showCount: true },
-  { id: "full_period", cat: "covered", emoji: "🏁", color: "#60a5fa", levels: [1, 3], names: ["Full Period", "3 Full Periods"],
+  { id: "full_month", cat: "covered", emoji: "🗓️", color: "#60a5fa", levels: [1, 3, 6, 12], names: ["Full Month", "3 Full Months", "6 Full Months", "12 Full Months"],
+    rule: (n) => n === 1 ? "Every day of a calendar month logged" : `${n} calendar months with every day logged`, joke: "A whole month, no gaps.", value: (c) => c.coverage.months },
+  { id: "full_period", cat: "covered", emoji: "🏁", color: "#60a5fa", levels: [1, 3, 6, 10], names: ["Full Period", "3 Full Periods", "6 Full Periods", "10 Full Periods"],
     rule: (n) => n === 1 ? "Every day of a 5-week period logged" : `${n} periods with every day logged`, joke: "Thirty-five out of thirty-five.",
     value: (c) => c.coverage.periods },
 
   // Using the app
-  { id: "regular", cat: "app", emoji: "🔥", color: "#F59E0B", levels: [3, 7, 30], names: ["Regular", "Weekly Regular", "Part of the Furniture"],
+  { id: "welcome", cat: "app", emoji: "👋", color: "#F59E0B", name: "Welcome Aboard", rule: "Set up Roster Buddy", joke: "Tickets, please.",
+    test: (c) => c.periodCount > 0 },
+  { id: "tour_done", cat: "app", emoji: "🎓", color: "#F59E0B", name: "Shown the Ropes", rule: "Finish the app tour", joke: "Fully trained. Allegedly.",
+    test: (c) => (c.usage.toursCompleted || 0) > 0 },
+  { id: "tour_replay", cat: "app", emoji: "🔂", color: "#F59E0B", name: "Encore", rule: "Replay the tour from Settings", joke: "Once more, with feeling.",
+    test: (c) => (c.usage.tourReplays || 0) > 0 },
+  { id: "faq", cat: "app", emoji: "📖", color: "#F59E0B", name: "Read the Manual", rule: "Open the FAQ", joke: "Rarer than you'd think.",
+    test: (c) => (c.usage.faqViews || 0) > 0 },
+  { id: "feedback", cat: "app", emoji: "📮", color: "#F59E0B", name: "Suggestion Box", rule: "Send feedback", joke: "Noted. Officially.",
+    test: (c) => (c.usage.feedbackSent || 0) > 0 },
+  { id: "regular", cat: "app", emoji: "🔥", color: "#F59E0B", levels: [3, 7, 14, 30, 60, 100], names: ["Regular", "Weekly Regular", "Fortnight Fixture", "Part of the Furniture", "Two-Month Habit", "Century Club"],
     rule: (n) => `Open the app ${n} days in a row`, joke: "Can't stay away.", value: (c) => bestStreak(c.usage.openDays || []) },
   { id: "duty_detective", cat: "app", emoji: "🕵️", color: "#F59E0B", levels: [1, 25], names: ["Duty Detective", "Chief Inspector"],
     rule: (n) => n === 1 ? "Look up a duty" : `Look up ${n} duties`, joke: "Case closed.", value: (c) => c.usage.lookups || 0 },
@@ -200,7 +269,9 @@ export function buildContext({ periods = [], leaveSettings, usage = {}, zones = 
     shifts: periods.flatMap((p) => p.shifts || []),
     daysOff: periods.flatMap((p) => p.daysOff || []),
     leaveSettings, usage, zones, today,
+    periodCount: periods.length,
     coverage: coverageCounts(periods, today),
+    blocks: holidayBlocks(periods),
   };
 }
 
@@ -258,29 +329,60 @@ export function badgeRows(ctx, storedEarned = {}) {
 
 export const FLOOD_LIMIT = 5;
 
-// Merge freshly computed keys into stored state.
-// Returns { state, popups: [key], summary: {count, firstRun} | null }:
+// Merge freshly computed keys into stored state. Pop-ups are stored in the
+// state itself (unseen badges, pendingSummary) and only cleared when the
+// driver closes them, so a reload or the phone killing the app mid-pop-up
+// can't lose them.
 //  - first run (not yet welcomed): everything already earned is stored as
-//    retro and one summary pop-up announces the total (if any);
-//  - afterwards: each new key gets its own pop-up, unless more than
-//    FLOOD_LIMIT arrive at once (e.g. a sync just landed), which becomes
-//    one summary pop-up instead.
+//    retro behind one summary;
+//  - afterwards: each new key is its own pop-up (seen:false), unless more
+//    than FLOOD_LIMIT arrive at once, which becomes one summary instead.
 export function reconcile(state, nowKeys, today) {
   const base = { v: 1, earned: {}, usage: {}, ...(state || {}) };
   const fresh = newKeys(base.earned, nowKeys);
   const firstRun = !base.welcomed;
+  if (!fresh.length && !firstRun) return { state: base, changed: false };
   const asSummary = firstRun || fresh.length > FLOOD_LIMIT;
-  if (!fresh.length && !firstRun) return { state: base, popups: [], summary: null };
   const earned = { ...base.earned };
-  fresh.forEach((k) => { earned[k] = asSummary ? { at: today, retro: true } : { at: today }; });
-  return {
-    state: { ...base, earned, welcomed: true },
-    popups: asSummary ? [] : fresh,
-    summary: asSummary && fresh.length ? { count: fresh.length, firstRun } : null,
-  };
+  fresh.forEach((k) => { earned[k] = asSummary ? { at: today, retro: true } : { at: today, seen: false }; });
+  const pendingSummary = asSummary && fresh.length
+    ? { count: (base.pendingSummary?.count || 0) + fresh.length, firstRun: firstRun || !!base.pendingSummary?.firstRun }
+    : base.pendingSummary;
+  return { state: { ...base, earned, welcomed: true, ...(pendingSummary ? { pendingSummary } : {}) }, changed: true };
+}
+
+// Pop-ups still waiting, summary first.
+export function pendingPopups(state) {
+  if (!state) return [];
+  const items = state.pendingSummary ? [{ kind: "summary", ...state.pendingSummary }] : [];
+  Object.entries(state.earned || {})
+    .filter(([, v]) => v.seen === false)
+    .sort((a, b) => a[1].at.localeCompare(b[1].at))
+    .forEach(([key]) => items.push({ kind: "badge", key }));
+  return items;
+}
+
+// State after the driver closes one pop-up.
+export function markSeen(state, item) {
+  if (item.kind === "summary") {
+    const rest = { ...state };
+    delete rest.pendingSummary;
+    return rest;
+  }
+  const entry = state.earned?.[item.key];
+  if (!entry) return state;
+  return { ...state, earned: { ...state.earned, [item.key]: { ...entry, seen: true } } };
+}
+
+// Home banner: what was earned today. `keys` are individually announced
+// badges; `retroCount` is the first-run batch (no single badge to show).
+export function earnedTodaySummary(stored, today) {
+  const entries = Object.entries(stored || {}).filter(([, v]) => v.at === today);
+  const keys = entries.filter(([, v]) => !v.retro).map(([k]) => k);
+  return { keys, retroCount: entries.length - keys.length };
 }
 
 // Non-retro badges earned on `today`.
 export function earnedToday(stored, today) {
-  return Object.entries(stored || {}).filter(([, v]) => v.at === today && !v.retro).map(([k]) => k);
+  return earnedTodaySummary(stored, today).keys;
 }

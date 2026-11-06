@@ -6,7 +6,7 @@ import { hasLiveRoster } from "./lib/garages.js";
 import { fetchRouteAlerts } from "./lib/routeAlerts.js";
 import { isCalendarSunday, uid, today } from "./lib/dutyMath.js";
 import { loadRosterData, applyRosterData, setCustomRestConfig, rollPeriodsForward, FIXED_REST_ID_PREFIX, getZones } from "./lib/roster.js";
-import { buildContext, earnedKeys, reconcile, badgeRows, earnedToday } from "./lib/achievements.js";
+import { buildContext, earnedKeys, reconcile, badgeRows, earnedTodaySummary, pendingPopups, markSeen } from "./lib/achievements.js";
 import { recordUsage, USAGE_EVENT } from "./lib/usage.js";
 import {
   applyShiftSave, applyDayOffSave, applyShiftDelete,
@@ -72,8 +72,11 @@ export default function App() {
   const [session, setSession] = useState(undefined); // undefined = not checked yet, null = signed out
   const [syncedOnce, setSyncedOnce] = useState(false);
   const [usageTick, setUsageTick] = useState(0);          // bumps when a usage counter changes
-  const [badgeQueue, setBadgeQueue] = useState([]);        // pop-ups waiting to show
-  const [achEarned, setAchEarned] = useState(() => loadSettings().achievements?.earned || {});
+  // Badge state mirror (settings.achievements). Pop-ups waiting to show live
+  // inside it, so they survive a reload until the driver closes them.
+  const [achState, setAchState] = useState(() => loadSettings().achievements || null);
+  const achEarned = achState?.earned || {};
+  const badgeQueue = useMemo(() => pendingPopups(achState), [achState]);
   const [passwordRecovery, setPasswordRecovery] = useState(false);
   const [driverGarage, setDriverGarage] = useState(undefined); // undefined = not fetched yet, null = fetch failed
   const [driverFirstName, setDriverFirstName] = useState(null);
@@ -110,7 +113,7 @@ export default function App() {
     {
       table: "settings",
       load: () => loadSettings(),
-      save: (remote) => { writeSettingsLocally(remote); applyTheme(remote.appearance, () => setThemeKey((k) => k + 1)); },
+      save: (remote) => { writeSettingsLocally(remote); applyTheme(remote.appearance, () => setThemeKey((k) => k + 1)); setAchState(remote.achievements || null); },
     },
   ], []);
 
@@ -198,6 +201,14 @@ export default function App() {
   }, []);
   useEffect(() => { if (syncedOnce) recordUsage("open", today()); }, [syncedOnce]);
   useEffect(() => { if (["home","log","lookup","period","leave"].includes(screen)) recordUsage("tab", screen); else if (screen === "alerts") recordUsage("alerts"); }, [screen]);
+  useEffect(() => { if (viewingFAQ !== null) recordUsage("faq"); }, [viewingFAQ]);
+  const closeBadgePopup = useCallback((item) => {
+    const s = loadSettings();
+    if (!s.achievements) return;
+    const next = markSeen(s.achievements, item);
+    saveSettings({ ...s, achievements: next });
+    setAchState(next);
+  }, []);
   // Only after the first successful sync, so a fresh device doesn't judge
   // badges against empty local data. Badges are never taken away.
   useEffect(() => {
@@ -206,12 +217,9 @@ export default function App() {
       const s = loadSettings();
       const ctx = buildContext({ periods, leaveSettings, usage: s.achievements?.usage || {}, zones: getZones(), today: today() });
       const r = reconcile(s.achievements, earnedKeys(ctx), today());
-      const changed = r.popups.length || r.summary || !s.achievements?.welcomed;
-      if (!changed) return;
+      if (!r.changed) { setAchState(s.achievements || null); return; }
       saveSettings({ ...s, achievements: r.state });
-      setAchEarned(r.state.earned);
-      const items = [...(r.summary ? [{ kind: "summary", ...r.summary }] : []), ...r.popups.map((key) => ({ kind: "badge", key }))];
-      if (items.length) setBadgeQueue((q) => [...q, ...items]);
+      setAchState(r.state);
     } catch (e) {
       console.error("Achievements check failed:", e);
     }
@@ -414,9 +422,10 @@ export default function App() {
     dismissWhatsNew();
   }
 
-  function dismissTour() {
+  function dismissTour(completed) {
     localStorage.setItem("dbus_toured","1");
     setShowTour(false);
+    if (completed === true) recordUsage("tour");
   }
 
   const persist=(ps,aid)=>{
@@ -572,7 +581,7 @@ export default function App() {
       {screen==="home"&&<HomeScreen period={activePeriod} periods={periods}
         alerts={routeAlerts}
         onViewAlerts={()=>setScreen("alerts")}
-        todayBadges={earnedToday(achEarned, today())}
+        todayBadges={earnedTodaySummary(achEarned, today())}
         onOpenAchievements={()=>setScreen("achievements")}
         driverFirstName={driverFirstName}
         userId={session?.user?.id}
@@ -611,7 +620,7 @@ export default function App() {
       {showSettings && activePeriod && (
         <SettingsPanel period={activePeriod} onClose={()=>setShowSettings(false)}
           onThemeChange={handleThemeChange} leaveSettings={leaveSettings} onLeaveSettingsChange={handleLeaveSettingsChange}
-          onReplayTour={()=>{setShowSettings(false);setShowTour(true);}}
+          onReplayTour={()=>{setShowSettings(false);setShowTour(true);recordUsage("tourReplay");}}
           onViewTerms={()=>{setShowSettings(false);setViewingTerms(true);}}
           onViewFAQ={()=>{setShowSettings(false);setViewingFAQ("");}}
           onEditStartDate={editActivePeriodStartDate}
@@ -623,11 +632,11 @@ export default function App() {
           achievementsSummary={achievementRows ? `${achievementRows.filter(r=>r.earned).length} of ${achievementRows.length} earned` : ""}
           onOpenAchievements={()=>{setShowSettings(false);setScreen("achievements");}}/>
       )}
-      {badgeQueue.length>0&&<AchievementPopup key={JSON.stringify(badgeQueue[0])} item={badgeQueue[0]}
-        onClose={()=>setBadgeQueue(q=>q.slice(1))} onOpenPage={()=>setScreen("achievements")}/>}
+      {badgeQueue.length>0&&!showTour&&<AchievementPopup key={JSON.stringify(badgeQueue[0])} item={badgeQueue[0]}
+        onClose={()=>closeBadgePopup(badgeQueue[0])} onOpenPage={()=>setScreen("achievements")}/>}
       {confirmFeedback && (
         <ConfirmDialog msg="This opens a feedback form in a new tab, outside the app. Continue?" yesLabel="Continue" danger={false}
-          onYes={()=>{setConfirmFeedback(false);window.open("https://docs.google.com/forms/d/e/1FAIpQLScgZEIoRM7xqkOpSyVcDQl23fbDJ_UTq99sF0c4mgta5bwrUQ/viewform?usp=header","_blank");}}
+          onYes={()=>{setConfirmFeedback(false);recordUsage("feedback");window.open("https://docs.google.com/forms/d/e/1FAIpQLScgZEIoRM7xqkOpSyVcDQl23fbDJ_UTq99sF0c4mgta5bwrUQ/viewform?usp=header","_blank");}}
           onNo={()=>setConfirmFeedback(false)}/>
       )}
       {viewingTerms && (
