@@ -5,7 +5,9 @@ import { syncAll, migrateLocalDataIfNeeded, hasPendingSync } from "./lib/sync.js
 import { hasLiveRoster } from "./lib/garages.js";
 import { fetchRouteAlerts } from "./lib/routeAlerts.js";
 import { isCalendarSunday, uid, today } from "./lib/dutyMath.js";
-import { loadRosterData, applyRosterData, setCustomRestConfig, rollPeriodsForward, FIXED_REST_ID_PREFIX } from "./lib/roster.js";
+import { loadRosterData, applyRosterData, setCustomRestConfig, rollPeriodsForward, FIXED_REST_ID_PREFIX, getZones } from "./lib/roster.js";
+import { buildContext, earnedKeys, reconcile, badgeRows, earnedToday } from "./lib/achievements.js";
+import { recordUsage, USAGE_EVENT } from "./lib/usage.js";
 import {
   applyShiftSave, applyDayOffSave, applyShiftDelete,
   applyDayOffDelete, applyFixedRestDayRemoval,
@@ -14,7 +16,7 @@ import { BG, CARD, BORDER, TEXT, MUTED, ACCENT, DANGER, applyTheme, btnStyle } f
 import {
   loadData, writeDataLocally, saveData, APP_VERSION, WHATS_NEW,
   loadLeaveSettings, writeLeaveSettingsLocally, saveLeaveSettings,
-  loadSettings, writeSettingsLocally,
+  loadSettings, writeSettingsLocally, saveSettings,
 } from "./lib/persistence.js";
 import { BusLogo, BottomNav, ConfirmDialog, useModalA11y } from "./components/shared.jsx";
 import { trackScreen, trackEvent, identifyUser, resetAnalytics } from "./lib/analytics.js";
@@ -33,6 +35,8 @@ import { DutyLookup } from "./screens/DutyLookup.jsx";
 import { HomeScreen } from "./screens/HomeScreen.jsx";
 import { SettingsPanel } from "./screens/SettingsPanel.jsx";
 import { TourOverlay } from "./screens/TourOverlay.jsx";
+import { AchievementsScreen } from "./screens/AchievementsScreen.jsx";
+import { AchievementPopup } from "./components/AchievementPopup.jsx";
 
 // Lazy: only a signed-out visitor ever needs this bundle chunk, so a logged-in
 // driver's initial load never pays for it.
@@ -67,6 +71,9 @@ export default function App() {
   const [logFocusOT, setLogFocusOT] = useState(false); // opened from a Home card OT button
   const [session, setSession] = useState(undefined); // undefined = not checked yet, null = signed out
   const [syncedOnce, setSyncedOnce] = useState(false);
+  const [usageTick, setUsageTick] = useState(0);          // bumps when a usage counter changes
+  const [badgeQueue, setBadgeQueue] = useState([]);        // pop-ups waiting to show
+  const [achEarned, setAchEarned] = useState(() => loadSettings().achievements?.earned || {});
   const [passwordRecovery, setPasswordRecovery] = useState(false);
   const [driverGarage, setDriverGarage] = useState(undefined); // undefined = not fetched yet, null = fetch failed
   const [driverFirstName, setDriverFirstName] = useState(null);
@@ -181,6 +188,39 @@ export default function App() {
       console.error("Period rollover check failed:", e);
     }
   }, [syncedOnce]);
+
+  // ─── Achievements ──────────────────────────────────────────────────────
+  // Usage counters (lookups, shares, tabs…) fire USAGE_EVENT; re-check then.
+  useEffect(() => {
+    const bump = () => setUsageTick((t) => t + 1);
+    window.addEventListener(USAGE_EVENT, bump);
+    return () => window.removeEventListener(USAGE_EVENT, bump);
+  }, []);
+  useEffect(() => { if (syncedOnce) recordUsage("open", today()); }, [syncedOnce]);
+  useEffect(() => { if (["home","log","lookup","period","leave"].includes(screen)) recordUsage("tab", screen); else if (screen === "alerts") recordUsage("alerts"); }, [screen]);
+  // Only after the first successful sync, so a fresh device doesn't judge
+  // badges against empty local data. Badges are never taken away.
+  useEffect(() => {
+    if (!syncedOnce) return;
+    try {
+      const s = loadSettings();
+      const ctx = buildContext({ periods, leaveSettings, usage: s.achievements?.usage || {}, zones: getZones(), today: today() });
+      const r = reconcile(s.achievements, earnedKeys(ctx), today());
+      const changed = r.popups.length || r.summary || !s.achievements?.welcomed;
+      if (!changed) return;
+      saveSettings({ ...s, achievements: r.state });
+      setAchEarned(r.state.earned);
+      const items = [...(r.summary ? [{ kind: "summary", ...r.summary }] : []), ...r.popups.map((key) => ({ kind: "badge", key }))];
+      if (items.length) setBadgeQueue((q) => [...q, ...items]);
+    } catch (e) {
+      console.error("Achievements check failed:", e);
+    }
+  }, [syncedOnce, periods, leaveSettings, usageTick]);
+  const achievementRows = useMemo(() => {
+    if (screen !== "achievements" && !showSettings) return null;
+    const s = loadSettings();
+    return badgeRows(buildContext({ periods, leaveSettings, usage: s.achievements?.usage || {}, zones: getZones(), today: today() }), achEarned);
+  }, [screen, showSettings, periods, leaveSettings, achEarned, usageTick]);
 
   useEffect(() => {
     if (!session) { setDriverGarage(undefined); setDriverFirstName(null); setCustomRestConfig(null); setProfileFetchError(false); return; }
@@ -508,6 +548,7 @@ export default function App() {
   const archivePeriod=periods.find(p=>p.id===archiveViewId);
 
   if(screen==="alerts") return <RouteAlertsScreen alerts={routeAlerts} onBack={()=>setScreen("home")}/>;
+  if(screen==="achievements") return <AchievementsScreen rows={achievementRows||[]} onBack={()=>setScreen("home")}/>;
 
   if(screen==="archive"&&archiveViewId&&archivePeriod) return (
     <div style={{background:BG,minHeight:"100vh"}}>
@@ -531,6 +572,8 @@ export default function App() {
       {screen==="home"&&<HomeScreen period={activePeriod} periods={periods}
         alerts={routeAlerts}
         onViewAlerts={()=>setScreen("alerts")}
+        todayBadges={earnedToday(achEarned, today())}
+        onOpenAchievements={()=>setScreen("achievements")}
         driverFirstName={driverFirstName}
         userId={session?.user?.id}
         onLog={()=>{setEditShift(null);setLogInitDate(null);setLogInitRestDay(false);setScreen("log");}}
@@ -576,8 +619,12 @@ export default function App() {
           driverFirstName={driverFirstName} onChangeFirstName={handleChangeFirstName}
           driverCustomRestDays={driverCustomRestDays} onChangeCustomRestDays={handleChangeCustomRestDays}
           userId={session?.user?.id}
-          onSendFeedback={()=>setConfirmFeedback(true)}/>
+          onSendFeedback={()=>setConfirmFeedback(true)}
+          achievementsSummary={achievementRows ? `${achievementRows.filter(r=>r.earned).length} of ${achievementRows.length} earned` : ""}
+          onOpenAchievements={()=>{setShowSettings(false);setScreen("achievements");}}/>
       )}
+      {badgeQueue.length>0&&<AchievementPopup key={JSON.stringify(badgeQueue[0])} item={badgeQueue[0]}
+        onClose={()=>setBadgeQueue(q=>q.slice(1))} onOpenPage={()=>setScreen("achievements")}/>}
       {confirmFeedback && (
         <ConfirmDialog msg="This opens a feedback form in a new tab, outside the app. Continue?" yesLabel="Continue" danger={false}
           onYes={()=>{setConfirmFeedback(false);window.open("https://docs.google.com/forms/d/e/1FAIpQLScgZEIoRM7xqkOpSyVcDQl23fbDJ_UTq99sF0c4mgta5bwrUQ/viewform?usp=header","_blank");}}

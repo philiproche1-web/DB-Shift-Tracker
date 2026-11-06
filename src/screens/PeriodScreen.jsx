@@ -4,6 +4,7 @@ import { pStats } from "../lib/roster.js";
 import { BG, BORDER, TEXT, MUTED, ACCENT, SUCCESS, DANGER, cardStyle, btnStyle, tag } from "../lib/theme.js";
 import { PageHeader, ComplianceBar, EmptyState, SettingsButton } from "../components/shared.jsx";
 import { exportPDF } from "../lib/pdfExport.js";
+import { recordUsage } from "../lib/usage.js";
 
 // ─── PERIOD SCREEN ────────────────────────────────────────────────────────────
 export function PeriodScreen({period, onEdit, onDelete, onEditDayOff, onDeleteDayOff, onViewArchive, onViewFAQ, onOpenSettings, initWeek=null, readOnly=false}) {
@@ -26,7 +27,7 @@ export function PeriodScreen({period, onEdit, onDelete, onEditDayOff, onDeleteDa
         right={
           <div style={{display:"flex",gap:8,alignItems:"center"}}>
             {!readOnly && (
-              <button onClick={()=>exportPDF(period,stats)} style={{background:ACCENT,color:"#07090F",border:"none",borderRadius:10,padding:"10px 16px",fontSize:"0.8125rem",fontWeight:800,cursor:"pointer",flexShrink:0,whiteSpace:"nowrap"}}>
+              <button onClick={()=>{exportPDF(period,stats);recordUsage("pdf");}} style={{background:ACCENT,color:"#07090F",border:"none",borderRadius:10,padding:"10px 16px",fontSize:"0.8125rem",fontWeight:800,cursor:"pointer",flexShrink:0,whiteSpace:"nowrap"}}>
                 Export PDF
               </button>
             )}

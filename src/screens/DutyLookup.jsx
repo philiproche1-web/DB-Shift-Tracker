@@ -5,6 +5,7 @@ import { BG, CARD, CARD2, BORDER, TEXT, MUTED, ACCENT, SUCCESS, btnStyle, tag } 
 import { SegGroup, DutyPicker, SettingsButton } from "../components/shared.jsx";
 import { ShareDutySheet } from "../components/ShareDutySheet.jsx";
 import { shareDataFromDuty } from "../lib/dutyShare.js";
+import { recordUsage } from "../lib/usage.js";
 
 export function parseEntry(e) {
   const m=e.match(/^(\d{1,2}:\d{2})\s*-\s*(.+)$/);
@@ -89,7 +90,7 @@ export function DutyLookup({onLogShift, onOpenSettings}) {
         {/* Duty selector */}
         <div style={{marginBottom:duty?20:0}}>
           <p style={{color:MUTED,fontSize:"0.6875rem",textTransform:"uppercase",letterSpacing:1.5,fontWeight:600,margin:"0 0 8px"}}>Duty <span style={{color:MUTED,fontWeight:400,textTransform:"none",letterSpacing:0}}>— {duties.length} available</span></p>
-          <DutyPicker key={zone+dayType} duties={duties} value={rIdx} onChange={setRIdx}/>
+          <DutyPicker key={zone+dayType} duties={duties} value={rIdx} onChange={(i)=>{setRIdx(i); if(i>=0) recordUsage("lookup");}}/>
         </div>
 
         {/* Empty state — guides the first-time flow */}

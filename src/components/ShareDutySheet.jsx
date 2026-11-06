@@ -3,6 +3,7 @@ import { getDayType, today } from "../lib/dutyMath.js";
 import { CARD, BORDER, TEXT, MUTED, ACCENT, btnStyle, cardStyle, inputStyle } from "../lib/theme.js";
 import { buildShareCaption, nextDateForDayType, renderDutyImage, shareDutyImage, shareFilename } from "../lib/dutyShare.js";
 import { trackEvent } from "../lib/analytics.js";
+import { recordUsage } from "../lib/usage.js";
 import { DateInput, FieldLabel, useModalA11y } from "./shared.jsx";
 
 const DAY_TYPE_WORD = { weekday: "Mon–Fri", saturday: "Saturday", sunday: "Sunday" };
@@ -42,6 +43,7 @@ export function ShareDutySheet({ duty, dayType, source, onClose }) {
     if (!blob) return;
     const result = await shareDutyImage({ blob, caption, filename: shareFilename(data) });
     trackEvent("duty_shared", { source, result });
+    if (result !== "cancelled") recordUsage("share");
     if (result === "shared") onClose();
     else if (result === "downloaded") setStatus("Image saved. Caption copied — paste it in WhatsApp.");
   }

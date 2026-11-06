@@ -3,6 +3,7 @@ import { pStats } from "../lib/roster.js";
 import { BG, BORDER, TEXT, MUTED, ACCENT, SUCCESS, cardStyle } from "../lib/theme.js";
 import { PageHeader, EmptyState, SettingsButton } from "../components/shared.jsx";
 import { exportPDF } from "../lib/pdfExport.js";
+import { recordUsage } from "../lib/usage.js";
 
 // ─── ARCHIVE SCREEN ────────────────────────────────────────────────────────────
 export function ArchiveScreen({periods, activePeriodId, onView, onOpenSettings}) {
@@ -33,7 +34,7 @@ export function ArchiveScreen({periods, activePeriodId, onView, onOpenSettings})
             </div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
               <button onClick={()=>onView(p.id)} style={{background:"none",border:`1px solid ${BORDER}`,color:TEXT,borderRadius:10,padding:"11px 0",fontSize:"0.875rem",fontWeight:600,cursor:"pointer"}}>View</button>
-              <button onClick={()=>exportPDF(p,st)} style={{background:ACCENT,color:"#07090F",border:"none",borderRadius:10,padding:"11px 0",fontSize:"0.875rem",fontWeight:800,cursor:"pointer"}}>Export PDF</button>
+              <button onClick={()=>{exportPDF(p,st);recordUsage("pdf");}} style={{background:ACCENT,color:"#07090F",border:"none",borderRadius:10,padding:"11px 0",fontSize:"0.875rem",fontWeight:800,cursor:"pointer"}}>Export PDF</button>
             </div>
           </div>
         );

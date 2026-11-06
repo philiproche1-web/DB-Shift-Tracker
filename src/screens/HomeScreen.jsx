@@ -8,6 +8,8 @@ import { subscribeToPush } from "../lib/push.js";
 import { fetchWeather, weatherIconKind } from "../lib/weather.js";
 import { HeaderAlertButton, NewPeriodBanner, WeatherChip, SettingsButton } from "../components/shared.jsx";
 import { ShareDutySheet } from "../components/ShareDutySheet.jsx";
+import { Badge } from "../components/Badge.jsx";
+import { describeKey } from "../lib/achievements.js";
 import { shareDataFromShift } from "../lib/dutyShare.js";
 
 // Makes sure this device actually has a push subscription registered, given
@@ -256,7 +258,7 @@ export function UpcomingCarousel({periods, activePeriodId, todayDate, onLogDate}
 }
 
 // ─── HOME SCREEN ──────────────────────────────────────────────────────────────
-export function HomeScreen({period, periods, alerts, onViewAlerts, driverFirstName, userId, onLog, onLogDate, onEditShiftOT, onGoWeek, justRolledPeriod, onDismissRolloverBanner, onOpenSettings}) {
+export function HomeScreen({period, periods, alerts, onViewAlerts, todayBadges = [], onOpenAchievements, driverFirstName, userId, onLog, onLogDate, onEditShiftOT, onGoWeek, justRolledPeriod, onDismissRolloverBanner, onOpenSettings}) {
   const [shareShift, setShareShift] = useState(null);
   const stats = useMemo(() => pStats(period), [period]);
   const [weather, setWeather] = useState(null);
@@ -390,6 +392,22 @@ export function HomeScreen({period, periods, alerts, onViewAlerts, driverFirstNa
             Phil..." down to five/six wrapped lines on a phone). Sits above
             Today's Duty so it's seen before scrolling, not squeezed into
             the header row. */}
+        {todayBadges.length > 0 && (() => {
+          const latest = describeKey(todayBadges[todayBadges.length - 1]);
+          if (!latest) return null;
+          const extra = todayBadges.length - 1;
+          return (
+            <button type="button" onClick={onOpenAchievements} aria-label={`New badge today: ${latest.name}`}
+              style={{width:"100%",textAlign:"left",background:`${latest.badge.color}14`,border:`1px solid ${latest.badge.color}55`,borderRadius:14,padding:"10px 14px",marginBottom:12,cursor:"pointer",display:"flex",alignItems:"center",gap:12}}>
+              <Badge badge={latest.badge} level={latest.level} size={40}/>
+              <span style={{minWidth:0}}>
+                <span style={{display:"block",color:MUTED,fontSize:"0.6875rem",textTransform:"uppercase",letterSpacing:1.2,fontWeight:700}}>New badge today</span>
+                <span style={{display:"block",color:TEXT,fontSize:"0.9375rem",fontWeight:800}}>{latest.name}{latest.year ? ` ${latest.year}` : ""}{extra > 0 ? ` +${extra} more` : ""}</span>
+              </span>
+            </button>
+          );
+        })()}
+
         <HeaderAlertButton count={activeAlerts.length} onClick={onViewAlerts}/>
 
         {justRolledPeriod && <NewPeriodBanner period={justRolledPeriod} onDismiss={onDismissRolloverBanner}/>}

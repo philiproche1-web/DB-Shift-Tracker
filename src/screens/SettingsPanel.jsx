@@ -10,7 +10,14 @@ import { SegGroup, DateInput, ConfirmDialog } from "../components/shared.jsx";
 const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]; // index = Date.getDay(), matches roster.js's convention
 
 // ─── SETTINGS PANEL ───────────────────────────────────────────────────────────
-export function SettingsPanel({period, onClose, onThemeChange, leaveSettings, onLeaveSettingsChange, onReplayTour, onViewTerms, onViewFAQ, onEditStartDate, driverGarage, onChangeGarage, driverFirstName, onChangeFirstName, driverCustomRestDays, onChangeCustomRestDays, userId, onSendFeedback}) {
+// This panel edits a snapshot of settings taken when it opened. Badge state
+// (settings.achievements) can change while it's open, so always write back
+// the latest achievements rather than the snapshot's.
+function persistSettings(next) {
+  saveSettings({ ...next, achievements: loadSettings().achievements });
+}
+
+export function SettingsPanel({period, onClose, onThemeChange, leaveSettings, onLeaveSettingsChange, onReplayTour, onViewTerms, onViewFAQ, onEditStartDate, driverGarage, onChangeGarage, driverFirstName, onChangeFirstName, driverCustomRestDays, onChangeCustomRestDays, userId, onSendFeedback, onOpenAchievements, achievementsSummary}) {
   const [settings, setSettings] = useState(loadSettings);
   const [annualInput, setAnnualInput] = useState(String(leaveSettings?.annualTotal||20));
   const [annualError, setAnnualError] = useState(null);
@@ -46,18 +53,18 @@ export function SettingsPanel({period, onClose, onThemeChange, leaveSettings, on
 
   function setAppearance(val) {
     const next = {...settings, appearance:val};
-    setSettings(next); saveSettings(next);
+    setSettings(next); persistSettings(next);
     onThemeChange(val);
   }
   function setZone(z) {
     const next = {...settings, defaultZone:z};
-    setSettings(next); saveSettings(next);
+    setSettings(next); persistSettings(next);
     localStorage.setItem("dbus_last_zone", z);
   }
   function toggleNotifications() {
     if (settings.notificationsEnabled) {
       const next = {...settings, notificationsEnabled:false};
-      setSettings(next); saveSettings(next);
+      setSettings(next); persistSettings(next);
       unsubscribeFromPush(userId).then((result) => {
         if (!result.ok) setToast("Couldn't fully turn off push notifications — try again.");
       });
@@ -67,13 +74,13 @@ export function SettingsPanel({period, onClose, onThemeChange, leaveSettings, on
     Notification.requestPermission().then(perm => {
       if (perm === "granted") {
         const next = {...settings, notificationsEnabled:true};
-        setSettings(next); saveSettings(next);
+        setSettings(next); persistSettings(next);
         setToast("Reminders on.");
         subscribeToPush(userId).then((result) => {
           if (!result.ok) {
             setToast(result.error || "Couldn't enable push notifications.");
             const reverted = {...next, notificationsEnabled:false};
-            setSettings(reverted); saveSettings(reverted);
+            setSettings(reverted); persistSettings(reverted);
           }
         });
       } else {
@@ -83,14 +90,14 @@ export function SettingsPanel({period, onClose, onThemeChange, leaveSettings, on
   }
   function toggleBreakReminder() {
     const next = {...settings, breakReminderEnabled: !settings.breakReminderEnabled};
-    setSettings(next); saveSettings(next);
+    setSettings(next); persistSettings(next);
   }
   function saveBreakMinutes() {
     const n = parseInt(breakMinInput,10);
     if(isNaN(n) || n<1 || n>60) { setBreakMinError("Enter a number between 1 and 60."); return; }
     setBreakMinError(null);
     const next = {...settings, breakReminderMinutes:n};
-    setSettings(next); saveSettings(next);
+    setSettings(next); persistSettings(next);
     setToast("Break reminder time saved.");
   }
   async function saveName() {
@@ -367,6 +374,17 @@ export function SettingsPanel({period, onClose, onThemeChange, leaveSettings, on
           <button onClick={saveAnnual} style={{...btnStyle,width:"auto",padding:"10px 20px",fontSize:"0.8125rem",borderRadius:10,marginLeft:"auto"}}>Save</button>
         </div>
         {annualError && <p style={{color:DANGER,fontSize:"0.75rem",margin:"0 0 20px"}}>{annualError}</p>}
+
+        {onOpenAchievements && (
+          <button type="button" onClick={onOpenAchievements} style={{width:"100%",display:"flex",alignItems:"center",gap:12,background:CARD2,color:TEXT,border:`1px solid ${BORDER}`,borderRadius:12,padding:"12px 14px",cursor:"pointer",marginBottom:8,textAlign:"left"}}>
+            <span aria-hidden="true" style={{fontSize:"1.375rem"}}>🏆</span>
+            <span style={{flex:1,minWidth:0}}>
+              <span style={{display:"block",fontSize:"0.875rem",fontWeight:700}}>Achievements</span>
+              {achievementsSummary && <span style={{display:"block",color:MUTED,fontSize:"0.75rem"}}>{achievementsSummary}</span>}
+            </span>
+            <span aria-hidden="true" style={{color:MUTED}}>›</span>
+          </button>
+        )}
 
         {/* Help & legal */}
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
