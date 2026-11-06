@@ -53,3 +53,22 @@ describe("BreakAlarm", () => {
     expect(stopped).toBe(1);
   });
 });
+
+describe("vibration check (Phil 2026-11-06: no buzz on his Android)", () => {
+  it("testBuzz reports when the browser refuses or can't vibrate", async () => {
+    const { testBuzz, startAlarm, stopAlarm } = await import("./breakAlarm.js");
+    const orig = navigator.vibrate;
+    try {
+      navigator.vibrate = undefined;
+      expect(testBuzz()).toBe(false);
+      expect(startAlarm({ sound: false, vibrate: true }).vibrationBlocked).toBe(true);
+      stopAlarm();
+      navigator.vibrate = () => false;
+      expect(testBuzz()).toBe(false);
+      navigator.vibrate = () => true;
+      expect(testBuzz()).toBe(true);
+      expect(startAlarm({ sound: false, vibrate: true }).vibrationBlocked).toBe(false);
+      stopAlarm();
+    } finally { navigator.vibrate = orig; }
+  });
+});

@@ -6,6 +6,7 @@ import { CARD, CARD2, BORDER, TEXT, MUTED, SUCCESS, DANGER, ACCENT, cardStyle, i
 import { loadSettings, saveSettings, APP_VERSION } from "../lib/persistence.js";
 import { subscribeToPush, unsubscribeFromPush } from "../lib/push.js";
 import { SegGroup, DateInput, ConfirmDialog } from "../components/shared.jsx";
+import { testBuzz } from "../lib/breakAlarm.js";
 
 const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]; // index = Date.getDay(), matches roster.js's convention
 
@@ -92,9 +93,13 @@ export function SettingsPanel({period, onClose, onThemeChange, leaveSettings, on
     const next = {...settings, alarmSound: settings.alarmSound === false};
     setSettings(next); persistSettings(next);
   }
+  const [vibrateCheck, setVibrateCheck] = useState(null); // null | "ok" | "blocked"
   function toggleAlarmVibrate() {
-    const next = {...settings, alarmVibrate: settings.alarmVibrate === false};
+    const turningOn = settings.alarmVibrate === false;
+    const next = {...settings, alarmVibrate: turningOn};
     setSettings(next); persistSettings(next);
+    // A short buzz when it's switched on, so the driver knows it works.
+    setVibrateCheck(turningOn ? (testBuzz() ? "ok" : "blocked") : null);
   }
 
   function toggleBadgeSound() {
@@ -392,6 +397,13 @@ export function SettingsPanel({period, onClose, onThemeChange, leaveSettings, on
                   </div>
                 </div>
               ))}
+              {vibrateCheck && (
+                <p style={{color:vibrateCheck==="ok"?MUTED:DANGER,fontSize:"0.71875rem",margin:"8px 0 0",lineHeight:1.5}}>
+                  {vibrateCheck==="ok"
+                    ? "You should have felt a short buzz. Nothing? Your phone's own vibration settings are blocking it — on Android check Settings › Sound & vibration (vibration / haptics on, and not in power-saving mode)."
+                    : "This phone didn't allow vibration from the app."}
+                </p>
+              )}
               {onTestAlarm && (
                 <button type="button" onClick={onTestAlarm} style={{background:CARD2,color:TEXT,border:`1px solid ${BORDER}`,borderRadius:10,padding:"10px 14px",fontSize:"0.8125rem",fontWeight:600,cursor:"pointer",marginTop:14,width:"100%"}}>
                   ⏰ Test alarm

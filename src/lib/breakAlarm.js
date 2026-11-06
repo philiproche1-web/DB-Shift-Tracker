@@ -82,9 +82,13 @@ function playTune() {
 
 // Browsers only allow sound/vibration once the person has tapped the page
 // at least once since it loaded; if they haven't, the alarm still shows
-// full screen and these quietly do nothing.
+// full screen and these quietly do nothing. Returns { vibrationBlocked }:
+// true when the browser refused the vibration call. (A phone whose own
+// vibration/haptics settings are off can still accept the call and stay
+// still — the Settings switch's test buzz is how a driver finds that out.)
 export function startAlarm({ sound = true, vibrate = true } = {}) {
   stopAlarm();
+  let vibrationBlocked = false;
   if (sound) {
     try {
       const AC = window.AudioContext || window.webkitAudioContext;
@@ -100,11 +104,21 @@ export function startAlarm({ sound = true, vibrate = true } = {}) {
       }
     } catch { /* no audio */ }
   }
-  if (vibrate && navigator.vibrate) {
-    const buzz = () => { try { navigator.vibrate([600, 250, 600]); } catch { /* no vibration */ } };
-    buzz();
-    buzzTimer = setInterval(buzz, 2000);
+  if (vibrate) {
+    if (!navigator.vibrate) vibrationBlocked = true;
+    else {
+      const buzz = () => { try { return navigator.vibrate([600, 250, 600]); } catch { return false; } };
+      if (buzz() === false) vibrationBlocked = true;
+      buzzTimer = setInterval(buzz, 2000);
+    }
   }
+  return { vibrationBlocked };
+}
+
+// One short buzz, e.g. when the Vibration switch is turned on. Returns
+// false if the browser refused it.
+export function testBuzz() {
+  try { return navigator.vibrate ? navigator.vibrate(300) !== false : false; } catch { return false; }
 }
 
 export function stopAlarm() {

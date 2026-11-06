@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { TEXT, MUTED, btnStyle } from "../lib/theme.js";
 import { startAlarm, stopAlarm } from "../lib/breakAlarm.js";
 import { useModalA11y } from "./shared.jsx";
@@ -10,8 +10,10 @@ export function BreakAlarm({alarm, sound, vibrate, onStop}) {
   const ref = useModalA11y(onStop);
   const stopRef = useRef(onStop);
   stopRef.current = onStop;
+  const [vibrationBlocked, setVibrationBlocked] = useState(false);
   useEffect(() => {
-    startAlarm({ sound, vibrate });
+    const r = startAlarm({ sound, vibrate });
+    setVibrationBlocked(!!r?.vibrationBlocked);
     const t = setTimeout(() => { stopAlarm(); }, ALARM_MAX_MS);
     return () => { clearTimeout(t); stopAlarm(); };
   }, [alarm, sound, vibrate]);
@@ -28,6 +30,7 @@ export function BreakAlarm({alarm, sound, vibrate, onStop}) {
         <p style={{color:"#F59E0B",fontSize:"0.75rem",fontWeight:800,letterSpacing:2,textTransform:"uppercase",margin:"16px 0 6px"}}>Break ending</p>
         <h2 style={{color:TEXT,fontSize:"2rem",fontWeight:800,margin:"0 0 6px"}}>{ends}</h2>
         <p style={{color:MUTED,fontSize:"1rem",margin:"0 0 6px"}}>{mins > 0 ? `In ${mins} minute${mins === 1 ? "" : "s"}` : "Now"} · {alarm.shift.roster}</p>
+        {vibrationBlocked && <p style={{color:MUTED,fontSize:"0.75rem",margin:"10px 0 0"}}>This phone didn't allow vibration from the app.</p>}
         <button type="button" onClick={() => { stopAlarm(); stopRef.current(); }} style={{...btnStyle,marginTop:22,fontSize:"1.125rem",padding:"18px 0"}}>Stop</button>
       </div>
     </div>

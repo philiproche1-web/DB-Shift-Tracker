@@ -14,6 +14,7 @@ export function TourIcon({type}) {
   if(type==="pdf") return <div style={wrap}><svg viewBox="0 0 24 24" style={s}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/></svg></div>;
   if(type==="rest") return <div style={wrap}><svg viewBox="0 0 24 24" style={s}><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/></svg></div>;
   if(type==="tally") return <div style={wrap}><svg viewBox="0 0 24 24" style={s}><line x1="5" y1="20" x2="5" y2="9"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="19" y1="20" x2="19" y2="13"/></svg></div>;
+  if(type==="swap") return <div style={wrap}><svg viewBox="0 0 24 24" style={s}><path d="M17 2l4 4-4 4"/><path d="M3 11V9a3 3 0 0 1 3-3h15"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a3 3 0 0 1-3 3H3"/></svg></div>;
   if(type==="home") return <div style={wrap}><svg viewBox="0 0 24 24" style={s}><path d="M3 11.5L12 4l9 7.5"/><path d="M5 10v10h14V10"/></svg></div>;
   if(type==="alert") return <div style={wrap}><svg viewBox="0 0 24 24" style={s}><path d="M12 3l10 18H2z"/><line x1="12" y1="10" x2="12" y2="14"/><line x1="12" y1="17" x2="12" y2="17.01"/></svg></div>;
   return null;
@@ -38,7 +39,12 @@ export const TOUR_SLIDES = [
   {
     icon: "lookup",
     title: "Look Up Any Duty",
-    body: "Tap Lookup, pick your zone, day and duty to see the full running board. Use the camera button to share it to WhatsApp with a ready-made swap message."
+    body: "Tap Lookup, pick your zone, day and duty to see the full running board — every trip, terminus, break and finish."
+  },
+  {
+    icon: "swap",
+    title: "Swap in Seconds",
+    body: "Want to swap a duty? Tap the camera on any duty card. You get a picture of the full duty and a ready-made message — change the last line to what you're after, tap Share and pick your WhatsApp group."
   },
   {
     icon: "log",

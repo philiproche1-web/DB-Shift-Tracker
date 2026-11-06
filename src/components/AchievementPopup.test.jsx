@@ -80,3 +80,21 @@ describe("HomeScreen new-badge banner", () => {
     expect(mounted.container.textContent).not.toContain("New badge today");
   });
 });
+
+describe("Achievements page layout and tour (Phil 2026-11-06)", () => {
+  it("each category is its own section with a count, badges in a swipe row", () => {
+    const t = today();
+    const ctx = buildContext({ periods: [], usage: {}, zones: ["Zone 1"], today: t, leaveSettings: { annualTotal: 20 } });
+    mounted = render(<AchievementsScreen rows={badgeRows(ctx, {})} onBack={() => {}}/>);
+    const ids = [...mounted.container.querySelectorAll("[data-category]")].map((s) => s.getAttribute("data-category"));
+    expect(ids).toEqual(["duties", "routes", "leave", "covered", "app"]);
+    const routes = mounted.container.querySelector('[data-category="routes"]');
+    expect(routes.querySelector("h2").textContent).toBe("Routes");
+    expect(routes.textContent).toContain("0 / 12");
+    expect(routes.querySelector('[role="list"]').style.overflowX).toBe("auto");
+  });
+  it("the tour has a swapping slide", async () => {
+    const { TOUR_SLIDES } = await import("../screens/TourOverlay.jsx");
+    expect(TOUR_SLIDES.some((s) => s.title === "Swap in Seconds" && /WhatsApp/.test(s.body))).toBe(true);
+  });
+});
