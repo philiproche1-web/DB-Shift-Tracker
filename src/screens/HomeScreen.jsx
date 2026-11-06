@@ -253,7 +253,7 @@ export function DaySheet({day, onClose, onShare, onEditShift, onEditDayOff, onLo
           </>
         ) : (
           <div style={{...cardStyle,padding:"16px 18px"}}>
-            <p style={{color:info.dayOff.type === "Rest Day" ? SUCCESS : ACCENT,fontSize:"1.125rem",fontWeight:800,margin:"0 0 4px"}}>{info.dayOff.type}</p>
+            <p style={{color:info.dayOff.type === "Rest Day" ? "#60a5fa" : ACCENT,fontSize:"1.125rem",fontWeight:800,margin:"0 0 4px"}}>{info.dayOff.type}</p>
             <p style={{color:MUTED,fontSize:"0.8125rem",margin:"0 0 14px"}}>{info.dayOff.fixed ? "From your fixed rest-day pattern" : "Logged"}</p>
             <div style={{display:"grid",gap:8}}>
               {info.dayOff.type === "Rest Day" && (

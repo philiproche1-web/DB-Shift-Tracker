@@ -26,7 +26,9 @@ const period = (shifts = [], daysOff = []) => ({ id: "p1", startDate: start, cre
 describe("dayStatus (traffic light)", () => {
   it("green when logged, red when today/past and empty, yellow when future and empty", () => {
     expect(dayStatus({ status: "shift" }, "2026-11-01", "2026-11-06")).toBe("logged");
-    expect(dayStatus({ status: "dayoff" }, "2026-11-20", "2026-11-06")).toBe("logged");
+    expect(dayStatus({ status: "dayoff", dayOff: { type: "Annual Leave" } }, "2026-11-20", "2026-11-06")).toBe("logged");
+    expect(dayStatus({ status: "dayoff", dayOff: { type: "Rest Day" } }, "2026-11-03", "2026-11-06")).toBe("rest");
+    expect(dayStatus({ status: "dayoff", dayOff: { type: "Rest Day", fixed: true } }, "2026-11-20", "2026-11-06")).toBe("rest");
     expect(dayStatus({ status: "unlogged" }, "2026-11-06", "2026-11-06")).toBe("missed");
     expect(dayStatus({ status: "unlogged" }, "2026-11-05", "2026-11-06")).toBe("missed");
     expect(dayStatus({ status: "unlogged" }, "2026-11-07", "2026-11-06")).toBe("upcoming");

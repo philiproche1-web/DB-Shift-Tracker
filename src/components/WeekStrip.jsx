@@ -7,7 +7,8 @@ import { TEXT, MUTED, BORDER, SUCCESS, DANGER, ACCENT } from "../lib/theme.js";
 // carousel and the Log a Shift button. One Sun–Sat week per swipe page,
 // from WEEKS_BACK weeks ago to WEEKS_FORWARD ahead, opening on this week.
 // Traffic light per day:
-//   green  = something logged (duty, rest day, leave — the day is sorted)
+//   green  = a duty or leave logged (the day is sorted)
+//   blue   = a rest day (auto or logged) — so days off stand out (Phil 2026-11-06)
 //   red    = today or a past day with nothing logged (needs fixing)
 //   yellow = a future day not logged yet (heads-up, not a problem)
 // Today gets a white ring. Tapping a day calls onSelect(date, info).
@@ -25,9 +26,11 @@ export function weeksForward(periods, activePeriodId, todayDate) {
   return Math.max(WEEKS_FORWARD, weeks);
 }
 const LETTERS = ["S", "M", "T", "W", "T", "F", "S"];
-export const STATUS_COLOR = { logged: SUCCESS, missed: DANGER, upcoming: ACCENT };
+export const REST_COLOR = "#60a5fa";
+export const STATUS_COLOR = { logged: SUCCESS, rest: REST_COLOR, missed: DANGER, upcoming: ACCENT };
 
 export function dayStatus(info, date, today) {
+  if (info.status === "dayoff" && info.dayOff?.type === "Rest Day") return "rest";
   if (info.status === "shift" || info.status === "dayoff") return "logged";
   return date <= today ? "missed" : "upcoming";
 }
@@ -73,7 +76,7 @@ export function WeekStrip({periods, activePeriodId, todayDate, onSelect}) {
               const color = STATUS_COLOR[status];
               const isToday = date === todayDate;
               const dayNum = Number(date.slice(8, 10));
-              const what = status === "logged"
+              const what = status === "logged" || status === "rest"
                 ? (info.status === "shift" ? info.shift.roster : info.dayOff.type)
                 : status === "missed" ? "nothing logged" : "not logged yet";
               return (
