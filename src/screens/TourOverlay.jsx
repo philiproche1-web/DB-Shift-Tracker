@@ -22,7 +22,7 @@ export function TourIcon({type}) {
 export const TOUR_SLIDES = [
   {
     icon: "welcome",
-    title: "Welcome to\nShift Tracker",
+    title: "Welcome to\nRoster Buddy",
     body: "Built for Dublin Bus drivers at Summerhill. Log shifts, track your 5-week hours, look up any duty — all on your phone. Your account works on any device, and everything you log stays in sync."
   },
   {

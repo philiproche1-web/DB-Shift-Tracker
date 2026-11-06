@@ -92,7 +92,8 @@ export function TodayDutyCard({shift, label, accentColor, defaultExpanded=true, 
           <div style={{textAlign:"right"}}>
             <p style={{color:TEXT,fontSize:"1.25rem",fontWeight:800,margin:0}}>{fmtHrs(spread)}</p>
             {getDayType(shift.date)==="sunday"&&<span style={{...tag(SUCCESS),marginTop:4,display:"block"}}>Sunday</span>}
-            <span style={{color:ac,fontSize:"0.75rem",marginTop:6,display:"block"}}>{expanded?"▲ less":"▼ running board"}</span>
+            <span className={expanded?undefined:"rb-hint-pulse"} style={{color:ac,fontSize:"0.75rem",marginTop:6,display:"block"}}>{expanded?"▲ less":"▼ running board"}</span>
+            <style>{`@keyframes rb-hint{0%,100%{opacity:1}50%{opacity:.25}}.rb-hint-pulse{animation:rb-hint 1s ease-in-out 4}@media (prefers-reduced-motion: reduce){.rb-hint-pulse{animation:none}}`}</style>
           </div>
         </div>
         {/* Key times row */}
@@ -196,15 +197,16 @@ export function ShiftExtrasEditor({shift, onSave, onEditShift}) {
         style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10,cursor:"pointer",marginBottom:14}}>
         <div>
           <p style={{color:isRestDay?DANGER:TEXT,fontSize:"0.875rem",fontWeight:600,margin:0}}>Working on a rest day</p>
-          <p style={{color:MUTED,fontSize:"0.75rem",margin:"2px 0 0"}}>All hours count as overtime, not toward 190h</p>
+          <p style={{color:MUTED,fontSize:"0.75rem",margin:"2px 0 0"}}>The whole duty counts as overtime, not toward 190h</p>
         </div>
         <div style={{width:44,height:26,borderRadius:13,background:isRestDay?DANGER:BORDER,position:"relative",flexShrink:0}}>
           <div style={{width:20,height:20,borderRadius:"50%",background:"#fff",position:"absolute",top:3,left:isRestDay?21:3,transition:"left 0.2s"}}/>
         </div>
       </div>
-      {!isRestDay && (
+      {(
         <div style={{marginBottom:14}}>
-          <label htmlFor="day-ot-h" style={label}>Overtime</label>
+          <label htmlFor="day-ot-h" style={label}>{isRestDay ? "Extra overtime" : "Overtime"}</label>
+          {isRestDay && <p style={{color:MUTED,fontSize:"0.71875rem",margin:"-4px 0 8px"}}>On top of the duty, e.g. a late break.</p>}
           <div style={{display:"grid",gridTemplateColumns:"minmax(0,1fr) auto minmax(0,1fr) auto",gap:8,alignItems:"center"}}>
             <input id="day-ot-h" aria-label="Overtime hours" type="number" inputMode="numeric" min="0" max="12" value={otH} onChange={(e)=>setOtH(Math.min(12,Math.max(0,parseInt(e.target.value)||0)))} style={box}/>
             <span style={{color:MUTED,fontSize:"0.8125rem"}}>h</span>
@@ -383,7 +385,7 @@ export function HomeScreen({period, periods, alerts, onViewAlerts, todayBadges =
               </>
             ) : (
               <p style={{color:MUTED,fontSize:"0.6875rem",margin:"0 0 4px",textTransform:"uppercase",letterSpacing:2,fontWeight:600,display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
-                <span>Shift Tracker</span>
+                <span>Roster Buddy</span>
                 {weather && <WeatherChip tempC={weather.tempC} iconKind={weatherIconKind(weather.code)}/>}
               </p>
             )}

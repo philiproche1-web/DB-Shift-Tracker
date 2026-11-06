@@ -189,13 +189,14 @@ describe("day card quick edit (Phil 2026-11-06)", () => {
     expect(saved).toMatchObject({ id: "s1", overtimeHours: 1.5, overtimeNote: "late break", notes: "covered for Mick", isRestDay: false });
   });
 
-  it("rest day toggle hides the overtime boxes (all hours count) and saves", () => {
+  it("on a rest day the overtime boxes stay, as extra overtime on top of the duty", () => {
     let saved = null;
     const sheet = open(shift("s1", todayDate), { onSaveShift: (x) => { saved = x; } });
     act(() => { sheet.querySelector('[aria-label="Working on a rest day"]').click(); });
-    expect(sheet.querySelector('[aria-label="Overtime hours"]')).toBeNull();
+    expect(sheet.textContent).toContain("Extra overtime");
+    setVal(sheet.querySelector('[aria-label="Overtime hours"]'), "1");
     act(() => { btn(sheet, "Save").click(); });
-    expect(saved.isRestDay).toBe(true);
+    expect(saved).toMatchObject({ isRestDay: true, overtimeHours: 1 });
   });
 
   it("Edit duty sits beside Save and opens the full edit", () => {

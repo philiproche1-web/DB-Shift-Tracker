@@ -459,7 +459,7 @@ export function SettingsPanel({period, onClose, onThemeChange, leaveSettings, on
         <div style={{borderTop:`1px solid ${BORDER}`,paddingTop:16}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
             <div>
-              <p style={{color:MUTED,fontSize:"0.75rem",margin:"0 0 2px"}}>Dublin Bus Shift Tracker</p>
+              <p style={{color:MUTED,fontSize:"0.75rem",margin:"0 0 2px"}}>Roster Buddy</p>
               {/* DUTIES.length/getZones().length read live — this used to be
                   a hardcoded "390 duties · 4 zones" that would have silently
                   gone stale the moment a live roster fetch changed either

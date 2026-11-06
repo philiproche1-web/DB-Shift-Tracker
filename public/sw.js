@@ -88,7 +88,7 @@ async function alarmPrefs() {
 }
 
 self.addEventListener("push", (event) => {
-  let payload = { title: "Shift Tracker", body: "" };
+  let payload = { title: "Roster Buddy", body: "" };
   try {
     if (event.data) payload = { ...payload, ...event.data.json() };
   } catch {}

@@ -512,7 +512,7 @@ export function LogScreen({period, periods, editShift, lookupDuty, initialDate, 
         {(rIdx>=0 || isSpare || fixedType) && (() => {
           const summaryParts = [];
           if (isRestDay) summaryParts.push("Rest day");
-          if (!isRestDay && (overtimeH > 0 || overtimeM > 0)) summaryParts.push(`+${fmtHrs(overtimeH + overtimeM/60)} overtime`);
+          if (overtimeH > 0 || overtimeM > 0) summaryParts.push(`+${fmtHrs(overtimeH + overtimeM/60)} ${isRestDay ? "extra " : ""}overtime`);
           const summary = summaryParts.join(" · ");
           return (
             <div ref={moreOptionsRef} style={{...cardStyle,marginBottom:16,padding:0,overflow:"hidden",scrollMarginTop:16}}>
@@ -539,7 +539,8 @@ export function LogScreen({period, periods, editShift, lookupDuty, initialDate, 
                   </div>
 
                   {/* Overtime section */}
-                  {!isRestDay && (
+                  {/* Rest day too: extra overtime on top of the duty (Phil 2026-11-06). */}
+                  {(
                     <div style={{...cardStyle}}>
                       <FieldLabel htmlFor="log-ot-h" hint="optional">Overtime hours</FieldLabel>
                       <p style={{color:MUTED,fontSize:"0.75rem",margin:"0 0 10px"}}>Extra time worked on top of this duty — tracked separately, doesn't count toward 190h</p>

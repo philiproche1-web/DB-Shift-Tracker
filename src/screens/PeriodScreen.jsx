@@ -86,7 +86,7 @@ export function PeriodScreen({period, onEdit, onDelete, onEditDayOff, onDeleteDa
                         </span>
                         {item.isSpare&&<span style={tag(ACCENT)}>Spare</span>}
                         {item.isRestDay&&<span style={tag(DANGER)}>Rest day</span>}
-                        {item.overtimeHours>0&&!item.isRestDay&&<span style={tag("#F59E0B")}>OT {fmtHrs(item.overtimeHours)}</span>}
+                        {item.overtimeHours>0&&<span style={tag("#F59E0B")}>{item.isRestDay?"+":""}OT {fmtHrs(item.overtimeHours)}</span>}
                         {dutyNumber(item.duty) && <span style={tag(ACCENT)}>Duty No. {dutyNumber(item.duty)}</span>}
                       </div>
                       <p style={{color:MUTED,fontSize:"0.75rem",margin:"0 0 1px"}}>{fmtDate(item.date)} · {item.zone}</p>

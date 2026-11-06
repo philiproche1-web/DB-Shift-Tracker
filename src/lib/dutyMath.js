@@ -138,7 +138,9 @@ export function wkStats(shifts, daysOff, wStart) {
   // spreadover — spreadover includes the unpaid break, which doesn't count
   // toward the 190h/14h30m limits. Work hours come from the xlsx roster source.
   const overtime = +ws.reduce((a,x) => {
-    if (x.isRestDay) return a + (x.workHours||0);
+    // Rest day: the whole duty is overtime, PLUS any extra overtime on top
+    // (e.g. a late break) — 8h duty + 1h extra = 9h (Phil 2026-11-06).
+    if (x.isRestDay) return a + (x.workHours||0) + (x.overtimeHours||0);
     return a + (x.overtimeHours||0);
   }, 0).toFixed(2);
   return {

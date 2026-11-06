@@ -11,7 +11,7 @@ export function SetupScreen({onCreate}) {
     <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minHeight:"100vh",background:`radial-gradient(circle at 50% 0%,${CARD2} 0%,${BG} 60%)`,padding:24}}>
       <div style={{marginBottom:20}}><BusLogo size={64}/></div>
       <p style={{color:MUTED,fontSize:"0.6875rem",margin:"0 0 6px",textTransform:"uppercase",letterSpacing:3,fontWeight:600}}>Dublin Bus</p>
-      <h1 style={{color:TEXT,fontSize:"1.75rem",fontWeight:800,textAlign:"center",margin:"0 0 12px",letterSpacing:"-0.5px"}}>Shift Tracker</h1>
+      <h1 style={{color:TEXT,fontSize:"1.75rem",fontWeight:800,textAlign:"center",margin:"0 0 12px",letterSpacing:"-0.5px"}}>Roster Buddy</h1>
       <p style={{color:MUTED,textAlign:"center",marginBottom:36,fontSize:"0.9375rem",maxWidth:300,lineHeight:1.5}}>
         Track your hours and look up any duty. To start, pick the <strong style={{color:ACCENT}}>Sunday</strong> your 5-week period begins.
       </p>

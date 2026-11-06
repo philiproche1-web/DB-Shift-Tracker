@@ -11,7 +11,7 @@ export function GarageComingSoonScreen({garage, onSignOut}) {
       <div style={{marginBottom:20}}><BusLogo size={64}/></div>
       <h1 style={{color:TEXT,fontSize:"1.5rem",fontWeight:800,margin:"0 0 12px",letterSpacing:"-0.5px"}}>{garage} is coming soon</h1>
       <p style={{color:MUTED,fontSize:"0.9375rem",maxWidth:320,lineHeight:1.6,margin:"0 0 28px"}}>
-        Shift Tracker only has duty rosters loaded for Summerhill right now. {garage}'s duties haven't been added yet — you'll get a notification here as soon as they are.
+        Roster Buddy only has duty rosters loaded for Summerhill right now. {garage}'s duties haven't been added yet — you'll get a notification here as soon as they are.
       </p>
       <button style={{...btnStyle,maxWidth:240,background:"transparent",border:`1px solid ${BORDER}`,color:MUTED}} onClick={onSignOut}>
         Sign out

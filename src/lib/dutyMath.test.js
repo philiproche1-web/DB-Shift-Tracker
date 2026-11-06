@@ -203,3 +203,15 @@ describe("dutyNumber", () => {
     expect(dutyNumber("")).toBe(null);
   });
 });
+
+describe("overtime on a rest day (Phil 2026-11-06)", () => {
+  it("rest day: whole duty + extra overtime (8h + 1h = 9h); normal duty: just the extra", async () => {
+    const { wkStats } = await import("./dutyMath.js");
+    const rest = wkStats([{ date: "2026-11-02", workHours: 8, overtimeHours: 1, isRestDay: true }], [], "2026-11-01");
+    expect(rest.overtime).toBe(9);
+    expect(rest.total).toBe(0);
+    const normal = wkStats([{ date: "2026-11-02", workHours: 8, overtimeHours: 1, isRestDay: false }], [], "2026-11-01");
+    expect(normal.overtime).toBe(1);
+    expect(normal.total).toBe(8);
+  });
+});

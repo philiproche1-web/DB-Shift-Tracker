@@ -18,7 +18,7 @@ export function TermsScreen({onAccept, readOnly, onClose}) {
       <div style={{padding:"32px 20px 16px",background:`linear-gradient(180deg,${CARD2} 0%,${BG} 100%)`}}>
         <p style={{color:ACCENT,fontSize:"0.6875rem",textTransform:"uppercase",letterSpacing:2,fontWeight:700,margin:"0 0 6px"}}>{readOnly?"Reference":"Before you begin"}</p>
         <h1 style={{color:TEXT,fontSize:"1.5rem",fontWeight:800,margin:"0 0 4px",letterSpacing:"-0.5px"}}>Terms & Conditions</h1>
-        <p style={{color:MUTED,fontSize:"0.8125rem",margin:0}}>{readOnly?"For your reference":"Please read carefully before using Dublin Bus Shift Tracker"}</p>
+        <p style={{color:MUTED,fontSize:"0.8125rem",margin:0}}>{readOnly?"For your reference":"Please read carefully before using Roster Buddy"}</p>
         <p style={{color:ACCENT,fontSize:"0.75rem",fontWeight:600,margin:"6px 0 0"}}>Updated November 2026: section 5, Data Storage &amp; Privacy.</p>
       </div>
 
@@ -26,7 +26,7 @@ export function TermsScreen({onAccept, readOnly, onClose}) {
         <div style={{background:CARD,border:`1px solid ${BORDER}`,borderRadius:16,padding:"18px 16px",marginBottom:16,fontSize:"0.875rem",lineHeight:1.7,color:TEXT}}>
 
           <p style={{color:TEXT,fontWeight:700,fontSize:"0.9375rem",margin:"0 0 8px"}}>1. Ownership &amp; Intellectual Property</p>
-          <p style={{margin:"0 0 14px"}}>Dublin Bus Shift Tracker and all content within it, including running board data, interface design, and code, is the private property of the developer. All rights are reserved. The app may not be copied, redistributed, or reproduced in any form without the express written permission of the developer.</p>
+          <p style={{margin:"0 0 14px"}}>Roster Buddy and all content within it, including running board data, interface design, and code, is the private property of the developer. All rights are reserved. The app may not be copied, redistributed, or reproduced in any form without the express written permission of the developer.</p>
 
           <p style={{color:TEXT,fontWeight:700,fontSize:"0.9375rem",margin:"0 0 8px"}}>2. Private Use Only</p>
           <p style={{margin:"0 0 14px"}}>This app is provided for the personal, private use of authorised users only. It is not affiliated with, endorsed by, or connected to Dublin Bus, Dublin Bus management, or any trade union. Any resemblance to official Dublin Bus systems is incidental.</p>

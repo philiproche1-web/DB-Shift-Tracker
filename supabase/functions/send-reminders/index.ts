@@ -191,7 +191,7 @@ async function runScheduler() {
       // still unlogged (not a shift, not a real or auto rest day).
       if (info && hourUtc >= SHIFT_NOT_LOGGED_HOUR_UTC && info.status === "unlogged") {
         if (await tryClaimReminder(userId, todayDate, "shift_not_logged")) {
-          await sendToDriver(userId, "Log today's shift", "Nothing logged yet for today in Shift Tracker.");
+          await sendToDriver(userId, "Log today's shift", "Nothing logged yet for today in Roster Buddy.");
         }
       }
 

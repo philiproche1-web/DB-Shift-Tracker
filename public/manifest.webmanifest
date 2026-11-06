@@ -1,6 +1,6 @@
 {
-  "name": "Dublin Bus Shift Tracker",
-  "short_name": "ShiftTracker",
+  "name": "Roster Buddy",
+  "short_name": "Roster Buddy",
   "description": "Track shift hours, compliance limits, leave and duty running boards across your 5-week roster period.",
   "start_url": "/",
   "scope": "/",
