@@ -3,6 +3,7 @@ import { fmtHrs, addDays, fmtShort } from "../lib/dutyMath.js";
 import { dutyLabel } from "../lib/roster.js";
 import { compColor, BG, CARD, CARD2, BORDER, TEXT, MUTED, ACCENT, DANGER, NAV, NAV_MUTED, cardStyle, inputStyle } from "../lib/theme.js";
 import { alertWindowLabel } from "../lib/routeAlerts.js";
+import { monthGrid, addMonths, isoDate, parseIso, WEEKDAY_INITIALS } from "../lib/calendarGrid.js";
 
 // ─── SHARED UI ────────────────────────────────────────────────────────────────
 // Bus logo mark — clean SVG, replaces emoji
@@ -80,10 +81,22 @@ export function FieldLabel({children, hint, htmlFor}) {
   );
 }
 
+// Date field. Opens our own CalendarPicker rather than the phone's native
+// <input type="date"> dialog — on Android with a larger display/font size
+// that native dialog overflowed the screen (Sunday column and OK button cut
+// off) and a page can't resize an OS dialog. onChange keeps the old
+// `e.target.value` shape so every caller works unchanged.
 export function DateInput({value, onChange, min, id, invalid}) {
+  const [open, setOpen] = useState(false);
+  const label = value
+    ? new Date(value + "T12:00:00").toLocaleDateString("en-IE", {weekday:"short",day:"numeric",month:"short",year:"numeric"})
+    : "Select date";
   return (
     <div style={{position:"relative"}}>
-      <input id={id} type="date" value={value} onChange={onChange} min={min} style={{...inputStyle, paddingRight:40, ...(invalid?{borderColor:DANGER}:{})}}/>
+      <button type="button" id={id} onClick={()=>setOpen(true)} aria-haspopup="dialog"
+        style={{...inputStyle, display:"block", textAlign:"left", cursor:"pointer", paddingRight:40, color:value?TEXT:MUTED, ...(invalid?{borderColor:DANGER}:{})}}>
+        {label}
+      </button>
       <div style={{position:"absolute",right:12,top:"50%",transform:"translateY(-50%)",pointerEvents:"none"}}>
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
           stroke={ACCENT} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -93,7 +106,64 @@ export function DateInput({value, onChange, min, id, invalid}) {
           <line x1="16" y1="2" x2="16" y2="6"/>
         </svg>
       </div>
-      <style>{`input[type="date"]::-webkit-calendar-picker-indicator{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;}`}</style>
+      {open && <CalendarPicker value={value} min={min}
+        onPick={(v)=>{setOpen(false); onChange?.({target:{value:v}});}}
+        onClose={()=>setOpen(false)}/>}
+    </div>
+  );
+}
+
+// In-app month calendar. Every column is minmax(0,1fr) so all seven days
+// (Sunday included) and the footer buttons always fit the screen width, at
+// any phone text size. Tapping a day picks it and closes.
+export function CalendarPicker({value, min, onPick, onClose}) {
+  const ref = useModalA11y(onClose);
+  const todayIso = (() => { const n = new Date(); return isoDate(n.getFullYear(), n.getMonth(), n.getDate()); })();
+  const start = parseIso(value || (min && min > todayIso ? min : todayIso));
+  const [view, setView] = useState({year:start.year, monthIndex:start.monthIndex});
+  const weeks = monthGrid(view.year, view.monthIndex);
+  const monthLabel = new Date(view.year, view.monthIndex, 15).toLocaleDateString("en-IE", {month:"long",year:"numeric"});
+  const navBtn = {background:"none",border:`1px solid ${BORDER}`,color:TEXT,borderRadius:10,width:44,height:44,fontSize:"1.25rem",lineHeight:1,cursor:"pointer",flexShrink:0};
+  const todayDisabled = !!min && todayIso < min;
+  return (
+    <div onClick={onClose} style={{position:"fixed",inset:0,background:"#00000099",display:"flex",alignItems:"flex-end",justifyContent:"center",zIndex:200,padding:12}}>
+      <div ref={ref} role="dialog" aria-modal="true" aria-label="Choose a date" tabIndex={-1} onClick={e=>e.stopPropagation()}
+        style={{...cardStyle,width:"100%",maxWidth:420,padding:16,outline:"none",boxSizing:"border-box",maxHeight:"100%",overflowY:"auto"}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,marginBottom:12}}>
+          <button type="button" aria-label="Previous month" onClick={()=>setView(v=>addMonths(v,-1))} style={navBtn}>‹</button>
+          <p style={{color:TEXT,fontWeight:700,fontSize:"1rem",margin:0,textAlign:"center",flex:1,minWidth:0}}>{monthLabel}</p>
+          <button type="button" aria-label="Next month" onClick={()=>setView(v=>addMonths(v,1))} style={navBtn}>›</button>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(7,minmax(0,1fr))",gap:4,marginBottom:4}}>
+          {WEEKDAY_INITIALS.map((w,i)=>(
+            <span key={i} aria-hidden="true" style={{color:i===6?ACCENT:MUTED,fontSize:"0.75rem",fontWeight:700,textAlign:"center",padding:"4px 0"}}>{w}</span>
+          ))}
+        </div>
+        <div role="grid" style={{display:"grid",gridTemplateColumns:"repeat(7,minmax(0,1fr))",gap:4}}>
+          {weeks.flat().map((d,i)=>{
+            if (!d) return <span key={i}/>;
+            const disabled = !!min && d < min;
+            const sel = d === value;
+            const isToday = d === todayIso;
+            return (
+              <button type="button" key={d} disabled={disabled} onClick={()=>onPick(d)}
+                aria-label={new Date(d+"T12:00:00").toLocaleDateString("en-IE",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}
+                aria-pressed={sel}
+                style={{minWidth:0,minHeight:44,padding:0,borderRadius:10,cursor:disabled?"default":"pointer",
+                  background:sel?ACCENT:"none",
+                  border:isToday&&!sel?`1px solid ${ACCENT}`:"1px solid transparent",
+                  color:sel?"#07090F":disabled?BORDER:TEXT,
+                  fontWeight:sel||isToday?700:500,fontSize:"0.9375rem"}}>
+                {parseIso(d).day}
+              </button>
+            );
+          })}
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"minmax(0,1fr) minmax(0,1fr)",gap:12,marginTop:14}}>
+          <button type="button" onClick={onClose} style={{background:"none",border:`1px solid ${BORDER}`,color:TEXT,borderRadius:10,padding:"13px 0",fontSize:"0.9375rem",cursor:"pointer",minWidth:0}}>Cancel</button>
+          <button type="button" disabled={todayDisabled} onClick={()=>onPick(todayIso)} style={{background:ACCENT,border:"none",color:"#07090F",borderRadius:10,padding:"13px 0",fontSize:"0.9375rem",fontWeight:700,cursor:todayDisabled?"default":"pointer",minWidth:0,opacity:todayDisabled?0.4:1}}>Today</button>
+        </div>
+      </div>
     </div>
   );
 }
