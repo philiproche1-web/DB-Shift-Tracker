@@ -17,7 +17,7 @@ function persistSettings(next) {
   saveSettings({ ...next, achievements: loadSettings().achievements });
 }
 
-export function SettingsPanel({period, onClose, onThemeChange, leaveSettings, onLeaveSettingsChange, onReplayTour, onViewTerms, onViewFAQ, onEditStartDate, driverGarage, onChangeGarage, driverFirstName, onChangeFirstName, driverCustomRestDays, onChangeCustomRestDays, userId, onSendFeedback, onOpenAchievements, achievementsSummary}) {
+export function SettingsPanel({period, onClose, onThemeChange, leaveSettings, onLeaveSettingsChange, onReplayTour, onViewTerms, onViewFAQ, onEditStartDate, driverGarage, onChangeGarage, driverFirstName, onChangeFirstName, driverCustomRestDays, onChangeCustomRestDays, userId, onSendFeedback, onOpenAchievements, achievementsSummary, onTestAlarm}) {
   const [settings, setSettings] = useState(loadSettings);
   const [annualInput, setAnnualInput] = useState(String(leaveSettings?.annualTotal||20));
   const [annualError, setAnnualError] = useState(null);
@@ -392,6 +392,11 @@ export function SettingsPanel({period, onClose, onThemeChange, leaveSettings, on
                   </div>
                 </div>
               ))}
+              {onTestAlarm && (
+                <button type="button" onClick={onTestAlarm} style={{background:CARD2,color:TEXT,border:`1px solid ${BORDER}`,borderRadius:10,padding:"10px 14px",fontSize:"0.8125rem",fontWeight:600,cursor:"pointer",marginTop:14,width:"100%"}}>
+                  ⏰ Test alarm
+                </button>
+              )}
               <p style={{color:MUTED,fontSize:"0.71875rem",margin:"12px 0 0",lineHeight:1.5}}>
                 With the app open, the alarm rings until you tap Stop. With the phone locked or the app closed, you get a notification instead, and its sound is set by your phone. On Android: Settings › Apps › Roster Buddy (or Chrome) › Notifications, then pick a loud sound and turn on "Pop on screen".
               </p>

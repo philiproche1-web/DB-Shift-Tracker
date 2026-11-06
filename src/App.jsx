@@ -660,7 +660,8 @@ export default function App() {
           userId={session?.user?.id}
           onSendFeedback={()=>setConfirmFeedback(true)}
           achievementsSummary={achievementRows ? `${achievementRows.filter(r=>r.earned).length} of ${achievementRows.length} earned` : ""}
-          onOpenAchievements={()=>{setShowSettings(false);setScreen("achievements");}}/>
+          onOpenAchievements={()=>{setShowSettings(false);setScreen("achievements");}}
+          onTestAlarm={()=>{ const now=Date.now(); setShowSettings(false); setRingingAlarm({shift:{id:"test",roster:"Test alarm"},breakEnd:new Date(now+(loadSettings().breakReminderMinutes||10)*60000),fireAt:new Date(now)}); }}/>
       )}
       {ringingAlarm&&<BreakAlarm alarm={ringingAlarm} sound={loadSettings().alarmSound!==false} vibrate={loadSettings().alarmVibrate!==false} onStop={()=>setRingingAlarm(null)}/>}
       {badgeQueue.length>0&&!showTour&&!ringingAlarm&&<AchievementPopup key={JSON.stringify(badgeQueue[0])} item={badgeQueue[0]}
