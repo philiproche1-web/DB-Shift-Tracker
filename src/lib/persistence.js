@@ -36,18 +36,19 @@ export function notifyOnce(dedupeKey, title, body) {
   } catch {}
 }
 
-export const APP_VERSION = "1.7";
+export const APP_VERSION = "1.8";
 export const WHATS_NEW = {
-  version: "1.7",
-  title: "What's new in v1.7",
+  version: "1.8",
+  title: "What's new in v1.8",
   showToExisting: true,
   features: [
-    { icon: "account", heading: "Accounts & multi-device sync", body: "Sign up with your driver number and log in from any phone — your shifts, leave and settings follow your account, not just one device." },
-    { icon: "garage", heading: "Garage groundwork", body: "Your garage is now part of your profile, editable in Settings if you move depot. Summerhill has the live roster — other garages are coming soon." },
-    { icon: "alert", heading: "Route alerts", body: "Diversions, roadworks and other notices now show up on Home, and inline on Log a Shift and Lookup, matched to your zone." },
-    { icon: "home", heading: "Personalized Home", body: "A greeting with your name, your logging streak, and today's weather chip — all at the top of Home." },
-    { icon: "duty", heading: "Simpler duty type picker", body: "Duty, CPC/Training and both Spare types are now one set of buttons instead of a separate toggle — pick one, times adjust accordingly." },
-    { icon: "help", heading: "FAQ added", body: "A new FAQ in Settings answers common questions on signing up, logging shifts, hours limits, leave and route alerts." },
+    { icon: "home", heading: "Your week at a glance", body: "A week strip on Home: green is logged, red is a day you missed, yellow is coming up. Swipe for other weeks, tap a day to log or open it." },
+    { icon: "duty", heading: "Overtime right on the card", body: "Open any logged day and set rest day, overtime and notes right there — no more digging through Edit." },
+    { icon: "board", heading: "Share a duty to WhatsApp", body: "The camera button on a duty card makes a picture of the full duty with a ready-made swap message." },
+    { icon: "period", heading: "Log ahead, and this week first", body: "Got your text early? Log into the next 5-week period. The Period page now opens on this week." },
+    { icon: "datepicker", heading: "A calendar that fits", body: "The date picker no longer cuts off Sunday or the OK button on bigger text sizes." },
+    { icon: "alert", heading: "Diversions that matter", body: "A diversion only shows on Home when it affects the duty you're on today." },
+    { icon: "help", heading: "Badges and a break alarm", body: "Earn badges as you go (Settings › Achievements), and the break reminder can now ring while the app's open." },
   ]
 };
 

@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { MAX_HOURS, MAX_SUNDAY, getDayType, addDays, fmtShort, fmtHrs, today, calcSpreadover, greetingTimeBand, dutyNumber } from "../lib/dutyMath.js";
 import { alertsForTodaysDuty } from "../lib/routeAlerts.js";
 import { displayRoster, DUTIES, pStats, getSeq, greetingDutyContext, computeShiftStreak, weekHighlights } from "../lib/roster.js";
-import { BG, CARD, BORDER, CARD2, TEXT, MUTED, ACCENT, SUCCESS, DANGER, btnStyle, cardStyle, tag } from "../lib/theme.js";
+import { BG, CARD, BORDER, CARD2, TEXT, MUTED, ACCENT, SUCCESS, DANGER, btnStyle, cardStyle, inputStyle, tag } from "../lib/theme.js";
 import { notifyOnce, loadSettings, saveSettings } from "../lib/persistence.js";
 import { subscribeToPush } from "../lib/push.js";
 import { fetchWeather, weatherIconKind } from "../lib/weather.js";
@@ -174,7 +174,64 @@ function WeekHighlightsCard({highlights}) {
 // ─── DAY CARD (from the week strip) ─────────────────────────────────────
 // Opens over Home when a green (logged) day is tapped: the full duty card
 // with Edit, OT/rest day/notes and Share, or the day off with Edit.
-export function DaySheet({day, onClose, onShare, onOT, onEditShift, onEditDayOff, onLogDate}) {
+// Rest day / overtime / notes right on the card (Phil 2026-11-06: drivers
+// couldn't find them behind Edit > More options). Same fields and rules as
+// the Log screen's More options: on a rest day all hours count as overtime,
+// so the overtime boxes hide.
+export function ShiftExtrasEditor({shift, onSave, onEditShift}) {
+  const [isRestDay, setIsRestDay] = useState(!!shift.isRestDay);
+  const [otH, setOtH] = useState(Math.floor(shift.overtimeHours || 0));
+  const [otM, setOtM] = useState(Math.round(((shift.overtimeHours || 0) % 1) * 60));
+  const [otNote, setOtNote] = useState(shift.overtimeNote || "");
+  const [notes, setNotes] = useState(shift.notes || "");
+  const next = { ...shift, isRestDay, overtimeHours: otH + otM / 60, overtimeNote: otNote.trim(), notes: notes.trim() };
+  const changed = next.isRestDay !== !!shift.isRestDay || Math.abs(next.overtimeHours - (shift.overtimeHours || 0)) > 1e-6
+    || next.overtimeNote !== (shift.overtimeNote || "") || next.notes !== (shift.notes || "");
+  const label = {display:"block",color:TEXT,fontSize:"0.78125rem",textTransform:"uppercase",letterSpacing:1.2,fontWeight:700,margin:"0 0 8px"};
+  const box = {...inputStyle,padding:"12px 8px",textAlign:"center",minWidth:0};
+  return (
+    <div style={{...cardStyle,padding:"14px 16px",marginBottom:12}}>
+      <div role="switch" aria-checked={isRestDay} aria-label="Working on a rest day" tabIndex={0}
+        onClick={() => setIsRestDay(!isRestDay)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setIsRestDay(!isRestDay); } }}
+        style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10,cursor:"pointer",marginBottom:14}}>
+        <div>
+          <p style={{color:isRestDay?DANGER:TEXT,fontSize:"0.875rem",fontWeight:600,margin:0}}>Working on a rest day</p>
+          <p style={{color:MUTED,fontSize:"0.75rem",margin:"2px 0 0"}}>All hours count as overtime, not toward 190h</p>
+        </div>
+        <div style={{width:44,height:26,borderRadius:13,background:isRestDay?DANGER:BORDER,position:"relative",flexShrink:0}}>
+          <div style={{width:20,height:20,borderRadius:"50%",background:"#fff",position:"absolute",top:3,left:isRestDay?21:3,transition:"left 0.2s"}}/>
+        </div>
+      </div>
+      {!isRestDay && (
+        <div style={{marginBottom:14}}>
+          <label htmlFor="day-ot-h" style={label}>Overtime</label>
+          <div style={{display:"grid",gridTemplateColumns:"minmax(0,1fr) auto minmax(0,1fr) auto",gap:8,alignItems:"center"}}>
+            <input id="day-ot-h" aria-label="Overtime hours" type="number" inputMode="numeric" min="0" max="12" value={otH} onChange={(e)=>setOtH(Math.min(12,Math.max(0,parseInt(e.target.value)||0)))} style={box}/>
+            <span style={{color:MUTED,fontSize:"0.8125rem"}}>h</span>
+            <input aria-label="Overtime minutes" type="number" inputMode="numeric" min="0" max="59" value={otM} onChange={(e)=>setOtM(Math.min(59,Math.max(0,parseInt(e.target.value)||0)))} style={box}/>
+            <span style={{color:MUTED,fontSize:"0.8125rem"}}>m</span>
+          </div>
+          {(otH > 0 || otM > 0) && (
+            <textarea aria-label="What was this overtime for?" value={otNote} onChange={(e)=>setOtNote(e.target.value)} placeholder="What was it for? e.g. late break"
+              style={{...inputStyle,marginTop:10,minHeight:56,resize:"vertical",fontFamily:"inherit",lineHeight:1.5}}/>
+          )}
+        </div>
+      )}
+      <label htmlFor="day-notes" style={label}>Notes</label>
+      <textarea id="day-notes" value={notes} onChange={(e)=>setNotes(e.target.value)} placeholder="e.g. duty changed at short notice"
+        style={{...inputStyle,minHeight:64,resize:"vertical",fontFamily:"inherit",lineHeight:1.5,marginBottom:14}}/>
+      <div style={{display:"grid",gridTemplateColumns:"minmax(0,1fr) minmax(0,1fr)",gap:10}}>
+        {onEditShift
+          ? <button type="button" onClick={() => onEditShift(shift)} style={{background:"none",border:`1px solid ${ACCENT}`,color:ACCENT,borderRadius:12,padding:"13px 0",fontSize:"0.9375rem",fontWeight:700,cursor:"pointer",minWidth:0}}>Edit duty</button>
+          : <span/>}
+        <button type="button" disabled={!changed} onClick={() => onSave(next)}
+          style={{...btnStyle,padding:"13px 0",minWidth:0,opacity:changed?1:0.4,cursor:changed?"pointer":"default"}}>Save</button>
+      </div>
+    </div>
+  );
+}
+
+export function DaySheet({day, onClose, onShare, onEditShift, onEditDayOff, onLogDate, onSaveShift, focusExtras = false}) {
   const ref = useModalA11y(onClose);
   const {date, info} = day;
   const label = new Date(date + "T12:00:00").toLocaleDateString("en-IE", {weekday:"long", day:"numeric", month:"long"});
@@ -190,8 +247,8 @@ export function DaySheet({day, onClose, onShare, onOT, onEditShift, onEditDayOff
         {info.status === "shift" ? (
           <>
             <TodayDutyCard shift={info.shift} label={date === today() ? "Today's Duty" : "Duty"} accentColor={ACCENT}
-              onShare={() => onShare(info.shift)} onOT={onOT && (() => onOT(info.shift))}/>
-            {onEditShift && <button type="button" onClick={() => onEditShift(info.shift)} style={{...secondary,width:"100%"}}>Edit duty</button>}
+              onShare={() => onShare(info.shift)} defaultExpanded={!focusExtras && date >= today()}/>
+            <ShiftExtrasEditor key={info.shift.id} shift={info.shift} onEditShift={onEditShift} onSave={(s) => { onSaveShift?.(s); onClose(); }}/>
           </>
         ) : (
           <div style={{...cardStyle,padding:"16px 18px"}}>
@@ -213,7 +270,7 @@ export function DaySheet({day, onClose, onShare, onOT, onEditShift, onEditDayOff
 }
 
 // ─── HOME SCREEN ──────────────────────────────────────────────────────────────
-export function HomeScreen({period, periods, alerts, onViewAlerts, todayBadges = {keys:[], retroCount:0}, onOpenAchievements, driverFirstName, userId, onLogDate, onEditShiftOT, onEditShift, onEditDayOff, onGoWeek, justRolledPeriod, onDismissRolloverBanner, onOpenSettings}) {
+export function HomeScreen({period, periods, alerts, onViewAlerts, todayBadges = {keys:[], retroCount:0}, onOpenAchievements, driverFirstName, userId, onLogDate, onEditShift, onEditDayOff, onSaveShift, onGoWeek, justRolledPeriod, onDismissRolloverBanner, onOpenSettings}) {
   const [shareShift, setShareShift] = useState(null);
   const [openDay, setOpenDay] = useState(null); // {date, info} from the week strip
   const stats = useMemo(() => pStats(period), [period]);
@@ -389,7 +446,7 @@ export function HomeScreen({period, periods, alerts, onViewAlerts, todayBadges =
             one thing they opened the app for. Everything demoted below it is
             planning context, useful but not time-critical. */}
         {todayShift ? (
-          <TodayDutyCard shift={todayShift} label="Today's Duty" accentColor={ACCENT} onShare={()=>setShareShift(todayShift)} onOT={onEditShiftOT && (()=>onEditShiftOT(todayShift))} />
+          <TodayDutyCard shift={todayShift} label="Today's Duty" accentColor={ACCENT} onShare={()=>setShareShift(todayShift)} onOT={()=>setOpenDay({date:todayShift.date, info:{status:"shift", shift:todayShift}, focusExtras:true})} />
         ) : todayDayOff ? (
           todayDayOff.type === "Rest Day" ? (
             <div style={{background:CARD,border:`1px solid ${BORDER}`,borderRadius:18,padding:"16px 18px",marginBottom:12,display:"flex",alignItems:"center",gap:14}}>
@@ -425,7 +482,7 @@ export function HomeScreen({period, periods, alerts, onViewAlerts, todayBadges =
         )}
 
         {tomorrowShift && (
-          <TodayDutyCard shift={tomorrowShift} label="Tomorrow's Duty" accentColor="#60a5fa" defaultExpanded={false} onShare={()=>setShareShift(tomorrowShift)} onOT={onEditShiftOT && (()=>onEditShiftOT(tomorrowShift))} />
+          <TodayDutyCard shift={tomorrowShift} label="Tomorrow's Duty" accentColor="#60a5fa" defaultExpanded={false} onShare={()=>setShareShift(tomorrowShift)} onOT={()=>setOpenDay({date:tomorrowShift.date, info:{status:"shift", shift:tomorrowShift}, focusExtras:true})} />
         )}
 
         {/* Explains what's being asked before the OS permission dialog
@@ -521,12 +578,12 @@ export function HomeScreen({period, periods, alerts, onViewAlerts, todayBadges =
         </div>
 
       </div>
-      {openDay && <DaySheet day={openDay} onClose={()=>setOpenDay(null)}
+      {openDay && <DaySheet day={openDay} focusExtras={!!openDay.focusExtras} onClose={()=>setOpenDay(null)}
         onShare={(s)=>{ setOpenDay(null); setShareShift(s); }}
-        onOT={onEditShiftOT && ((s)=>{ setOpenDay(null); onEditShiftOT(s); })}
         onEditShift={onEditShift && ((s)=>{ setOpenDay(null); onEditShift(s); })}
         onEditDayOff={onEditDayOff && ((d)=>{ setOpenDay(null); onEditDayOff(d); })}
-        onLogDate={(d, o)=>{ setOpenDay(null); onLogDate(d, o); }}/>}
+        onLogDate={(d, o)=>{ setOpenDay(null); onLogDate(d, o); }}
+        onSaveShift={onSaveShift}/>}
       {shareShift && <ShareDutySheet duty={shareDataFromShift(shareShift)} source="home" onClose={()=>setShareShift(null)}/>}
     </div>
   );

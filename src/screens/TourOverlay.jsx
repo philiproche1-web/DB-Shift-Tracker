@@ -23,53 +23,58 @@ export const TOUR_SLIDES = [
   {
     icon: "welcome",
     title: "Welcome to\nShift Tracker",
-    body: "Built for Dublin Bus drivers at Summerhill. Log shifts, track your 5-week hours, look up any duty — all on your phone. Your account works on any device, everything you log stays in sync."
+    body: "Built for Dublin Bus drivers at Summerhill. Log shifts, track your 5-week hours, look up any duty — all on your phone. Your account works on any device, and everything you log stays in sync."
   },
   {
     icon: "home",
-    title: "Your Home Screen",
-    body: "A quick greeting, your logging streak, and today's weather at a glance. Swipe the upcoming-days strip to see what's next, and tap any day to log it straight away."
+    title: "Your Week at a Glance",
+    body: "Under the date on Home is your week. Green = logged, red = a day that's passed with nothing logged, yellow = coming up and not logged yet. Swipe left or right for other weeks."
+  },
+  {
+    icon: "log",
+    title: "Tap a Day",
+    body: "Tap a red or yellow day to log it — the date's filled in for you. Tap a green day to open it: the full running board, plus rest day, overtime and notes right there. Change them and tap Save."
   },
   {
     icon: "lookup",
     title: "Look Up Any Duty",
-    body: "Tap Lookup, pick your zone, day and duty. You'll see the full running board — every trip, terminus, break and finish. Tap 'Log this Shift' to pre-fill the log screen in one tap."
+    body: "Tap Lookup, pick your zone, day and duty to see the full running board. Use the camera button to share it to WhatsApp with a ready-made swap message."
   },
   {
     icon: "log",
     title: "Logging a Shift",
-    body: "Tap Log a Shift, pick your zone and duty — report time, sign off, work and relief fill in automatically. Adjust anything that changed on the day. A partial shift? Just change the sign off time."
+    body: "Pick the zone, then the duty — report, sign off, work and relief fill in automatically — then Log Shift. Got your text a few days early? You can log into the next 5-week period too."
   },
   {
     icon: "rest",
-    title: "Spare & Rest Day",
-    body: "Covering a duty as a spare? Pick 'Standard Spare' or 'Workout Spare' from the Duty type buttons — just enter your start time and the finish is worked out for you. Working on a rest day? Open 'More options' and toggle 'Working on a rest day' — those hours won't count toward your 190h limit."
-  },
-  {
-    icon: "limits",
-    title: "Overtime Tracking",
-    body: "Under 'More options', log extra hours worked on top of any shift — add the time and a free text note. Overtime is tracked separately and won't affect your compliance total."
+    title: "Spares, Rest Days & Overtime",
+    body: "Covering as a spare? Pick Standard or Workout Spare under Duty type and enter your start time. Worked a rest day or did overtime? Open the day from your week and set it on the card."
   },
   {
     icon: "period",
     title: "Your 5-Week Period",
-    body: "Everything is tracked across a 5-week period starting on a Sunday. The home screen shows your remaining hours at a glance. Tap Period for a full week-by-week breakdown."
+    body: "Tap Period: this week is at the top, open, with Edit and Delete on every entry. The other weeks are below, then your totals."
   },
   {
-    icon: "tally",
+    icon: "limits",
     title: "Three Limits Tracked",
-    body: "Total hours (190h 4m), Sunday hours (14h 30m), and Overtime are all tracked separately. Bars turn amber as you approach a limit, red if you exceed it."
+    body: "Total hours (190h 4m), Sunday hours (14h 30m), and Overtime are tracked separately. Bars turn amber as you approach a limit, red if you exceed it."
   },
   {
     icon: "alert",
-    title: "Stay in the Loop",
-    body: "Diversions, roadworks and other notices show up right where you need them — a banner on Home, and inline cards on Log a Shift and Lookup, matched to your zone."
+    title: "Diversions & Break Alarm",
+    body: "If a diversion affects the duty you're on today, it shows on Home. Turn on the break reminder in Settings and the app rings before your break ends."
+  },
+  {
+    icon: "tally",
+    title: "Badges",
+    body: "Earn badges as you go — your first duty, a full week logged, and a few the depot will enjoy. See them all any time in Settings › Achievements."
   },
   {
     icon: "pdf",
     title: "Export a Record",
-    body: "Tap Export PDF on the Period screen for a full professional record — every shift, compliance figures, and overtime notes — ready to share with a union rep or manager."
-  }
+    body: "Tap Export PDF on the Period screen for a full record — every shift, compliance figures and overtime notes — ready to share with a union rep or manager."
+  },
 ];
 
 export function TourOverlay({onDone}) {

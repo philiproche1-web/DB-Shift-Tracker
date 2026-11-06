@@ -628,6 +628,7 @@ export default function App() {
         onEditShiftOT={s=>{setLookupDuty(null);setLogInitDate(null);setLogInitRestDay(false);setEditShift(s);setLogFocusOT(true);setLogReturn("home");setScreen("log");}}
         onEditShift={s=>{setLookupDuty(null);setLogInitDate(null);setLogInitRestDay(false);setLogFocusOT(false);setEditShift(s);setLogReturn("home");setScreen("log");}}
         onEditDayOff={d=>{setEditDayOff(d);setDayOffFrom("home");setScreen("dayoff");}}
+        onSaveShift={s=>saveShift(s)}
         onGoWeek={i=>{setOpenWeek(i);setScreen("period");}}
         justRolledPeriod={justRolledPeriod} onDismissRolloverBanner={()=>setJustRolledPeriod(null)}
         onOpenSettings={()=>setShowSettings(true)}/>}

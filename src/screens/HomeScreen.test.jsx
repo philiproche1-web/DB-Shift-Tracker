@@ -126,12 +126,15 @@ describe("HomeScreen diversion alert — only when today's logged duty is affect
 });
 
 describe("HomeScreen duty card camera + OT buttons", () => {
-  it("OT opens the logged shift via onEditShiftOT", () => {
+  it("OT opens the day card with rest day, overtime and notes right there", () => {
     const s = shift("s1", todayDate);
-    let got = null;
-    mounted = render(<HomeScreen {...homeProps(basePeriod({ shifts: [s] }))} onEditShiftOT={(x) => { got = x; }} />);
+    mounted = render(<HomeScreen {...homeProps(basePeriod({ shifts: [s] }))} />);
     act(() => { mounted.container.querySelector('[aria-label="Log overtime or rest day"]').click(); });
-    expect(got?.id).toBe("s1");
+    const sheet = document.querySelector('[role="dialog"]');
+    expect(sheet.querySelector('[aria-label="Working on a rest day"]')).toBeTruthy();
+    expect(sheet.querySelector('[aria-label="Overtime hours"]')).toBeTruthy();
+    expect(sheet.querySelector("#day-notes")).toBeTruthy();
+    sheet.remove();
   });
 
   it("camera opens the share sheet with the swap caption", () => {
@@ -157,5 +160,48 @@ describe("Today's Duty card header (Phil 2026-11-06)", () => {
     expect(code).toBeTruthy();
     expect(code.parentElement.textContent).toContain("Duty No. 1");
     expect([...mounted.container.querySelectorAll("p")].some(p => p.textContent === "Zone 1")).toBe(false);
+  });
+});
+
+describe("day card quick edit (Phil 2026-11-06)", () => {
+  const setVal = (el, v) => {
+    const proto = el.tagName === "TEXTAREA" ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+    const set = Object.getOwnPropertyDescriptor(proto, "value").set;
+    act(() => { set.call(el, v); el.dispatchEvent(new Event("input", { bubbles: true })); });
+  };
+  const open = (s, extra = {}) => {
+    mounted = render(<HomeScreen {...homeProps(basePeriod({ shifts: [s] }))} {...extra} />);
+    act(() => { mounted.container.querySelector('[aria-label="Log overtime or rest day"]').click(); });
+    return document.querySelector('[role="dialog"]');
+  };
+  afterEach(() => { document.querySelectorAll('[role="dialog"]').forEach((d) => d.remove()); });
+  const btn = (root, text) => [...root.querySelectorAll("button")].find((b) => b.textContent === text);
+
+  it("saves overtime, its reason and a note in one go; Save stays off until something changes", () => {
+    let saved = null;
+    const sheet = open(shift("s1", todayDate), { onSaveShift: (x) => { saved = x; } });
+    expect(btn(sheet, "Save").disabled).toBe(true);
+    setVal(sheet.querySelector('[aria-label="Overtime hours"]'), "1");
+    setVal(sheet.querySelector('[aria-label="Overtime minutes"]'), "30");
+    setVal(sheet.querySelector('[aria-label="What was this overtime for?"]'), "late break");
+    setVal(sheet.querySelector("#day-notes"), "covered for Mick");
+    act(() => { btn(sheet, "Save").click(); });
+    expect(saved).toMatchObject({ id: "s1", overtimeHours: 1.5, overtimeNote: "late break", notes: "covered for Mick", isRestDay: false });
+  });
+
+  it("rest day toggle hides the overtime boxes (all hours count) and saves", () => {
+    let saved = null;
+    const sheet = open(shift("s1", todayDate), { onSaveShift: (x) => { saved = x; } });
+    act(() => { sheet.querySelector('[aria-label="Working on a rest day"]').click(); });
+    expect(sheet.querySelector('[aria-label="Overtime hours"]')).toBeNull();
+    act(() => { btn(sheet, "Save").click(); });
+    expect(saved.isRestDay).toBe(true);
+  });
+
+  it("Edit duty sits beside Save and opens the full edit", () => {
+    let edited = null;
+    const sheet = open(shift("s1", todayDate), { onEditShift: (x) => { edited = x; } });
+    act(() => { btn(sheet, "Edit duty").click(); });
+    expect(edited.id).toBe("s1");
   });
 });
