@@ -141,7 +141,8 @@ describe("HomeScreen duty card camera + OT buttons", () => {
     mounted = render(<HomeScreen {...homeProps(basePeriod({ shifts: [shift("s1", todayDate)] }))} />);
     act(() => { mounted.container.querySelector('[aria-label="Share this duty"]').click(); });
     const caption = document.querySelector("#share-caption");
-    expect(caption.value).toMatch(/^Looking to swap SZ1\/01 – .+\. Report 05:40, finish 13:55\.\nLooking for: early finish before 12:00$/);
+    expect(caption.value).toMatch(/^Looking to swap Z1\/01 – \w{3} \d{1,2} \w{3}\nLooking for: early finish before 12:00$/);
+    expect(document.querySelector('[role="dialog"]').textContent).toContain("Swap Z1/01");
   });
 });
 
@@ -193,7 +194,7 @@ describe("day card quick edit (Phil 2026-11-06)", () => {
     let saved = null;
     const sheet = open(shift("s1", todayDate), { onSaveShift: (x) => { saved = x; } });
     act(() => { sheet.querySelector('[aria-label="Working on a rest day"]').click(); });
-    expect(sheet.textContent).toContain("Extra overtime");
+    expect(sheet.textContent).toContain("Extra OT");
     setVal(sheet.querySelector('[aria-label="Overtime hours"]'), "1");
     act(() => { btn(sheet, "Save").click(); });
     expect(saved).toMatchObject({ isRestDay: true, overtimeHours: 1 });

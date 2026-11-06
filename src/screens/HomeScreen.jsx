@@ -204,7 +204,7 @@ export function ShiftExtrasEditor({shift, onSave, onEditShift}) {
       </div>
       {(
         <div style={{marginBottom:14}}>
-          <label htmlFor="day-ot-h" style={label}>{isRestDay ? "Extra overtime" : "Overtime"}</label>
+          <label htmlFor="day-ot-h" style={label}>{isRestDay ? "Extra OT" : "OT"}</label>
           {isRestDay && <p style={{color:MUTED,fontSize:"0.71875rem",margin:"-4px 0 8px"}}>On top of the duty, e.g. a late break.</p>}
           <div style={{display:"grid",gridTemplateColumns:"minmax(0,1fr) auto minmax(0,1fr) auto",gap:8,alignItems:"center"}}>
             <input id="day-ot-h" aria-label="Overtime hours" type="number" inputMode="numeric" min="0" max="12" value={otH} onChange={(e)=>setOtH(Math.min(12,Math.max(0,parseInt(e.target.value)||0)))} style={box}/>
@@ -213,7 +213,7 @@ export function ShiftExtrasEditor({shift, onSave, onEditShift}) {
             <span style={{color:MUTED,fontSize:"0.8125rem"}}>m</span>
           </div>
           {(otH > 0 || otM > 0) && (
-            <textarea aria-label="What was this overtime for?" value={otNote} onChange={(e)=>setOtNote(e.target.value)} placeholder="What was it for? e.g. late break"
+            <textarea aria-label="What was this overtime for?" value={otNote} onChange={(e)=>setOtNote(e.target.value)} placeholder="What was the OT for? e.g. late break"
               style={{...inputStyle,marginTop:10,minHeight:56,resize:"vertical",fontFamily:"inherit",lineHeight:1.5}}/>
           )}
         </div>

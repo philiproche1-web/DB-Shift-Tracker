@@ -9,7 +9,7 @@
 // and iOS rank recently used targets first, so after the first share it is
 // one extra tap. See docs/superpowers/specs/2026-11-06-share-duty-ot-shortcut-design.md.
 import { getDayType, addDays, dutyNumber } from "./dutyMath.js";
-import { DUTIES, getSeq } from "./roster.js";
+import { DUTIES, getSeq, displayRoster } from "./roster.js";
 
 export const CAPTION_EXAMPLE_LINE = "Looking for: early finish before 12:00";
 
@@ -20,11 +20,11 @@ export function shortDayLabel(iso) {
     .replace(",", "");
 }
 
-// data: { roster, date, reportTime, finishTime }
-export function buildShareCaption({ roster, date, reportTime, finishTime }) {
-  const times = [reportTime && `Report ${reportTime}`, finishTime && `finish ${finishTime}`].filter(Boolean).join(", ");
-  const first = `Looking to swap ${roster}${date ? ` – ${shortDayLabel(date)}` : ""}.${times ? ` ${times}.` : ""}`;
-  return `${first}\n${CAPTION_EXAMPLE_LINE}`;
+// Short on purpose (Phil 2026-11-06): the picture already shows the times
+// and running board, so the caption is just the duty, the day, and what
+// you're after.
+export function buildShareCaption({ roster, date }) {
+  return `Looking to swap ${displayRoster(roster)}${date ? ` – ${shortDayLabel(date)}` : ""}\n${CAPTION_EXAMPLE_LINE}`;
 }
 
 // First date on/after fromIso whose duty roster matches dayType
@@ -154,7 +154,7 @@ export async function renderDutyImage(data) {
   ctx.fillText("ROSTER BUDDY", PAD, 100);
   ctx.fillStyle = C.text;
   ctx.font = `800 84px ${FONT}`;
-  ctx.fillText(data.roster || "", PAD, 186);
+  ctx.fillText(displayRoster(data.roster || ""), PAD, 186);
   if (data.dutyNo) {
     ctx.font = `700 28px ${FONT}`;
     const label = `Duty No. ${data.dutyNo}`;
@@ -167,7 +167,8 @@ export async function renderDutyImage(data) {
   }
   ctx.fillStyle = C.muted;
   ctx.font = `500 32px ${FONT}`;
-  const sub = [data.zone, data.date ? new Date(data.date + "T12:00:00").toLocaleDateString("en-IE", { weekday: "long", day: "numeric", month: "long" }) : ""].filter(Boolean).join(" · ");
+  // Date only — the zone is already in the code (Z2/12X).
+  const sub = data.date ? new Date(data.date + "T12:00:00").toLocaleDateString("en-IE", { weekday: "long", day: "numeric", month: "long" }) : "";
   ctx.fillText(sub, PAD, 236);
 
   // Times row

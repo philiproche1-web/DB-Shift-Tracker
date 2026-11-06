@@ -3,13 +3,13 @@ import { buildShareCaption, nextDateForDayType, shortDayLabel, wrapText, layoutD
 import { getDayType } from "./dutyMath.js";
 
 describe("buildShareCaption", () => {
-  it("names the duty, date and times, then an editable example line", () => {
-    expect(buildShareCaption({ roster: "SZ1/15X", date: "2026-11-06", reportTime: "06:10", finishTime: "14:32" }))
-      .toBe("Looking to swap SZ1/15X – Fri 6 Nov. Report 06:10, finish 14:32.\nLooking for: early finish before 12:00");
+  it("is just the duty (no leading S) and the day, then an editable example line — no times", () => {
+    expect(buildShareCaption({ roster: "SZ2/12X", date: "2026-11-02", reportTime: "09:23", finishTime: "19:40" }))
+      .toBe("Looking to swap Z2/12X – Mon 2 Nov\nLooking for: early finish before 12:00");
   });
-  it("copes with missing times", () => {
+  it("leaves other codes alone", () => {
     expect(buildShareCaption({ roster: "Standard Spare", date: "2026-11-07" }))
-      .toBe("Looking to swap Standard Spare – Sat 7 Nov.\nLooking for: early finish before 12:00");
+      .toBe("Looking to swap Standard Spare – Sat 7 Nov\nLooking for: early finish before 12:00");
   });
   it("shortDayLabel has no comma", () => {
     expect(shortDayLabel("2026-11-08")).toBe("Sun 8 Nov");

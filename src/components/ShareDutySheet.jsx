@@ -5,6 +5,7 @@ import { buildShareCaption, nextDateForDayType, renderDutyImage, shareDutyImage,
 import { trackEvent } from "../lib/analytics.js";
 import { recordUsage } from "../lib/usage.js";
 import { DateInput, FieldLabel, useModalA11y } from "./shared.jsx";
+import { displayRoster } from "../lib/roster.js";
 
 const DAY_TYPE_WORD = { weekday: "Mon–Fri", saturday: "Saturday", sunday: "Sunday" };
 
@@ -55,7 +56,7 @@ export function ShareDutySheet({ duty, dayType, source, onClose }) {
       <div ref={ref} role="dialog" aria-modal="true" aria-label="Share this duty" tabIndex={-1} onClick={(e)=>e.stopPropagation()}
         style={{...cardStyle,background:CARD,width:"100%",maxWidth:420,padding:16,outline:"none",boxSizing:"border-box",maxHeight:"100%",overflowY:"auto"}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8,marginBottom:12}}>
-          <p style={{color:TEXT,fontWeight:800,fontSize:"1.0625rem",margin:0}}>Share {duty.roster}</p>
+          <p style={{color:TEXT,fontWeight:800,fontSize:"1.0625rem",margin:0}}>Swap {displayRoster(duty.roster)}</p>
           <button type="button" onClick={onClose} aria-label="Close" style={{background:"none",border:`1px solid ${BORDER}`,color:TEXT,borderRadius:10,width:44,height:44,fontSize:"1.25rem",cursor:"pointer",flexShrink:0}}>×</button>
         </div>
 
@@ -69,7 +70,7 @@ export function ShareDutySheet({ duty, dayType, source, onClose }) {
 
         <div style={{borderRadius:12,overflow:"hidden",border:`1px solid ${BORDER}`,marginBottom:12,maxHeight:220,overflowY:"auto",background:"#07090F"}}>
           {previewUrl
-            ? <img src={previewUrl} alt={`Image of duty ${duty.roster}`} style={{display:"block",width:"100%"}}/>
+            ? <img src={previewUrl} alt={`Image of duty ${displayRoster(duty.roster)}`} style={{display:"block",width:"100%"}}/>
             : <p style={{color:MUTED,fontSize:"0.8125rem",textAlign:"center",padding:"40px 0",margin:0}}>Building image…</p>}
         </div>
 
@@ -80,7 +81,7 @@ export function ShareDutySheet({ duty, dayType, source, onClose }) {
 
         <button type="button" onClick={share} disabled={!blob} style={{...btnStyle,opacity:blob?1:0.5,cursor:blob?"pointer":"default"}}>Share</button>
         <p style={{color:MUTED,fontSize:"0.75rem",margin:"8px 0 0",textAlign:"center"}}>
-          {status || "Pick WhatsApp in the list. The caption is copied too, in case it doesn't come through."}
+          {status || "Pick WhatsApp in the list."}
         </p>
       </div>
     </div>

@@ -26,6 +26,16 @@ export function DayList({items, emptyMsg, onEdit, onDelete}) {
   );
 }
 
+// Same toggle on every leave card (Phil 2026-11-06): under the title on the
+// left, capitals, yellow, blinking while folded.
+export function DatesToggle({open}) {
+  return (
+    <p className={open?undefined:"rb-hint-pulse"} style={{color:ACCENT,fontSize:"0.75rem",fontWeight:800,letterSpacing:1,textTransform:"uppercase",margin:"10px 0 0 22px"}}>
+      {open ? "▲ Hide dates" : "▼ Dates"}
+    </p>
+  );
+}
+
 export function TrafficDot({color}) {
   return <div style={{width:12,height:12,borderRadius:"50%",background:color,boxShadow:`0 0 6px ${color}88`,flexShrink:0}}/>;
 }
@@ -57,9 +67,9 @@ export function LeaveCard({title, subtitle, note, color, used, total, remaining,
             ) : (
               <p style={{color:color,fontSize:"1.125rem",fontWeight:800,margin:0}}>{used} <span style={{color:MUTED,fontSize:"0.75rem",fontWeight:400}}>{usedLabel}</span></p>
             )}
-            <span className={open?undefined:"rb-hint-pulse"} style={{color:MUTED,fontSize:"0.6875rem",display:"block",marginTop:3}}>{open?"▲ hide":"▼ dates"}</span>
           </div>
         </div>
+        <DatesToggle open={open}/>
       </div>
       {open&&<div style={{padding:"0 16px 14px",borderTop:`1px solid ${BORDER}`}}>{children}</div>}
     </div>
@@ -85,9 +95,9 @@ export function SelfCertCard({scH1, scH2, scColor, onEdit, onDelete}) {
           </div>
           <div style={{textAlign:"right"}}>
             <p style={{color:TEXT,fontSize:"1.125rem",fontWeight:800,margin:0}}>{totalUsed} <span style={{color:MUTED,fontSize:"0.75rem",fontWeight:400}}>used</span></p>
-            <span className={open?undefined:"rb-hint-pulse"} style={{color:MUTED,fontSize:"0.6875rem",display:"block",marginTop:3}}>{open?"▲ hide":"▼ dates"}</span>
           </div>
         </div>
+        <DatesToggle open={open}/>
       </div>
       {open && (
         <div style={{padding:"0 16px 14px",borderTop:`1px solid ${BORDER}`}}>
@@ -138,9 +148,9 @@ function ForceMajeureCard({fm12, fm36, fmColor, onEdit, onDelete}) {
           </div>
           <div style={{textAlign:"right"}}>
             <p style={{color:TEXT,fontSize:"1.125rem",fontWeight:800,margin:0}}>{fm36.length} <span style={{color:MUTED,fontSize:"0.75rem",fontWeight:400}}>used (36mo)</span></p>
-            <span className={open?undefined:"rb-hint-pulse"} style={{color:MUTED,fontSize:"0.6875rem",display:"block",marginTop:3}}>{open?"▲ hide":"▼ dates"}</span>
           </div>
         </div>
+        <DatesToggle open={open}/>
       </div>
       {open && (
         <div style={{padding:"0 16px 14px",borderTop:`1px solid ${BORDER}`}}>

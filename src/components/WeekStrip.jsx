@@ -12,7 +12,18 @@ import { TEXT, MUTED, BORDER, SUCCESS, DANGER, ACCENT } from "../lib/theme.js";
 //   yellow = a future day not logged yet (heads-up, not a problem)
 // Today gets a white ring. Tapping a day calls onSelect(date, info).
 export const WEEKS_BACK = 2;
-export const WEEKS_FORWARD = 3;
+export const WEEKS_FORWARD = 3; // minimum; extends to the end of the next period
+
+// Weeks after this one, up to the week holding the next period's last day
+// (logging ahead is allowed that far — Phil 2026-11-06).
+export function weeksForward(periods, activePeriodId, todayDate) {
+  const active = (periods || []).find((p) => p.id === activePeriodId);
+  if (!active) return WEEKS_FORWARD;
+  const lastLoggable = addDays(active.startDate, 69);
+  const from = sundayOf(todayDate), to = sundayOf(lastLoggable);
+  const weeks = Math.round((new Date(to + "T12:00:00") - new Date(from + "T12:00:00")) / (7 * 86400000));
+  return Math.max(WEEKS_FORWARD, weeks);
+}
 const LETTERS = ["S", "M", "T", "W", "T", "F", "S"];
 export const STATUS_COLOR = { logged: SUCCESS, missed: DANGER, upcoming: ACCENT };
 
@@ -25,9 +36,9 @@ export function WeekStrip({periods, activePeriodId, todayDate, onSelect}) {
   const trackRef = useRef(null);
   const weeks = useMemo(() => {
     const first = addDays(sundayOf(todayDate), -7 * WEEKS_BACK);
-    return Array.from({ length: WEEKS_BACK + 1 + WEEKS_FORWARD }, (_, w) =>
+    return Array.from({ length: WEEKS_BACK + 1 + weeksForward(periods, activePeriodId, todayDate) }, (_, w) =>
       Array.from({ length: 7 }, (_, d) => addDays(first, w * 7 + d)));
-  }, [todayDate]);
+  }, [todayDate, periods, activePeriodId]);
   const [page, setPage] = useState(WEEKS_BACK);
 
   // Open on this week (no animation).

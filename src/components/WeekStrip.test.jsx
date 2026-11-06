@@ -1,7 +1,7 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { createRoot } from "react-dom/client";
 import { act } from "react";
-import { WeekStrip, dayStatus, WEEKS_BACK, WEEKS_FORWARD } from "./WeekStrip.jsx";
+import { WeekStrip, dayStatus, WEEKS_BACK, weeksForward } from "./WeekStrip.jsx";
 import { HomeScreen } from "../screens/HomeScreen.jsx";
 import { today, sundayOf, addDays } from "../lib/dutyMath.js";
 
@@ -34,11 +34,21 @@ describe("dayStatus (traffic light)", () => {
 });
 
 describe("WeekStrip", () => {
-  it("shows Sun–Sat weeks from 2 back to 3 ahead, with today's date and status", () => {
+  it("reaches to the end of the next period (as far as you can log)", () => {
+    // Period starting this Sunday: next period ends 69 days later, 9 weeks on.
+    expect(weeksForward([period()], "p1", t)).toBe(9);
+    expect(weeksForward([], "x", t)).toBe(3);
     const p = period([shift(t)]);
     mounted = render(<WeekStrip periods={[p]} activePeriodId="p1" todayDate={t} onSelect={() => {}}/>);
     const weeks = mounted.container.querySelectorAll("[data-week]");
-    expect(weeks).toHaveLength(WEEKS_BACK + 1 + WEEKS_FORWARD);
+    expect(weeks).toHaveLength(WEEKS_BACK + 1 + 9);
+    expect(mounted.container.querySelector(`[data-date="${addDays(start, 69)}"]`)).toBeTruthy();
+  });
+
+  it("shows Sun–Sat weeks from 2 back, with today's date and status", () => {
+    const p = period([shift(t)]);
+    mounted = render(<WeekStrip periods={[p]} activePeriodId="p1" todayDate={t} onSelect={() => {}}/>);
+    const weeks = mounted.container.querySelectorAll("[data-week]");
     expect(weeks[WEEKS_BACK].getAttribute("data-week")).toBe(start);
     expect(weeks[0].getAttribute("data-week")).toBe(addDays(start, -14));
     const todayBtn = mounted.container.querySelector(`[data-date="${t}"]`);
