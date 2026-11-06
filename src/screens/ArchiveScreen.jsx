@@ -7,7 +7,9 @@ import { recordUsage } from "../lib/usage.js";
 
 // ─── ARCHIVE SCREEN ────────────────────────────────────────────────────────────
 export function ArchiveScreen({periods, activePeriodId, onView, onOpenSettings}) {
-  const archived = [...periods].filter(p=>p.id!==activePeriodId).reverse();
+  // Only periods before the active one; a next period created early isn't archived.
+  const activeStart = periods.find(p=>p.id===activePeriodId)?.startDate;
+  const archived = [...periods].filter(p=>p.id!==activePeriodId && (!activeStart || p.startDate < activeStart)).reverse();
   return (
     <div style={{background:BG,minHeight:"100vh",paddingBottom:100}}>
       <PageHeader eyebrow="Past periods" title="Archive" subtitle={archived.length>0?`${archived.length} archived period${archived.length!==1?"s":""}`:undefined} right={<SettingsButton onClick={onOpenSettings}/>}/>

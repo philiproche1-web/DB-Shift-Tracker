@@ -4,13 +4,13 @@ import { signOut, getSession, onAuthStateChange } from "./lib/auth.js";
 import { syncAll, migrateLocalDataIfNeeded, hasPendingSync } from "./lib/sync.js";
 import { hasLiveRoster } from "./lib/garages.js";
 import { fetchRouteAlerts, alertsForTodaysDuty } from "./lib/routeAlerts.js";
-import { isCalendarSunday, uid, today } from "./lib/dutyMath.js";
+import { isCalendarSunday, uid, today, addDays as addDaysFn } from "./lib/dutyMath.js";
 import { loadRosterData, applyRosterData, setCustomRestConfig, rollPeriodsForward, FIXED_REST_ID_PREFIX, getZones } from "./lib/roster.js";
 import { buildContext, earnedKeys, reconcile, badgeRows, earnedTodaySummary, popupFor, dismissAll } from "./lib/achievements.js";
 import { recordUsage, USAGE_EVENT } from "./lib/usage.js";
 import { upcomingBreakAlarm, alarmTiming, alarmId, loadFired, saveFired, syncAlarmPrefsToServiceWorker } from "./lib/breakAlarm.js";
 import {
-  applyShiftSave, applyDayOffSave, applyShiftDelete,
+  applyShiftSave, applyDayOffSave, applyShiftDelete, ensureNextPeriodFor,
   applyDayOffDelete, applyFixedRestDayRemoval,
 } from "./lib/periodMutations.js";
 import { BG, CARD, BORDER, TEXT, MUTED, ACCENT, DANGER, applyTheme, btnStyle } from "./lib/theme.js";
@@ -473,7 +473,9 @@ export default function App() {
 
   function editActivePeriodStartDate(newDate) {
     if(!isCalendarSunday(newDate)) return;
-    const updated=periods.map(p=>p.id!==activePeriodId?p:{...p,startDate:newDate});
+    // A next period created early moves with it, so it stays the 35 days straight after.
+    const oldNext=activePeriod&&addDaysFn(activePeriod.startDate,35);
+    const updated=periods.map(p=>p.id===activePeriodId?{...p,startDate:newDate}:(p.startDate===oldNext&&!p.archived?{...p,startDate:addDaysFn(newDate,35)}:p));
     persist(updated,activePeriodId);
   }
 
@@ -481,7 +483,9 @@ export default function App() {
     // Mutation logic lives in lib/periodMutations.js so it can be tested
     // without React — see periodMutations.test.js. This function keeps only
     // persistence and navigation.
-    const updated = applyShiftSave(periods, activePeriodId, shiftOrArray, bankHolidayInLieuEntries);
+    const items = Array.isArray(shiftOrArray) ? shiftOrArray : [shiftOrArray];
+    const withNext = ensureNextPeriodFor(periods, activePeriodId, items.map(s => s.date));
+    const updated = applyShiftSave(withNext, activePeriodId, shiftOrArray, bankHolidayInLieuEntries);
     const items = Array.isArray(shiftOrArray) ? shiftOrArray : [shiftOrArray];
     trackEvent("shift_logged", { isEdit: !!editShift, isBulk: items.length > 1, count: items.length, types: [...new Set(items.map(s => s.type))] });
     persist(updated,activePeriodId); setEditShift(null); setLookupDuty(null); setLogInitDate(null); setLogInitRestDay(false); setLogFocusOT(false); setScreen("home");
@@ -490,7 +494,9 @@ export default function App() {
   function saveDayOff(dayOffOrArray, replaceShiftIds, replaceDayOffIds) {
     // See periodMutations.js — that module owns the period-routing and
     // duplicate-guard rules, and periodMutations.test.js locks them.
-    const updated = applyDayOffSave(periods, activePeriodId, dayOffOrArray, replaceShiftIds, replaceDayOffIds);
+    const offItems = Array.isArray(dayOffOrArray) ? dayOffOrArray : [dayOffOrArray];
+    const withNext = ensureNextPeriodFor(periods, activePeriodId, offItems.map(d => d.date));
+    const updated = applyDayOffSave(withNext, activePeriodId, dayOffOrArray, replaceShiftIds, replaceDayOffIds);
     const items = Array.isArray(dayOffOrArray) ? dayOffOrArray : [dayOffOrArray];
     trackEvent("day_off_logged", { isEdit: !!editDayOff, isBulk: items.length > 1, count: items.length, types: [...new Set(items.map(d => d.type))] });
     persist(updated, activePeriodId);
@@ -603,7 +609,7 @@ export default function App() {
 
   return (
     <div style={{background:BG,minHeight:"100vh"}}>
-      {screen==="log"&&<LogScreen key={editShift?.id||"new"} period={activePeriod} editShift={editShift} lookupDuty={lookupDuty} initialDate={logInitDate} initialRestDay={logInitRestDay} focusMoreOptions={logFocusOT}
+      {screen==="log"&&<LogScreen key={editShift?.id||"new"} period={activePeriod} periods={periods} editShift={editShift} lookupDuty={lookupDuty} initialDate={logInitDate} initialRestDay={logInitRestDay} focusMoreOptions={logFocusOT}
         onSave={saveShift} onCancel={()=>{setEditShift(null);setLookupDuty(null);setLogInitDate(null);setLogInitRestDay(false);setLogFocusOT(false);setLogReturn(null);setScreen(logReturn||(logFocusOT?"home":editShift?"period":lookupDuty?"lookup":"home"));}}
         onEditConflict={setEditShift}
         onOpenSettings={()=>setShowSettings(true)}/>}

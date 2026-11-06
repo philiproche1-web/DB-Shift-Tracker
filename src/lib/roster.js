@@ -243,6 +243,10 @@ export function rollPeriodsForward(periods, activePeriodId) {
   let start = active.startDate;
   while (now > addDays(start, 34)) start = addDays(start, 35);
   const archived = periods.map(p => p.id === activePeriodId ? { ...p, archived: true } : p);
+  // A period already created early (shifts logged ahead of time — see
+  // ensureNextPeriodFor in periodMutations.js) becomes the active one as-is.
+  const existing = archived.find(p => p.startDate === start && p.id !== activePeriodId);
+  if (existing) return { periods: archived, activePeriodId: existing.id, rolled: true };
   const next = { id: uid(), startDate: start, shifts: [], daysOff: [], createdAt: new Date().toISOString() };
   return { periods: [...archived, next], activePeriodId: next.id, rolled: true };
 }

@@ -26,7 +26,7 @@ function BankHolidayChoiceDialog({date, onChoose}) {
 }
 
 // ─── LOG SHIFT SCREEN ─────────────────────────────────────────────────────────
-export function LogScreen({period, editShift, lookupDuty, initialDate, initialRestDay, focusMoreOptions, onSave, onCancel, onEditConflict, onOpenSettings}) {
+export function LogScreen({period, periods, editShift, lookupDuty, initialDate, initialRestDay, focusMoreOptions, onSave, onCancel, onEditConflict, onOpenSettings}) {
   // lookupDuty = {d: dutyObj, dt: dayType} from the Lookup screen
   const initZone = lookupDuty?.d.z || editShift?.zone || getZones()[0];
   const [date, setDate] = useState(lookupDuty?.date || editShift?.date || initialDate || today());
@@ -134,14 +134,19 @@ export function LogScreen({period, editShift, lookupDuty, initialDate, initialRe
   }
 
   const signOffStr = buildSignOff();
-  const inRange = inPeriod(date, period);
+  // This period or the next one (duties come by text a few days ahead —
+  // App creates the next period on save if it doesn't exist yet).
+  const nextStart = addDays(period.startDate, 35);
+  const inNext = !!date && date >= nextStart && date <= addDays(nextStart, 34);
+  const inRange = inPeriod(date, period) || inNext;
+  const datePeriod = (inNext && (periods||[]).find(p => p.startDate === nextStart)) || (inNext ? {startDate: nextStart, shifts: [], daysOff: []} : period);
   // Same date already has another shift logged (never valid — one driver, one duty a day)
-  const conflictShift = (period.shifts||[]).find(s => s.date === date && s.id !== editShift?.id);
+  const conflictShift = (datePeriod.shifts||[]).find(s => s.date === date && s.id !== editShift?.id);
   // Same date already has a day off logged (Annual Leave, Sick Day, etc.) — flag, don't block
-  const conflictDayOff = (period.daysOff||[]).find(d => d.date === date);
+  const conflictDayOff = (datePeriod.daysOff||[]).find(d => d.date === date);
   const canSave = (rIdx >= 0 || isSpare || fixedType) && date && reportTime && signOffVal && inRange;
   const saveBlockReason = !date ? "Pick a date."
-    : !inRange ? "This date falls outside the current 5-week period."
+    : !inRange ? "Only this 5-week period and the next one can be logged."
     : !(rIdx >= 0 || isSpare || fixedType) ? "Pick a duty, or choose another duty type."
     : (!reportTime || !signOffVal) ? "Enter a start and finish time."
     : null;
@@ -297,7 +302,7 @@ export function LogScreen({period, editShift, lookupDuty, initialDate, initialRe
             <span style={tag(dayColor)}>{dayLabel}</span>
           </div>
           {!inRange && date && (
-            <p style={{color:DANGER,fontSize:"0.75rem",margin:"8px 0 0",fontWeight:600}}>This date falls outside the current 5-week period ({fmtShort(period.startDate)} – {fmtShort(addDays(period.startDate,34))}).</p>
+            <p style={{color:DANGER,fontSize:"0.75rem",margin:"8px 0 0",fontWeight:600}}>You can log this period and the next one ({fmtShort(period.startDate)} – {fmtShort(addDays(period.startDate,69))}).</p>
           )}
           {conflictShift && (
             <div style={{display:"flex",alignItems:"center",gap:8,marginTop:10,padding:"10px 12px",background:`${DANGER}14`,border:`1px solid ${DANGER}44`,borderRadius:10}}>
@@ -381,7 +386,7 @@ export function LogScreen({period, editShift, lookupDuty, initialDate, initialRe
               {(() => {
                 const weekStart = sundayOf(date);
                 const letters = ["S","M","T","W","T","F","S"];
-                const taken = new Set((period.shifts||[]).map(s=>s.date));
+                const taken = new Set((datePeriod.shifts||[]).map(s=>s.date));
                 return Array.from({length:7},(_,i)=>{
                   const d = addDays(weekStart, i);
                   const isPrimary = d === date;

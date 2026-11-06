@@ -12,35 +12,69 @@
 // reached real drivers were here instead — a duplicate Self Cert, a day off
 // written into a stale archived period, an edit deleting a real shift.
 import { periodForDate } from "./roster.js";
+import { addDays, uid, inPeriod } from "./dutyMath.js";
 
-// Adds or updates one or more shifts in the active period, together with any
+// Drivers get their duty by text a few days ahead, so a date in the NEXT
+// 5-week period can be logged before that period starts (Phil 2026-11-06).
+// The next period is the 35 days straight after the active one. If any of
+// `dates` falls in it and no period covers it yet, create it now (not
+// active); rollPeriodsForward() later switches to this same period instead
+// of making a fresh empty one, so nothing logged early is lost.
+export function nextPeriodStart(periods, activePeriodId) {
+  const active = periods.find(p => p.id === activePeriodId);
+  return active ? addDays(active.startDate, 35) : null;
+}
+export function isInNextPeriod(periods, activePeriodId, date) {
+  const ns = nextPeriodStart(periods, activePeriodId);
+  return !!ns && date >= ns && date <= addDays(ns, 34);
+}
+export function ensureNextPeriodFor(periods, activePeriodId, dates) {
+  const ns = nextPeriodStart(periods, activePeriodId);
+  if (!ns) return periods;
+  if (!dates.some(d => isInNextPeriod(periods, activePeriodId, d))) return periods;
+  if (periods.some(p => p.startDate === ns)) return periods;
+  return [...periods, { id: uid(), startDate: ns, shifts: [], daysOff: [], createdAt: new Date().toISOString(), earlyCreated: true }];
+}
+
+// Adds or updates one or more shifts, each in the period that covers its
+// date (active first, then the pre-created next period), together with any
 // Bank Holiday In Lieu day-off entries chosen for those dates.
 //
 // Bank Holiday In Lieu entries are merged in the SAME update as the shifts
 // rather than a follow-up call, so a choice and its shift can never half-save.
 export function applyShiftSave(periods, activePeriodId, shiftOrArray, bankHolidayInLieuEntries) {
   const items = Array.isArray(shiftOrArray) ? shiftOrArray : [shiftOrArray];
-  return periods.map(p => {
-    if (p.id !== activePeriodId) return p;
-    let shifts = p.shifts;
-    items.forEach(shift => {
-      const ei = shifts.findIndex(s => s.id === shift.id);
-      if (ei >= 0) { shifts = shifts.map(s => s.id === shift.id ? shift : s); return; }
-      // New shift (multi-day path): skip if some other shift already owns this
-      // date — the day-circle picker greys out already-logged days, but this
-      // guards a race (another device/tab logging in between).
-      if (shifts.some(s => s.date === shift.date)) return;
-      shifts = [...shifts, shift];
+  let updated = periods.map(p => ({ ...p, shifts: p.shifts || [] }));
+  const targetFor = (date) => (periodForDate(updated, date, activePeriodId)?.id ?? activePeriodId);
+  items.forEach(shift => {
+    const owner = updated.find(p => p.shifts.some(s => s.id === shift.id));
+    const target = targetFor(shift.date);
+    if (owner && owner.id === target) {
+      updated = updated.map(p => p.id !== owner.id ? p : { ...p, shifts: p.shifts.map(s => s.id === shift.id ? shift : s) });
+      return;
+    }
+    // An edit that moved the date into another period: take it out of the old one.
+    if (owner) updated = updated.map(p => p.id !== owner.id ? p : { ...p, shifts: p.shifts.filter(s => s.id !== shift.id) });
+    updated = updated.map(p => {
+      if (p.id !== target) return p;
+      // New shift: skip if some other shift already owns this date — the
+      // day-circle picker greys out already-logged days, but this guards a
+      // race (another device/tab logging in between).
+      if (p.shifts.some(s => s.date === shift.date)) return p;
+      return { ...p, shifts: [...p.shifts, shift] };
     });
-    const existingBhilDates = new Set((p.daysOff || []).filter(d => d.type === "Bank Holiday In Lieu").map(d => d.date));
-    const newBhilEntries = (bankHolidayInLieuEntries || []).filter(
-      entry => !existingBhilDates.has(entry.date) && shifts.some(s => s.date === entry.date)
-    );
-    const daysOff = newBhilEntries.length > 0
-      ? [...(p.daysOff || []), ...newBhilEntries]
-      : p.daysOff;
-    return { ...p, shifts, daysOff };
   });
+  (bankHolidayInLieuEntries || []).forEach(entry => {
+    const target = targetFor(entry.date);
+    updated = updated.map(p => {
+      if (p.id !== target) return p;
+      const daysOff = p.daysOff || [];
+      if (daysOff.some(d => d.type === "Bank Holiday In Lieu" && d.date === entry.date)) return p;
+      if (!p.shifts.some(s => s.date === entry.date)) return p;
+      return { ...p, daysOff: [...daysOff, entry] };
+    });
+  });
+  return updated;
 }
 
 // Adds or updates one or more day-off entries, optionally replacing same-date
@@ -81,8 +115,10 @@ export function applyDayOffSave(periods, activePeriodId, dayOffOrArray, replaceS
   return updated;
 }
 
+// Removes the shift from whichever period holds it (the active one, or a
+// pre-created next period).
 export function applyShiftDelete(periods, activePeriodId, shiftId) {
-  return periods.map(p => p.id !== activePeriodId ? p : { ...p, shifts: p.shifts.filter(s => s.id !== shiftId) });
+  return periods.map(p => !(p.shifts || []).some(s => s.id === shiftId) ? p : { ...p, shifts: p.shifts.filter(s => s.id !== shiftId) });
 }
 
 // Suppresses an automatic (pattern-generated) rest day for one date by
