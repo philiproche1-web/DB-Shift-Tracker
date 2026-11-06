@@ -88,6 +88,15 @@ export function SettingsPanel({period, onClose, onThemeChange, leaveSettings, on
       }
     });
   }
+  function toggleAlarmSound() {
+    const next = {...settings, alarmSound: settings.alarmSound === false};
+    setSettings(next); persistSettings(next);
+  }
+  function toggleAlarmVibrate() {
+    const next = {...settings, alarmVibrate: settings.alarmVibrate === false};
+    setSettings(next); persistSettings(next);
+  }
+
   function toggleBadgeSound() {
     const next = {...settings, badgeSound: settings.badgeSound === false};
     setSettings(next); persistSettings(next);
@@ -368,9 +377,25 @@ export function SettingsPanel({period, onClose, onThemeChange, leaveSettings, on
           )}
           {breakMinError && <p style={{color:DANGER,fontSize:"0.75rem",margin:"6px 0 0"}}>{breakMinError}</p>}
           {settings.breakReminderEnabled && (
-            <p style={{color:MUTED,fontSize:"0.71875rem",margin:"10px 0 0",lineHeight:1.5}}>
-              Want it louder? The reminder stays on screen and vibrates, but the sound is set by your phone. On Android: Settings › Apps › Roster Buddy (or Chrome) › Notifications, then pick a loud sound and turn on "Pop on screen".
-            </p>
+            <>
+              {[["Alarm sound", "Rings with a looping alarm while the app is open.", settings.alarmSound !== false, toggleAlarmSound],
+                ["Vibration", "Buzzes with the alarm and the notification.", settings.alarmVibrate !== false, toggleAlarmVibrate]].map(([label, hint, on, toggle]) => (
+                <div key={label} onClick={toggle} role="switch" aria-checked={on} aria-label={label} tabIndex={0}
+                  onKeyDown={(e)=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); toggle(); } }}
+                  style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10,cursor:"pointer",marginTop:14}}>
+                  <div>
+                    <p style={{color:TEXT,fontSize:"0.8125rem",fontWeight:600,margin:0}}>{label}</p>
+                    <p style={{color:MUTED,fontSize:"0.71875rem",margin:"2px 0 0"}}>{hint}</p>
+                  </div>
+                  <div style={{width:44,height:26,borderRadius:13,background:on?SUCCESS:BORDER,position:"relative",transition:"background 0.2s",flexShrink:0}}>
+                    <div style={{width:20,height:20,borderRadius:"50%",background:"#fff",position:"absolute",top:3,left:on?21:3,transition:"left 0.2s"}}/>
+                  </div>
+                </div>
+              ))}
+              <p style={{color:MUTED,fontSize:"0.71875rem",margin:"12px 0 0",lineHeight:1.5}}>
+                With the app open, the alarm rings until you tap Stop. With the phone locked or the app closed, you get a notification instead, and its sound is set by your phone. On Android: Settings › Apps › Roster Buddy (or Chrome) › Notifications, then pick a loud sound and turn on "Pop on screen".
+              </p>
+            </>
           )}
         </div>
 

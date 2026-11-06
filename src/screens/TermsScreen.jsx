@@ -19,6 +19,7 @@ export function TermsScreen({onAccept, readOnly, onClose}) {
         <p style={{color:ACCENT,fontSize:"0.6875rem",textTransform:"uppercase",letterSpacing:2,fontWeight:700,margin:"0 0 6px"}}>{readOnly?"Reference":"Before you begin"}</p>
         <h1 style={{color:TEXT,fontSize:"1.5rem",fontWeight:800,margin:"0 0 4px",letterSpacing:"-0.5px"}}>Terms & Conditions</h1>
         <p style={{color:MUTED,fontSize:"0.8125rem",margin:0}}>{readOnly?"For your reference":"Please read carefully before using Dublin Bus Shift Tracker"}</p>
+        <p style={{color:ACCENT,fontSize:"0.75rem",fontWeight:600,margin:"6px 0 0"}}>Updated November 2026: section 5, Data Storage &amp; Privacy.</p>
       </div>
 
       <div onScroll={checkScrollEnd} style={{flex:1,overflowY:"auto",padding:"0 16px 16px"}}>
@@ -37,7 +38,7 @@ export function TermsScreen({onAccept, readOnly, onClose}) {
           <p style={{margin:"0 0 14px"}}>Running board and schedule information displayed in the app is sourced from Dublin Bus operational data. This data may not always reflect last-minute operational changes, diversions, or schedule amendments. Users should always verify current duties through official Dublin Bus channels. The developer will endeavour to keep data up to date but cannot guarantee real-time accuracy.</p>
 
           <p style={{color:TEXT,fontWeight:700,fontSize:"0.9375rem",margin:"0 0 8px"}}>5. Data Storage &amp; Privacy</p>
-          <p style={{margin:"0 0 14px"}}>All data entered into the app is stored locally on your device only. The developer has no access to your personal data, shift records, or usage information at any time.</p>
+          <p style={{margin:"0 0 14px"}}>Your shifts, leave, settings and achievements are stored on your device and synced to your Roster Buddy account so they're available on any phone you sign in on. The app also records anonymous usage information (such as which screens are opened) to help improve it. Your data is never sold, and never shared with Dublin Bus or any other third party. The services that run the app (hosting, account storage and analytics) handle it only to make the app work. You can ask for your account and data to be deleted at any time through Send Feedback.</p>
 
           <p style={{color:TEXT,fontWeight:700,fontSize:"0.9375rem",margin:"0 0 8px"}}>6. Limitation of Liability</p>
           <p style={{margin:"0 0 14px"}}>The developer accepts no liability for any loss, consequence, or outcome arising from the use of or reliance on information displayed in this app, including but not limited to hours calculations, compliance figures, or running board data.</p>

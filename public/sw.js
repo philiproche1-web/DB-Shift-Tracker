@@ -11,7 +11,7 @@ self.addEventListener("install", () => {
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
+      Promise.all(keys.filter((k) => k !== CACHE_NAME && k !== "rb-prefs").map((k) => caches.delete(k)))
     )
   );
   self.clients.claim();
@@ -78,12 +78,22 @@ self.addEventListener("fetch", (event) => {
 // setInterval-based in-app reminders. Payload is JSON set by the
 // send-reminders Edge Function: {title, body, url}. See
 // docs/superpowers/specs/2026-08-13-web-push-notifications-design.md.
+// Alarm sound / vibration switches, written by the app (src/lib/breakAlarm.js)
+// because a service worker can't read localStorage. Default: both on.
+async function alarmPrefs() {
+  try {
+    const res = await (await caches.open("rb-prefs")).match("/__rb_prefs");
+    return res ? await res.json() : {};
+  } catch { return {}; }
+}
+
 self.addEventListener("push", (event) => {
   let payload = { title: "Shift Tracker", body: "" };
   try {
     if (event.data) payload = { ...payload, ...event.data.json() };
   } catch {}
-  event.waitUntil(
+  const isBreak = /break/i.test(payload.title);
+  event.waitUntil(alarmPrefs().then((prefs) =>
     self.registration.showNotification(payload.title, {
       body: payload.body,
       icon: "/icon-192.png",
@@ -94,13 +104,13 @@ self.addEventListener("push", (event) => {
       // rather than merging quietly into an older one. Sound and
       // "pop on screen" are set per app in the phone's notification
       // settings (see the hint under the toggle in Settings).
-      tag: /break/i.test(payload.title) ? "break-reminder" : "reminder",
+      tag: isBreak ? "break-reminder" : "reminder",
       renotify: true,
-      requireInteraction: /break/i.test(payload.title),
-      silent: false,
-      vibrate: [500, 200, 500, 200, 500, 200, 800],
+      requireInteraction: isBreak,
+      silent: isBreak && prefs.alarmSound === false,
+      ...(isBreak && prefs.alarmVibrate === false ? {} : { vibrate: [500, 200, 500, 200, 500, 200, 800] }),
     })
-  );
+  ));
 });
 
 self.addEventListener("notificationclick", (event) => {

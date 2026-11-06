@@ -8,6 +8,7 @@ import { isCalendarSunday, uid, today } from "./lib/dutyMath.js";
 import { loadRosterData, applyRosterData, setCustomRestConfig, rollPeriodsForward, FIXED_REST_ID_PREFIX, getZones } from "./lib/roster.js";
 import { buildContext, earnedKeys, reconcile, badgeRows, earnedTodaySummary, pendingPopups, markSeen } from "./lib/achievements.js";
 import { recordUsage, USAGE_EVENT } from "./lib/usage.js";
+import { upcomingBreakAlarm, alarmTiming, alarmId, loadFired, saveFired, syncAlarmPrefsToServiceWorker } from "./lib/breakAlarm.js";
 import {
   applyShiftSave, applyDayOffSave, applyShiftDelete,
   applyDayOffDelete, applyFixedRestDayRemoval,
@@ -37,9 +38,11 @@ import { SettingsPanel } from "./screens/SettingsPanel.jsx";
 import { TourOverlay } from "./screens/TourOverlay.jsx";
 import { AchievementsScreen } from "./screens/AchievementsScreen.jsx";
 import { AchievementPopup } from "./components/AchievementPopup.jsx";
+import { BreakAlarm } from "./components/BreakAlarm.jsx";
 
 // Lazy: only a signed-out visitor ever needs this bundle chunk, so a logged-in
 // driver's initial load never pays for it.
+const TERMS_VERSION = "2";
 const AuthScreen = lazy(() => import("./screens/AuthScreen.jsx"));
 const ResetPasswordScreen = lazy(() => import("./screens/ResetPasswordScreen.jsx"));
 
@@ -77,6 +80,8 @@ export default function App() {
   const [achState, setAchState] = useState(() => loadSettings().achievements || null);
   const achEarned = achState?.earned || {};
   const badgeQueue = useMemo(() => pendingPopups(achState), [achState]);
+  const [alarmTick, setAlarmTick] = useState(0);           // re-check the break alarm
+  const [ringingAlarm, setRingingAlarm] = useState(null);  // break alarm on screen
   const [passwordRecovery, setPasswordRecovery] = useState(false);
   const [driverGarage, setDriverGarage] = useState(undefined); // undefined = not fetched yet, null = fetch failed
   const [driverFirstName, setDriverFirstName] = useState(null);
@@ -202,6 +207,29 @@ export default function App() {
   useEffect(() => { if (syncedOnce) recordUsage("open", today()); }, [syncedOnce]);
   useEffect(() => { if (["home","log","lookup","period","leave"].includes(screen)) recordUsage("tab", screen); else if (screen === "alerts") recordUsage("alerts"); }, [screen]);
   useEffect(() => { if (viewingFAQ !== null) recordUsage("faq"); }, [viewingFAQ]);
+
+  // ─── In-app break alarm ───────────────────────────────────────────────
+  // Rings while the app is open; the push notification covers the rest.
+  // Re-checked when data changes, Settings closes, or the app comes back
+  // to the foreground (timers don't run reliably in a background tab).
+  useEffect(() => {
+    const f = () => { if (document.visibilityState === "visible") setAlarmTick((t) => t + 1); };
+    document.addEventListener("visibilitychange", f);
+    return () => document.removeEventListener("visibilitychange", f);
+  }, []);
+  useEffect(() => { if (!showSettings) syncAlarmPrefsToServiceWorker(loadSettings()); }, [showSettings]);
+  useEffect(() => {
+    if (!session || showSettings) return;
+    const st = loadSettings();
+    if (st.breakReminderEnabled === false) return;
+    const now = new Date();
+    const alarm = upcomingBreakAlarm(periods, now, st.breakReminderMinutes || 10);
+    const { ringNow, waitMs } = alarmTiming(alarm, now, loadFired());
+    if (ringNow) { saveFired(alarmId(alarm)); setRingingAlarm(alarm); return; }
+    if (waitMs == null || waitMs > 2147483000) return;
+    const t = setTimeout(() => setAlarmTick((x) => x + 1), waitMs + 500);
+    return () => clearTimeout(t);
+  }, [session, periods, showSettings, alarmTick]);
   const closeBadgePopup = useCallback((item) => {
     const s = loadSettings();
     if (!s.achievements) return;
@@ -329,8 +357,10 @@ export default function App() {
     loadData().then(({data,corrupted})=>{
       if(corrupted) { setLoadCorrupted(true); setLoading(false); return; }
       if(data){setPeriods(data.periods||[]);setActivePeriodId(data.activePeriodId||null);}
+      // Bumping TERMS_VERSION re-asks everyone, including drivers who
+      // accepted an older version ("1" = before the Nov 2026 privacy rewrite).
       const terms = localStorage.getItem("dbus_terms");
-      if(!terms) { setTermsAccepted(false); setLoading(false); return; }
+      if(terms !== TERMS_VERSION) { setTermsAccepted(false); setLoading(false); return; }
       const seenVersion = localStorage.getItem("dbus_version");
       const isNewInstall = !seenVersion;
       if(seenVersion !== APP_VERSION && (isNewInstall || WHATS_NEW.showToExisting)) setShowWhatsNew(true);
@@ -400,7 +430,7 @@ export default function App() {
   }
 
   function acceptTerms() {
-    localStorage.setItem("dbus_terms","1");
+    localStorage.setItem("dbus_terms",TERMS_VERSION);
     setTermsAccepted(true);
     const seenVersion = localStorage.getItem("dbus_version");
     const isNewInstall = !seenVersion;
@@ -632,7 +662,8 @@ export default function App() {
           achievementsSummary={achievementRows ? `${achievementRows.filter(r=>r.earned).length} of ${achievementRows.length} earned` : ""}
           onOpenAchievements={()=>{setShowSettings(false);setScreen("achievements");}}/>
       )}
-      {badgeQueue.length>0&&!showTour&&<AchievementPopup key={JSON.stringify(badgeQueue[0])} item={badgeQueue[0]}
+      {ringingAlarm&&<BreakAlarm alarm={ringingAlarm} sound={loadSettings().alarmSound!==false} vibrate={loadSettings().alarmVibrate!==false} onStop={()=>setRingingAlarm(null)}/>}
+      {badgeQueue.length>0&&!showTour&&!ringingAlarm&&<AchievementPopup key={JSON.stringify(badgeQueue[0])} item={badgeQueue[0]}
         onClose={()=>closeBadgePopup(badgeQueue[0])} onOpenPage={()=>setScreen("achievements")}/>}
       {confirmFeedback && (
         <ConfirmDialog msg="This opens a feedback form in a new tab, outside the app. Continue?" yesLabel="Continue" danger={false}
