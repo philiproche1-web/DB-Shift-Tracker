@@ -1,16 +1,26 @@
-# React + Vite
+# Roster Buddy
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Shift, hours and leave tracker for Dublin Bus Summerhill drivers — live at [www.rosterbuddy.ie](https://www.rosterbuddy.ie).
 
-Currently, two official plugins are available:
+Log duties and leave, track the 5-week period limits (190h 4m total, 14h 30m Sunday, overtime), look up any duty's running board, share a duty to WhatsApp, get break reminders, and earn badges along the way. Accounts sync across phones.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Stack
 
-## React Compiler
+- React 19 + Vite, installable as a PWA (`public/manifest.webmanifest`, `public/sw.js`)
+- Supabase: auth, synced app data, push subscriptions, and the `send-reminders` Edge Function (`supabase/functions/`)
+- Roster data: `public/roster-data.json`, garage-keyed (`{ "Summerhill": { duties, seq, fixedRestPattern } }`)
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Develop
 
-## Expanding the Oxlint configuration
+```bash
+npm install
+npm run dev
+npm test
+npm run build
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+## Deploy
+
+See [`docs/DEPLOY-RUNBOOK.md`](docs/DEPLOY-RUNBOOK.md). The site is published to Netlify (project `db-shift-tracker`) by uploading `dist/`.
+
+**Heads-up:** the app and the reminder function read `public/roster-data.json` straight from this repo's `main` branch, so anything pushed to `main` that changes that file is live immediately. Check both readers before changing its shape.
