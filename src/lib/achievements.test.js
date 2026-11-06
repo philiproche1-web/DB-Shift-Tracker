@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildContext, earnedKeys, reconcile, coverageCounts, bestStreak, badgeRows, describeKey, earnedToday, earnedTodaySummary, pendingPopups, markSeen, BADGES } from "./achievements.js";
+import { buildContext, earnedKeys, reconcile, coverageCounts, bestStreak, badgeRows, describeKey, earnedToday, earnedTodaySummary, popupFor, dismissAll, BADGES } from "./achievements.js";
 import { applyUsage } from "./usage.js";
 import { addDays } from "./dutyMath.js";
 
@@ -108,42 +108,57 @@ describe("app usage", () => {
   });
 });
 
-describe("reconcile + pop-up queue", () => {
-  it("first run stores everything as retro behind one summary that waits until closed", () => {
-    const r = reconcile(undefined, ["duties:1", "first_sick"], TODAY);
-    expect(r.changed).toBe(true);
+describe("reconcile + single badge card", () => {
+  it("first run: one card with the newest badge, the rest counted, kept until closed", () => {
+    const r = reconcile(undefined, ["duties:1", "duties:10", "first_sick"], TODAY);
     expect(r.state.earned["duties:1"]).toEqual({ at: TODAY, retro: true });
     expect(r.state.welcomed).toBe(true);
-    expect(pendingPopups(r.state)).toEqual([{ kind: "summary", count: 2, firstRun: true }]);
-    // a reload re-reads the same state: still pending
-    const again = reconcile(r.state, ["duties:1", "first_sick"], TODAY);
-    expect(again.changed).toBe(false);
-    expect(pendingPopups(again.state)).toHaveLength(1);
-    expect(pendingPopups(markSeen(r.state, { kind: "summary" }))).toEqual([]);
+    const card = popupFor(r.state);
+    expect(card.extra).toBe(2);
+    expect(card.firstRun).toBe(true);
+    expect(["duties:10", "first_sick"]).toContain(card.key);
+    // a reload re-reads the same state: card still there
+    expect(popupFor(reconcile(r.state, ["duties:1", "duties:10", "first_sick"], TODAY).state)).toEqual(card);
+    // closing it clears everything, banner included
+    const closed = dismissAll(r.state);
+    expect(popupFor(closed)).toBeNull();
+    expect(earnedTodaySummary(closed.earned, TODAY)).toEqual({ keys: [], retroCount: 0 });
+  });
+  it("shows the higher level, not the first, when both are new", () => {
+    const r = reconcile(undefined, ["duties:1", "duties:10"], TODAY);
+    expect(popupFor(r.state).key).toBe("duties:10");
   });
   it("first run with nothing earned shows nothing but still welcomes", () => {
     const r = reconcile(undefined, [], TODAY);
-    expect(pendingPopups(r.state)).toEqual([]);
+    expect(popupFor(r.state)).toBeNull();
     expect(r.state.welcomed).toBe(true);
   });
-  it("afterwards, a new badge queues its own pop-up until seen", () => {
-    const first = markSeen(reconcile(undefined, ["duties:1"], "2026-11-01").state, { kind: "summary" });
+  it("afterwards, a new badge gets the card and the Home banner until closed", () => {
+    const first = dismissAll(reconcile(undefined, ["duties:1"], "2026-11-01").state);
     const r = reconcile(first, ["duties:1", "night_owl"], TODAY);
-    expect(pendingPopups(r.state)).toEqual([{ kind: "badge", key: "night_owl" }]);
+    expect(popupFor(r.state)).toEqual({ key: "night_owl", extra: 0, firstRun: false });
     expect(earnedToday(r.state.earned, TODAY)).toEqual(["night_owl"]);
-    const seen = markSeen(r.state, { kind: "badge", key: "night_owl" });
-    expect(pendingPopups(seen)).toEqual([]);
-    expect(seen.earned.night_owl.at).toBe(TODAY);
+    const closed = dismissAll(r.state);
+    expect(popupFor(closed)).toBeNull();
+    expect(earnedToday(closed.earned, TODAY)).toEqual([]);
+    expect(closed.earned.night_owl.at).toBe(TODAY);
+  });
+  it("older dismissed badges never come back as a card", () => {
+    const first = dismissAll(reconcile(undefined, ["duties:1", "first_sick"], "2026-11-01").state);
+    expect(popupFor(reconcile(first, ["duties:1", "first_sick", "night_owl"], TODAY).state).extra).toBe(0);
+  });
+  it("state from the earlier version (summary already closed) shows no card", () => {
+    const old = { welcomed: true, earned: { "duties:1": { at: TODAY, retro: true }, first_sick: { at: TODAY, retro: true } } };
+    expect(popupFor(old)).toBeNull();
   });
   it("never revokes a badge that's no longer computed", () => {
     const first = reconcile(undefined, ["duties:1"], "2026-11-01").state;
     expect(reconcile(first, [], TODAY).state.earned["duties:1"]).toBeTruthy();
   });
-  it("more than 5 at once becomes one summary, not a flood", () => {
-    const first = reconcile(undefined, [], "2026-11-01").state;
-    const r = reconcile(first, ["a", "b", "c", "d", "e", "f"], TODAY);
-    expect(pendingPopups(r.state)).toEqual([{ kind: "summary", count: 6, firstRun: false }]);
-    expect(earnedTodaySummary(r.state.earned, TODAY)).toEqual({ keys: [], retroCount: 6 });
+  it("more than 5 at once is still one card", () => {
+    const first = dismissAll(reconcile(undefined, [], "2026-11-01").state);
+    const r = reconcile(first, ["duties:1", "first_sick", "night_owl", "early_bird", "first_ot", "faq"], TODAY);
+    expect(popupFor(r.state).extra).toBe(5);
   });
 });
 

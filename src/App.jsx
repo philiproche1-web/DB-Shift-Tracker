@@ -6,7 +6,7 @@ import { hasLiveRoster } from "./lib/garages.js";
 import { fetchRouteAlerts } from "./lib/routeAlerts.js";
 import { isCalendarSunday, uid, today } from "./lib/dutyMath.js";
 import { loadRosterData, applyRosterData, setCustomRestConfig, rollPeriodsForward, FIXED_REST_ID_PREFIX, getZones } from "./lib/roster.js";
-import { buildContext, earnedKeys, reconcile, badgeRows, earnedTodaySummary, pendingPopups, markSeen } from "./lib/achievements.js";
+import { buildContext, earnedKeys, reconcile, badgeRows, earnedTodaySummary, popupFor, dismissAll } from "./lib/achievements.js";
 import { recordUsage, USAGE_EVENT } from "./lib/usage.js";
 import { upcomingBreakAlarm, alarmTiming, alarmId, loadFired, saveFired, syncAlarmPrefsToServiceWorker } from "./lib/breakAlarm.js";
 import {
@@ -79,7 +79,7 @@ export default function App() {
   // inside it, so they survive a reload until the driver closes them.
   const [achState, setAchState] = useState(() => loadSettings().achievements || null);
   const achEarned = achState?.earned || {};
-  const badgeQueue = useMemo(() => pendingPopups(achState), [achState]);
+  const badgePopup = useMemo(() => popupFor(achState), [achState]);
   const [alarmTick, setAlarmTick] = useState(0);           // re-check the break alarm
   const [ringingAlarm, setRingingAlarm] = useState(null);  // break alarm on screen
   const [passwordRecovery, setPasswordRecovery] = useState(false);
@@ -230,13 +230,15 @@ export default function App() {
     const t = setTimeout(() => setAlarmTick((x) => x + 1), waitMs + 500);
     return () => clearTimeout(t);
   }, [session, periods, showSettings, alarmTick]);
-  const closeBadgePopup = useCallback((item) => {
+  const dismissBadges = useCallback(() => {
     const s = loadSettings();
     if (!s.achievements) return;
-    const next = markSeen(s.achievements, item);
+    const next = dismissAll(s.achievements);
     saveSettings({ ...s, achievements: next });
     setAchState(next);
   }, []);
+  // Looking at the Achievements page counts as seeing them: clears the banner.
+  useEffect(() => { if (screen === "achievements") dismissBadges(); }, [screen, dismissBadges]);
   // Only after the first successful sync, so a fresh device doesn't judge
   // badges against empty local data. Badges are never taken away.
   useEffect(() => {
@@ -664,8 +666,8 @@ export default function App() {
           onTestAlarm={()=>{ const now=Date.now(); setShowSettings(false); setRingingAlarm({shift:{id:"test",roster:"Test alarm"},breakEnd:new Date(now+(loadSettings().breakReminderMinutes||10)*60000),fireAt:new Date(now)}); }}/>
       )}
       {ringingAlarm&&<BreakAlarm alarm={ringingAlarm} sound={loadSettings().alarmSound!==false} vibrate={loadSettings().alarmVibrate!==false} onStop={()=>setRingingAlarm(null)}/>}
-      {badgeQueue.length>0&&!showTour&&!ringingAlarm&&<AchievementPopup key={JSON.stringify(badgeQueue[0])} item={badgeQueue[0]}
-        onClose={()=>closeBadgePopup(badgeQueue[0])} onOpenPage={()=>setScreen("achievements")}/>}
+      {badgePopup&&!showTour&&!ringingAlarm&&<AchievementPopup key={badgePopup.key} item={badgePopup}
+        onClose={dismissBadges} onOpenPage={()=>setScreen("achievements")}/>}
       {confirmFeedback && (
         <ConfirmDialog msg="This opens a feedback form in a new tab, outside the app. Continue?" yesLabel="Continue" danger={false}
           onYes={()=>{setConfirmFeedback(false);recordUsage("feedback");window.open("https://docs.google.com/forms/d/e/1FAIpQLScgZEIoRM7xqkOpSyVcDQl23fbDJ_UTq99sF0c4mgta5bwrUQ/viewform?usp=header","_blank");}}

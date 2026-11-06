@@ -351,33 +351,57 @@ export function reconcile(state, nowKeys, today) {
   return { state: { ...base, earned, welcomed: true, ...(pendingSummary ? { pendingSummary } : {}) }, changed: true };
 }
 
-// Pop-ups still waiting, summary first.
-export function pendingPopups(state) {
-  if (!state) return [];
-  const items = state.pendingSummary ? [{ kind: "summary", ...state.pendingSummary }] : [];
-  Object.entries(state.earned || {})
-    .filter(([, v]) => v.seen === false)
-    .sort((a, b) => a[1].at.localeCompare(b[1].at))
-    .forEach(([key]) => items.push({ kind: "badge", key }));
-  return items;
+// Badges still waiting to be shown: individually earned ones not yet seen,
+// plus (while a first-run / flood summary is pending) the retro batch.
+function waitingKeys(state) {
+  const earned = state?.earned || {};
+  return Object.keys(earned).filter((k) => {
+    const v = earned[k];
+    if (v.seen === true || v.viewed === true) return false;
+    return v.seen === false || (v.retro && !!state.pendingSummary);
+  });
 }
 
-// State after the driver closes one pop-up.
-export function markSeen(state, item) {
-  if (item.kind === "summary") {
-    const rest = { ...state };
-    delete rest.pendingSummary;
-    return rest;
+// Newest first: by date earned, then catalogue order, then level — so the
+// card shows the most recent / highest badge, not the first one ever.
+function rank(key, entry) {
+  const id = key.split(":")[0];
+  const info = describeKey(key);
+  return [entry.at, BADGES.findIndex((b) => b.id === id), info ? info.level : 0];
+}
+function newer(a, b) {
+  for (let i = 0; i < 3; i++) { if (a[i] > b[i]) return true; if (a[i] < b[i]) return false; }
+  return false;
+}
+
+// ONE card at most (Phil 2026-11-06: never make people click through a
+// stack). Returns { key, extra, firstRun } or null; extra = how many others
+// are behind it (shown as "+N more").
+export function popupFor(state) {
+  const keys = waitingKeys(state);
+  if (!keys.length) return null;
+  let best = keys[0];
+  for (const k of keys.slice(1)) if (newer(rank(k, state.earned[k]), rank(best, state.earned[best]))) best = k;
+  return { key: best, extra: keys.length - 1, firstRun: !!state.pendingSummary?.firstRun };
+}
+
+// Closing the card (or opening the Achievements page) clears everything
+// waiting, including the Home banner.
+export function dismissAll(state) {
+  if (!state) return state;
+  const earned = { ...(state.earned || {}) };
+  for (const [k, v] of Object.entries(earned)) {
+    if (v.seen === false) earned[k] = { ...v, seen: true };
+    else if (!v.viewed && v.seen !== true) earned[k] = { ...v, viewed: true };
   }
-  const entry = state.earned?.[item.key];
-  if (!entry) return state;
-  return { ...state, earned: { ...state.earned, [item.key]: { ...entry, seen: true } } };
+  const next = { ...state, earned };
+  delete next.pendingSummary;
+  return next;
 }
 
-// Home banner: what was earned today. `keys` are individually announced
-// badges; `retroCount` is the first-run batch (no single badge to show).
+// Home banner: badges earned today that haven't been looked at yet.
 export function earnedTodaySummary(stored, today) {
-  const entries = Object.entries(stored || {}).filter(([, v]) => v.at === today);
+  const entries = Object.entries(stored || {}).filter(([, v]) => v.at === today && v.seen !== true && !v.viewed);
   const keys = entries.filter(([, v]) => !v.retro).map(([k]) => k);
   return { keys, retroCount: entries.length - keys.length };
 }

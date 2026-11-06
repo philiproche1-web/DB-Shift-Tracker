@@ -1,7 +1,7 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
 import { createRoot } from "react-dom/client";
 import { act } from "react";
-import { AchievementPopup, POPUP_MS } from "./AchievementPopup.jsx";
+import { AchievementPopup } from "./AchievementPopup.jsx";
 import { AchievementsScreen } from "../screens/AchievementsScreen.jsx";
 import { HomeScreen } from "../screens/HomeScreen.jsx";
 import { badgeRows, buildContext } from "../lib/achievements.js";
@@ -21,37 +21,24 @@ let mounted;
 afterEach(() => { mounted?.unmount(); mounted = null; vi.useRealTimers(); });
 
 describe("AchievementPopup", () => {
-  it("shows a badge's name and joke and closes itself after POPUP_MS", () => {
+  it("shows the badge with a close X and stays up until closed", () => {
     vi.useFakeTimers();
     let closed = 0;
-    mounted = render(<AchievementPopup item={{ kind: "badge", key: "night_owl" }} onClose={() => closed++}/>);
+    mounted = render(<AchievementPopup item={{ key: "night_owl", extra: 0, firstRun: false }} onClose={() => closed++}/>);
     expect(mounted.container.textContent).toContain("Night Owl");
-    expect(mounted.container.textContent).toContain("depot cat");
-    act(() => { vi.advanceTimersByTime(POPUP_MS - 10); });
+    expect(mounted.container.textContent).toContain("Settings › Achievements");
+    act(() => { vi.advanceTimersByTime(60000); });
     expect(closed).toBe(0);
-    act(() => { vi.advanceTimersByTime(20); });
+    act(() => { mounted.container.querySelector('[aria-label="Close"]').click(); });
     expect(closed).toBe(1);
   });
 
-  it("does not restart its timer when the parent re-renders with a new onClose", () => {
-    vi.useFakeTimers();
-    let closed = 0;
-    const item = { kind: "badge", key: "duties:1" };
-    mounted = render(<AchievementPopup item={item} onClose={() => closed++}/>);
-    act(() => { vi.advanceTimersByTime(POPUP_MS / 2); });
-    mounted.rerender(<AchievementPopup item={item} onClose={() => closed++}/>);
-    act(() => { vi.advanceTimersByTime(POPUP_MS / 2 + 10); });
-    expect(closed).toBe(1);
-  });
-
-  it("the welcome summary stays up and its button opens the page", () => {
-    vi.useFakeTimers();
+  it("with others waiting, says how many and links to the page", () => {
     let closed = 0, opened = 0;
-    mounted = render(<AchievementPopup item={{ kind: "summary", count: 9, firstRun: true }} onClose={() => closed++} onOpenPage={() => opened++}/>);
-    expect(mounted.container.textContent).toContain("You've already earned 9 badges");
-    act(() => { vi.advanceTimersByTime(POPUP_MS * 3); });
-    expect(closed).toBe(0);
-    act(() => { [...mounted.container.querySelectorAll("button")].find((b) => b.textContent === "See your badges").click(); });
+    mounted = render(<AchievementPopup item={{ key: "duties:10", extra: 17, firstRun: true }} onClose={() => closed++} onOpenPage={() => opened++}/>);
+    const more = [...mounted.container.querySelectorAll("button")].find((b) => b.textContent.includes("+17 more"));
+    expect(more).toBeTruthy();
+    act(() => { more.click(); });
     expect(closed).toBe(1);
     expect(opened).toBe(1);
   });

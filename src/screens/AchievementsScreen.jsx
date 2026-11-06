@@ -11,6 +11,7 @@ export function AchievementsScreen({rows, onBack}) {
     <div style={{background:BG,minHeight:"100vh",paddingBottom:40}}>
       <PageHeader eyebrow="Your badges" title="Achievements" subtitle={`${earned} of ${rows.length} earned`} onBack={onBack}/>
       <div style={{padding:"4px 16px 0"}}>
+        <p style={{color:MUTED,fontSize:"0.75rem",margin:"0 0 16px"}}>Come back to your badges any time from Settings › Achievements.</p>
         {CATEGORIES.map((cat) => {
           const list = rows.filter((r) => r.badge.cat === cat.id);
           return (
