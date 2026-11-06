@@ -16,6 +16,9 @@ export function PeriodScreen({period, onEdit, onDelete, onEditDayOff, onDeleteDa
     return i >= 0 ? i : 0;
   }, [stats]);
   const [open, setOpen] = useState(initWeek !== null ? initWeek : defaultWeek);
+  const weekOrder = readOnly
+    ? stats.weeks.map((_, i) => i)
+    : [defaultWeek, ...stats.weeks.map((_, i) => i).filter((i) => i !== defaultWeek)];
   const tallyEntries = DAY_OFF_TYPES.map(t=>({type:t,count:stats.tally[t]||0})).filter(x=>x.count>0);
 
   return (
@@ -37,67 +40,24 @@ export function PeriodScreen({period, onEdit, onDelete, onEditDayOff, onDeleteDa
       />
 
       <div style={{padding:"4px 16px 0"}}>
-      <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:12}}>
-        <ComplianceBar label="Total Hours" current={stats.total} max={MAX_HOURS} limitLabel="190h 4m" />
-        <ComplianceBar label="Sunday Hours" current={stats.sunday} max={MAX_SUNDAY} limitLabel="14h 30m" />
-        {stats.overtime>0 && (
-          <div style={{...cardStyle,padding:"12px 16px"}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-              <span style={{color:MUTED,fontSize:"0.8125rem",fontWeight:600,textTransform:"uppercase",letterSpacing:0.5}}>Overtime</span>
-              <span style={{color:"#F59E0B",fontWeight:800,fontSize:"1rem"}}>{fmtHrs(stats.overtime)}</span>
-            </div>
-            <p style={{color:MUTED,fontSize:"0.6875rem",margin:"3px 0 0"}}>Not counted toward 190h limit</p>
-          </div>
-        )}
-      </div>
-
-      <div style={{...cardStyle,marginBottom:12}}>
-        <p style={{color:TEXT,fontWeight:600,margin:"0 0 8px",fontSize:"0.875rem"}}>Period Summary</p>
-        <div style={{display:"flex",justifyContent:"space-between",padding:"4px 0"}}>
-          <span style={{color:MUTED,fontSize:"0.8125rem"}}>Max consecutive days</span>
-          <span style={{color:TEXT,fontWeight:600}}>{stats.consec}</span>
-        </div>
-        <div style={{display:"flex",justifyContent:"space-between",padding:"4px 0"}}>
-          <span style={{color:MUTED,fontSize:"0.8125rem"}}>Total shifts</span>
-          <span style={{color:TEXT,fontWeight:600}}>{period.shifts?.length||0}</span>
-        </div>
-        {tallyEntries.length > 0 && (
-          <div style={{borderTop:`1px solid ${BORDER}`,marginTop:8,paddingTop:8}}>
-            <p style={{color:MUTED,fontSize:"0.75rem",margin:"0 0 6px",textTransform:"uppercase",letterSpacing:0.5}}>Days Off</p>
-            {tallyEntries.map(({type,count})=>(
-              <div key={type} style={{display:"flex",justifyContent:"space-between",padding:"3px 0"}}>
-                <span style={{color:MUTED,fontSize:"0.8125rem"}}>{type}</span>
-                <span style={{color:TEXT,fontWeight:600}}>{count}</span>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {!readOnly && (
-        <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:12}}>
-          <button onClick={onViewArchive} style={{...btnStyle,padding:"12px 16px",fontSize:"0.8125rem"}}>
-            View Period Archive
-          </button>
-          {onViewFAQ && (
-            <button onClick={()=>onViewFAQ("compliance")} style={{background:"none",border:"none",color:ACCENT,fontSize:"0.8125rem",fontWeight:600,cursor:"pointer",padding:"4px 0",textAlign:"center"}}>
-              Questions about your hours? See FAQ →
-            </button>
-          )}
-        </div>
-      )}
-
-      {stats.weeks.map((w,i)=>{
+      {/* Phil 2026-11-06: current week first (open) so today's entries are
+          the first thing on screen, then the other weeks closed, then the
+          period totals, summary, archive and FAQ. Archived periods keep
+          plain week order. */}
+      {weekOrder.map((i, pos)=>{
+        const w = stats.weeks[i];
         const allItems = [
           ...w.shifts.map(s=>({...s,_type:"shift"})),
           ...(w.daysOff||[]).map(d=>({...d,_type:"dayoff"}))
         ].sort((a,b)=>a.date.localeCompare(b.date));
         const isCurrentWeek = !readOnly && i===defaultWeek;
         return (
-          <div key={i} style={{...cardStyle,marginBottom:10,...(isCurrentWeek?{border:`1px solid ${ACCENT}`,boxShadow:`0 0 0 2px ${ACCENT}40`}:{})}}>
+          <div key={i}>
+          {pos===1 && !readOnly && <p style={{color:MUTED,fontSize:"0.6875rem",textTransform:"uppercase",letterSpacing:1.5,fontWeight:700,margin:"14px 0 8px"}}>Other weeks</p>}
+          <div style={{...cardStyle,marginBottom:10,...(isCurrentWeek?{border:`1px solid ${ACCENT}`,boxShadow:`0 0 0 2px ${ACCENT}40`}:{})}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",cursor:"pointer"}} onClick={()=>setOpen(open===i?-1:i)}>
               <div>
-                <p style={{color:MUTED,fontSize:"0.6875rem",margin:0,textTransform:"uppercase"}}>Week {i+1}</p>
+                <p style={{color:isCurrentWeek?ACCENT:MUTED,fontSize:"0.6875rem",margin:0,textTransform:"uppercase",fontWeight:isCurrentWeek?700:400}}>Week {i+1}{isCurrentWeek?" · This week":""}</p>
                 <p style={{color:TEXT,fontWeight:600,margin:"3px 0 0"}}>{fmtShort(w.start)} – {fmtShort(w.end)}</p>
                 <p style={{color:MUTED,fontSize:"0.75rem",margin:"2px 0 0"}}>{w.shifts.length} shift{w.shifts.length!==1?"s":""}{(w.daysOff?.length||0)>0?` · ${w.daysOff.length} day off`:""}</p>
               </div>
@@ -175,8 +135,59 @@ export function PeriodScreen({period, onEdit, onDelete, onEditDayOff, onDeleteDa
               </div>
             )}
           </div>
+          </div>
         );
       })}
+
+      <div style={{display:"flex",flexDirection:"column",gap:8,margin:"6px 0 12px"}}>
+        <ComplianceBar label="Total Hours" current={stats.total} max={MAX_HOURS} limitLabel="190h 4m" />
+        <ComplianceBar label="Sunday Hours" current={stats.sunday} max={MAX_SUNDAY} limitLabel="14h 30m" />
+        {stats.overtime>0 && (
+          <div style={{...cardStyle,padding:"12px 16px"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <span style={{color:MUTED,fontSize:"0.8125rem",fontWeight:600,textTransform:"uppercase",letterSpacing:0.5}}>Overtime</span>
+              <span style={{color:"#F59E0B",fontWeight:800,fontSize:"1rem"}}>{fmtHrs(stats.overtime)}</span>
+            </div>
+            <p style={{color:MUTED,fontSize:"0.6875rem",margin:"3px 0 0"}}>Not counted toward 190h limit</p>
+          </div>
+        )}
+      </div>
+
+      <div style={{...cardStyle,marginBottom:12}}>
+        <p style={{color:TEXT,fontWeight:600,margin:"0 0 8px",fontSize:"0.875rem"}}>Period Summary</p>
+        <div style={{display:"flex",justifyContent:"space-between",padding:"4px 0"}}>
+          <span style={{color:MUTED,fontSize:"0.8125rem"}}>Max consecutive days</span>
+          <span style={{color:TEXT,fontWeight:600}}>{stats.consec}</span>
+        </div>
+        <div style={{display:"flex",justifyContent:"space-between",padding:"4px 0"}}>
+          <span style={{color:MUTED,fontSize:"0.8125rem"}}>Total shifts</span>
+          <span style={{color:TEXT,fontWeight:600}}>{period.shifts?.length||0}</span>
+        </div>
+        {tallyEntries.length > 0 && (
+          <div style={{borderTop:`1px solid ${BORDER}`,marginTop:8,paddingTop:8}}>
+            <p style={{color:MUTED,fontSize:"0.75rem",margin:"0 0 6px",textTransform:"uppercase",letterSpacing:0.5}}>Days Off</p>
+            {tallyEntries.map(({type,count})=>(
+              <div key={type} style={{display:"flex",justifyContent:"space-between",padding:"3px 0"}}>
+                <span style={{color:MUTED,fontSize:"0.8125rem"}}>{type}</span>
+                <span style={{color:TEXT,fontWeight:600}}>{count}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {!readOnly && (
+        <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:12}}>
+          <button onClick={onViewArchive} style={{...btnStyle,padding:"12px 16px",fontSize:"0.8125rem"}}>
+            View Period Archive
+          </button>
+          {onViewFAQ && (
+            <button onClick={()=>onViewFAQ("compliance")} style={{background:"none",border:"none",color:ACCENT,fontSize:"0.8125rem",fontWeight:600,cursor:"pointer",padding:"4px 0",textAlign:"center"}}>
+              Questions about your hours? See FAQ →
+            </button>
+          )}
+        </div>
+      )}
       </div>
     </div>
   );

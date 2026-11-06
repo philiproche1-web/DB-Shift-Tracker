@@ -3,7 +3,7 @@ import { supabase } from "./lib/supabaseClient.js";
 import { signOut, getSession, onAuthStateChange } from "./lib/auth.js";
 import { syncAll, migrateLocalDataIfNeeded, hasPendingSync } from "./lib/sync.js";
 import { hasLiveRoster } from "./lib/garages.js";
-import { fetchRouteAlerts } from "./lib/routeAlerts.js";
+import { fetchRouteAlerts, alertsForTodaysDuty } from "./lib/routeAlerts.js";
 import { isCalendarSunday, uid, today } from "./lib/dutyMath.js";
 import { loadRosterData, applyRosterData, setCustomRestConfig, rollPeriodsForward, FIXED_REST_ID_PREFIX, getZones } from "./lib/roster.js";
 import { buildContext, earnedKeys, reconcile, badgeRows, earnedTodaySummary, popupFor, dismissAll } from "./lib/achievements.js";
@@ -588,7 +588,7 @@ export default function App() {
 
   const archivePeriod=periods.find(p=>p.id===archiveViewId);
 
-  if(screen==="alerts") return <RouteAlertsScreen alerts={routeAlerts} onBack={()=>setScreen("home")}/>;
+  if(screen==="alerts") return <RouteAlertsScreen alerts={alertsForTodaysDuty(routeAlerts, (activePeriod.shifts||[]).find(s=>s.date===today()))} onBack={()=>setScreen("home")}/>;
   if(screen==="achievements") return <AchievementsScreen rows={achievementRows||[]} onBack={()=>setScreen("home")}/>;
 
   if(screen==="archive"&&archiveViewId&&archivePeriod) return (
@@ -602,7 +602,7 @@ export default function App() {
 
   return (
     <div style={{background:BG,minHeight:"100vh"}}>
-      {screen==="log"&&<LogScreen key={editShift?.id||"new"} period={activePeriod} editShift={editShift} lookupDuty={lookupDuty} initialDate={logInitDate} initialRestDay={logInitRestDay} focusMoreOptions={logFocusOT} alerts={routeAlerts}
+      {screen==="log"&&<LogScreen key={editShift?.id||"new"} period={activePeriod} editShift={editShift} lookupDuty={lookupDuty} initialDate={logInitDate} initialRestDay={logInitRestDay} focusMoreOptions={logFocusOT}
         onSave={saveShift} onCancel={()=>{setEditShift(null);setLookupDuty(null);setLogInitDate(null);setLogInitRestDay(false);setLogFocusOT(false);setScreen(logFocusOT?"home":editShift?"period":lookupDuty?"lookup":"home");}}
         onEditConflict={setEditShift}
         onOpenSettings={()=>setShowSettings(true)}/>}

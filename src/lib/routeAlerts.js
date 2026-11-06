@@ -50,6 +50,15 @@ export function alertWindowLabel(alert) {
 
 // zone-less alerts (garage-wide) match every zone; zone-scoped alerts only
 // match that zone.
+// Diversions that matter today: live now, and either garage-wide or in the
+// zone of the duty logged for today. No duty logged today => none. Used by
+// both the Home banner and the Alerts screen so the count and the list agree
+// (Phil 2026-11-06).
+export function alertsForTodaysDuty(alerts, todayShift, now = new Date()) {
+  if (!todayShift) return [];
+  return (alerts || []).filter((a) => isLiveNow(a, now) && (!a.zone || a.zone === todayShift.zone));
+}
+
 export function alertsForZone(alerts, zone, date) {
   return alerts.filter((a) => isActiveOn(a, date) && (!a.zone || a.zone === zone));
 }

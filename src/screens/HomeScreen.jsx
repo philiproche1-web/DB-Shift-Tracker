@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef, useLayoutEffect } from "react";
 import { MAX_HOURS, MAX_SUNDAY, getDayType, addDays, fmtShort, fmtHrs, today, calcSpreadover, greetingTimeBand, dutyNumber } from "../lib/dutyMath.js";
-import { isLiveNow } from "../lib/routeAlerts.js";
+import { alertsForTodaysDuty } from "../lib/routeAlerts.js";
 import { displayRoster, DUTIES, shiftDepartLocation, pStats, periodForDate, dayInfo, getSeq, greetingDutyContext, computeShiftStreak, weekHighlights } from "../lib/roster.js";
 import { BG, CARD, BORDER, CARD2, TEXT, MUTED, ACCENT, SUCCESS, DANGER, btnStyle, cardStyle, tag } from "../lib/theme.js";
 import { notifyOnce, loadSettings, saveSettings } from "../lib/persistence.js";
@@ -301,9 +301,7 @@ export function HomeScreen({period, periods, alerts, onViewAlerts, todayBadges =
   // Only when a duty is logged for today AND the alert touches it: same zone,
   // or garage-wide (no zone). Phil 2026-11-06: no logged duty, no alert. The
   // Alerts screen itself still lists everything.
-  const activeAlerts = useMemo(() => todayShift
-    ? (alerts||[]).filter(a => isLiveNow(a) && (!a.zone || a.zone === todayShift.zone))
-    : [], [alerts, todayDate, todayShift]);
+  const activeAlerts = useMemo(() => alertsForTodaysDuty(alerts, todayShift), [alerts, todayDate, todayShift]);
 
   useEffect(() => {
     // Used to call Notification.requestPermission() unconditionally here on

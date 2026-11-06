@@ -1,9 +1,8 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { getDayType, isBankHoliday, addDays, fmtDate, fmtShort, fmtHrs, today, uid, sundayOf, calcSpreadover, addDuration, inPeriod } from "../lib/dutyMath.js";
-import { alertsForZone } from "../lib/routeAlerts.js";
 import { getZones, FIXED_DUTY_TYPES, getDuties } from "../lib/roster.js";
 import { BG, CARD, BORDER, CARD2, TEXT, MUTED, ACCENT, SUCCESS, DANGER, cardStyle, inputStyle, btnStyle, tag } from "../lib/theme.js";
-import { PageHeader, FieldLabel, DateInput, SegGroup, DutyPicker, RouteAlertCard, ConfirmDialog, SettingsButton } from "../components/shared.jsx";
+import { PageHeader, FieldLabel, DateInput, SegGroup, DutyPicker, ConfirmDialog, SettingsButton } from "../components/shared.jsx";
 
 function BankHolidayChoiceDialog({date, onChoose}) {
   const [chosen, setChosen] = useState(false);
@@ -27,7 +26,7 @@ function BankHolidayChoiceDialog({date, onChoose}) {
 }
 
 // ─── LOG SHIFT SCREEN ─────────────────────────────────────────────────────────
-export function LogScreen({period, editShift, lookupDuty, initialDate, initialRestDay, focusMoreOptions, alerts, onSave, onCancel, onEditConflict, onOpenSettings}) {
+export function LogScreen({period, editShift, lookupDuty, initialDate, initialRestDay, focusMoreOptions, onSave, onCancel, onEditConflict, onOpenSettings}) {
   // lookupDuty = {d: dutyObj, dt: dayType} from the Lookup screen
   const initZone = lookupDuty?.d.z || editShift?.zone || getZones()[0];
   const [date, setDate] = useState(lookupDuty?.date || editShift?.date || initialDate || today());
@@ -103,7 +102,6 @@ export function LogScreen({period, editShift, lookupDuty, initialDate, initialRe
   const dateDayType = getDayType(date);
   const dutyDayType = (lookupDuty && !isBankHoliday(date)) ? lookupDuty.dt : dateDayType;
   const duties = useMemo(() => getDuties(zone, dutyDayType), [zone, dutyDayType]);
-  const zoneAlerts = useMemo(() => alertsForZone(alerts||[], zone, date), [alerts, zone, date]);
   const dayLabel = dateDayType==="sunday"?"Sunday":dateDayType==="saturday"?"Saturday":"Mon–Fri";
   const dayColor = dateDayType==="sunday"?SUCCESS:dateDayType==="saturday"?"#60a5fa":MUTED;
 
@@ -338,7 +336,6 @@ export function LogScreen({period, editShift, lookupDuty, initialDate, initialRe
             }}/>
         </div>
 
-        {zoneAlerts.map(a => <RouteAlertCard key={a.id} alert={a}/>)}
 
         {/* Duty — straight under Zone (Phil 2026-11-06): pick it, then Log Shift. */}
         {!isSpare && !fixedType && (
