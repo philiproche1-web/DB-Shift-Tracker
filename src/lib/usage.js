@@ -13,7 +13,7 @@ const COUNTERS = {
 };
 
 export function emptyAchievementState() {
-  const usage = { tabs: [], openDays: [] };
+  const usage = { tabs: [], openDays: [], sharedDates: [] };
   Object.values(COUNTERS).forEach((k) => { usage[k] = 0; });
   return { v: 1, earned: {}, usage };
 }
@@ -21,6 +21,11 @@ export function emptyAchievementState() {
 // Pure: returns the next usage object (the same object when nothing changed).
 export function applyUsage(usage, kind, value) {
   const u = { ...emptyAchievementState().usage, ...(usage || {}) };
+  // A share also remembers WHICH duty date was shared (distinct, last 200),
+  // for the "Taking the Michael" swap badges.
+  if (kind === "share" && value && !(u.sharedDates || []).includes(value)) {
+    return { ...u, shares: (u.shares || 0) + 1, sharedDates: [...(u.sharedDates || []), value].sort().slice(-200) };
+  }
   if (COUNTERS[kind]) return { ...u, [COUNTERS[kind]]: (u[COUNTERS[kind]] || 0) + 1 };
   if (kind === "tab") return u.tabs.includes(value) ? usage : { ...u, tabs: [...u.tabs, value] };
   if (kind === "open") return u.openDays.includes(value) ? usage : { ...u, openDays: [...u.openDays, value].sort().slice(-OPEN_DAYS_KEPT) };

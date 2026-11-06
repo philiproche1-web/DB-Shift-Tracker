@@ -232,3 +232,44 @@ describe("display", () => {
     expect(describeKey("acp:2026").year).toBe("2026");
   });
 });
+
+describe("Sick Note and the Michael badges", () => {
+  const noAuto = (start) => ({ removedFixedRestDates: Array.from({ length: 35 }, (_, i) => addDays(start, i)) });
+  const sickRun = (start, n) => Array.from({ length: n }, (_, i) => off(addDays(start, i), "Sick Day"));
+  it("Sick Note: 5 sick + 2 rest days in a row counts; 4 sick + 3 rest, or a broken run, doesn't", () => {
+    const P = (dOff) => [{ id: "p", startDate: "2026-08-02", shifts: [], daysOff: dOff, ...noAuto("2026-08-02") }];
+    const week = [...sickRun("2026-08-03", 5), off("2026-08-08", "Rest Day"), off("2026-08-09", "Rest Day")];
+    expect(keysFor({ periods: P(week) })).toContain("sick_note");
+    const fourSick = [...sickRun("2026-08-03", 4), off("2026-08-07", "Rest Day"), off("2026-08-08", "Rest Day"), off("2026-08-09", "Rest Day")];
+    expect(keysFor({ periods: P(fourSick) })).not.toContain("sick_note");
+    expect(keysFor({ periods: P(week.filter((d) => d.date !== "2026-08-05")) })).not.toContain("sick_note");
+  });
+  it("swap badges count different duty days: 3 / 5 in one Sun-Sat week, 10 in one period", () => {
+    const period = [{ id: "p", startDate: "2026-08-02", shifts: [], daysOff: [] }];
+    const wk = (n, start = "2026-08-03") => Array.from({ length: n }, (_, i) => addDays(start, i));
+    expect(keysFor({ periods: period, usage: { sharedDates: wk(2) } })).not.toContain("taking_the_michael");
+    const k3 = keysFor({ periods: period, usage: { sharedDates: wk(3) } });
+    expect(k3).toContain("taking_the_michael");
+    expect(k3).not.toContain("taking_the_psss");
+    // 3 on Fri/Sat + 2 on Sun/Mon straddle two weeks: not 5 in one week
+    expect(keysFor({ periods: period, usage: { sharedDates: wk(5, "2026-08-06") } })).not.toContain("taking_the_psss");
+    expect(keysFor({ periods: period, usage: { sharedDates: wk(5) } })).toContain("taking_the_psss");
+    const ten = [...wk(5), ...wk(5, "2026-08-10")];
+    expect(keysFor({ periods: period, usage: { sharedDates: ten } })).toContain("legendary_michael");
+    expect(keysFor({ periods: period, usage: { sharedDates: ten.slice(1) } })).not.toContain("legendary_michael");
+  });
+  it("Sick Note needs the 7 days together, not 5 sick one week and rest days another", () => {
+    const P = [{ id: "p", startDate: "2026-08-02", shifts: [], daysOff: [...sickRun("2026-08-03", 5), off("2026-08-15", "Rest Day"), off("2026-08-16", "Rest Day")], ...noAuto("2026-08-02") }];
+    expect(keysFor({ periods: P })).not.toContain("sick_note");
+  });
+  it("the Legendary Michael Award needs 10 inside ONE period", () => {
+    const two = [{ id: "a", startDate: "2026-08-02", shifts: [], daysOff: [] }, { id: "b", startDate: "2026-09-06", shifts: [], daysOff: [] }];
+    const dates = [...Array.from({ length: 5 }, (_, i) => addDays("2026-08-03", i)), ...Array.from({ length: 5 }, (_, i) => addDays("2026-09-07", i))];
+    expect(keysFor({ periods: two, usage: { sharedDates: dates } })).not.toContain("legendary_michael");
+  });
+  it("sharing the same duty day twice only counts once", () => {
+    let u = {};
+    u = applyUsage(u, "share", "2026-08-03"); u = applyUsage(u, "share", "2026-08-03"); u = applyUsage(u, "share", "2026-08-04");
+    expect(u.sharedDates).toEqual(["2026-08-03", "2026-08-04"]);
+  });
+});

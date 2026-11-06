@@ -43,7 +43,7 @@ export function ShareDutySheet({ duty, dayType, source, onClose }) {
     if (!blob) return;
     const result = await shareDutyImage({ blob, caption, filename: shareFilename(data) });
     trackEvent("duty_shared", { source, result });
-    if (result !== "cancelled") recordUsage("share");
+    if (result !== "cancelled") recordUsage("share", date);
     if (result === "shared") onClose();
     else if (result === "downloaded") setStatus("Image saved. Caption copied — paste it in WhatsApp.");
   }

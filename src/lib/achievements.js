@@ -6,7 +6,7 @@
 //   flag    — earned once when test() is true; key `${id}`
 //   yearly  — can be re-earned each calendar year; years() lists qualifying
 //             years; key `${id}:${year}`; the page shows the count
-import { addDays, getDayType } from "./dutyMath.js";
+import { addDays, getDayType, sundayOf } from "./dutyMath.js";
 import { dayInfo } from "./roster.js";
 
 export const CATEGORIES = [
@@ -139,6 +139,42 @@ function ownDaysByYear(c) {
   return countBy(ofType(c, "Annual Leave").filter((d) => !inBlock.has(d.date)), (d) => year(d.date));
 }
 
+// Sick Note: a whole week off sick — 7 days in a row of sick days and rest
+// days (auto or logged), at least 5 of them sick days.
+function sickWeek(periods) {
+  const offByDate = new Map();
+  for (const p of periods) {
+    if (!p?.startDate) continue;
+    for (let i = 0; i < 35; i++) {
+      const d = addDays(p.startDate, i);
+      const info = dayInfo(p, d);
+      if (info.status === "dayoff" && (info.dayOff.type === "Sick Day" || info.dayOff.type === "Rest Day")) offByDate.set(d, info.dayOff.type);
+    }
+  }
+  const dates = [...offByDate.keys()].sort();
+  let run = [];
+  const ok = () => run.length >= 7 && run.filter((d) => offByDate.get(d) === "Sick Day").length >= 5;
+  for (const d of dates) {
+    if (run.length && addDays(run[run.length - 1], 1) !== d) { if (ok()) return true; run = []; }
+    run.push(d);
+  }
+  return ok();
+}
+
+// Swap badges: distinct duty dates shared, most in one Sun–Sat week and
+// most in one 5-week period.
+function swapsPerWeek(c) {
+  const byWeek = countBy(c.usage.sharedDates || [], (d) => sundayOf(d));
+  return Math.max(0, ...Object.values(byWeek));
+}
+function swapsPerPeriod(c) {
+  const dates = c.usage.sharedDates || [];
+  return Math.max(0, ...c.periods.filter((p) => p?.startDate).map((p) => {
+    const end = addDays(p.startDate, 34);
+    return dates.filter((d) => d >= p.startDate && d <= end).length;
+  }));
+}
+
 const yearCount = (c, type) => countBy(ofType(c, type), (d) => year(d.date));
 const halfCount = (c, type, half) => countBy(ofType(c, type).filter((d) => (half === 1 ? month(d.date) <= 6 : month(d.date) >= 7)), (d) => year(d.date));
 
@@ -194,6 +230,8 @@ export const BADGES = [
     test: (c) => ofType(c, "Sick Day").length > 0 },
   { id: "full_five", cat: "leave", emoji: "🖐️", color: "#00C896", name: "Full Five", yearly: true, rule: "Use all 5 paid sick days in a year",
     joke: "Every paid one, accounted for.", years: (c) => yearsWhere(yearCount(c, "Sick Day"), 5) },
+  { id: "sick_note", cat: "leave", emoji: "🤒", color: "#00C896", name: "Sick Note", rule: "A whole week off sick (7 days, at least 5 sick days)",
+    joke: "You've earned the nickname.", test: (c) => c.sickWeek },
   { id: "acp", cat: "leave", emoji: "📋", color: "#FF4455", name: "Welcome to the Program", secret: true, yearly: true,
     rule: "13 sick days in a year", joke: "Your file has been… noticed.", years: (c) => yearsWhere(yearCount(c, "Sick Day"), 13) },
   { id: "first_self_cert", cat: "leave", emoji: "✍️", color: "#00C896", name: "First Self Cert", rule: "Log a self cert", joke: "Doctor's orders. Your own.",
@@ -254,6 +292,15 @@ export const BADGES = [
     rule: (n) => n === 1 ? "Look up a duty" : `Look up ${n} duties`, joke: "Case closed.", value: (c) => c.usage.lookups || 0 },
   { id: "swap_shop", cat: "app", emoji: "🔁", color: "#F59E0B", name: "Swap Shop", rule: "Share a duty", joke: "Open for business.",
     test: (c) => (c.usage.shares || 0) > 0 },
+  { id: "taking_the_michael", cat: "app", emoji: "😏", color: "#F59E0B", name: "Taking the Michael", rule: "Share 3 different duty days in one week",
+    joke: "Everyone knows a Michael.",
+    value: (c) => Math.min(3, swapsPerWeek(c)), target: () => 3, test: (c) => swapsPerWeek(c) >= 3 },
+  { id: "taking_the_psss", cat: "app", emoji: "🙄", color: "#F59E0B", name: "Now You're Taking the Psss, Michael", rule: "Share all 5 duty days in one week",
+    joke: "Do you actually work here?",
+    value: (c) => Math.min(5, swapsPerWeek(c)), target: () => 5, test: (c) => swapsPerWeek(c) >= 5 },
+  { id: "legendary_michael", cat: "app", emoji: "👑", color: "#F59E0B", name: "The Legendary Michael Award", rule: "Share 10 different duty days in one 5-week period",
+    joke: "There can be only one.",
+    value: (c) => Math.min(10, swapsPerPeriod(c)), target: () => 10, test: (c) => swapsPerPeriod(c) >= 10 },
   { id: "explorer", cat: "app", emoji: "🧭", color: "#F59E0B", name: "Explorer", rule: "Visit Home, Log, Lookup, Period and Leave",
     joke: "Every corner checked.",
     value: (c) => TRACKED_TABS.filter((t) => (c.usage.tabs || []).includes(t)).length, target: () => TRACKED_TABS.length,
@@ -269,7 +316,9 @@ export function buildContext({ periods = [], leaveSettings, usage = {}, zones = 
     shifts: periods.flatMap((p) => p.shifts || []),
     daysOff: periods.flatMap((p) => p.daysOff || []),
     leaveSettings, usage, zones, today,
+    periods,
     periodCount: periods.length,
+    sickWeek: sickWeek(periods),
     coverage: coverageCounts(periods, today),
     blocks: holidayBlocks(periods),
   };
