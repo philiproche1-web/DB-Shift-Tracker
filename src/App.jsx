@@ -486,7 +486,6 @@ export default function App() {
     const items = Array.isArray(shiftOrArray) ? shiftOrArray : [shiftOrArray];
     const withNext = ensureNextPeriodFor(periods, activePeriodId, items.map(s => s.date));
     const updated = applyShiftSave(withNext, activePeriodId, shiftOrArray, bankHolidayInLieuEntries);
-    const items = Array.isArray(shiftOrArray) ? shiftOrArray : [shiftOrArray];
     trackEvent("shift_logged", { isEdit: !!editShift, isBulk: items.length > 1, count: items.length, types: [...new Set(items.map(s => s.type))] });
     persist(updated,activePeriodId); setEditShift(null); setLookupDuty(null); setLogInitDate(null); setLogInitRestDay(false); setLogFocusOT(false); setScreen("home");
   }

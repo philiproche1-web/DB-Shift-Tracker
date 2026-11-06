@@ -12,7 +12,7 @@
 // reached real drivers were here instead — a duplicate Self Cert, a day off
 // written into a stale archived period, an edit deleting a real shift.
 import { periodForDate } from "./roster.js";
-import { addDays, uid, inPeriod } from "./dutyMath.js";
+import { addDays, uid } from "./dutyMath.js";
 
 // Drivers get their duty by text a few days ahead, so a date in the NEXT
 // 5-week period can be logged before that period starts (Phil 2026-11-06).
