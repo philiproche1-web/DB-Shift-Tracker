@@ -135,3 +135,21 @@ describe("dublinWallClockToUTC / shiftBreakEnd timezone correctness", () => {
     expect(result.toISOString()).toBe("2026-10-25T02:24:00.000Z");
   });
 });
+
+describe("normalizeRosterPayload (send-reminders roster shape fix, 2026-11-06)", () => {
+  it("reads the garage-keyed file that's live on main today", async () => {
+    const { normalizeRosterPayload } = await import("./pushDuty.js");
+    const fs = await import("node:fs");
+    const path = await import("node:path");
+    const live = JSON.parse(fs.readFileSync(path.resolve(process.cwd(), "public/roster-data.json"), "utf8"));
+    const r = normalizeRosterPayload(live);
+    expect(r.duties.length).toBe(live.Summerhill.duties.length);
+    expect(r.fixedRestPattern).toEqual(live.Summerhill.fixedRestPattern);
+  });
+  it("still reads the old flat shape, and rejects junk", async () => {
+    const { normalizeRosterPayload } = await import("./pushDuty.js");
+    expect(normalizeRosterPayload({ duties: [{ r: "x" }], fixedRestPattern: [1] })).toEqual({ duties: [{ r: "x" }], fixedRestPattern: [1] });
+    expect(normalizeRosterPayload({ Summerhill: { seq: {} } })).toBeNull();
+    expect(normalizeRosterPayload(null)).toBeNull();
+  });
+});

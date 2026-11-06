@@ -22,7 +22,7 @@
 // See docs/superpowers/specs/2026-08-13-web-push-notifications-design.md.
 import { createClient } from "npm:@supabase/supabase-js@2";
 import webpush from "npm:web-push@3.6.7";
-import { today, addDays, periodForDate, dayInfo, shiftBreakEnd } from "../../../src/lib/pushDuty.js";
+import { today, addDays, periodForDate, dayInfo, shiftBreakEnd, normalizeRosterPayload } from "../../../src/lib/pushDuty.js";
 
 const ROSTER_REMOTE_URL = "https://raw.githubusercontent.com/philiproche1-web/DB-Shift-Tracker/main/public/roster-data.json";
 const SHIFT_NOT_LOGGED_HOUR_UTC = 19;
@@ -62,11 +62,13 @@ async function fetchRosterData(): Promise<{ duties: any[]; fixedRestPattern: any
   } catch (e: any) {
     throw new Error("Invalid roster data: body was not JSON (" + e?.message + ")");
   }
-  if (!Array.isArray(json?.duties) || !Array.isArray(json?.fixedRestPattern)) {
+  // Flat or garage-keyed payload — see normalizeRosterPayload in pushDuty.js.
+  const roster = normalizeRosterPayload(json);
+  if (!roster) {
     throw new Error("Invalid roster data: missing or non-array duties/fixedRestPattern");
   }
 
-  cachedRoster = { duties: json.duties, fixedRestPattern: json.fixedRestPattern };
+  cachedRoster = roster;
   cachedAt = Date.now();
   return cachedRoster;
 }

@@ -120,6 +120,27 @@ export function dublinWallClockToUTC(dateStr, hh, mm) {
   return new Date(naive.getTime() - offsetMs);
 }
 
+// roster-data.json was reshaped on 2026-08-19 from one flat payload
+// ({duties, seq, fixedRestPattern}) to garage-keyed ({ Summerhill: {...} }).
+// The send-reminders Edge Function still read the flat shape, so when that
+// commit reached main (pushed 2026-11-06) every scheduler pass threw and no
+// reminders went out. Accept both shapes. Duties are matched on zone + day
+// type + roster code, which are unique per garage, so merging every garage's
+// duties is safe. The fixed rest pattern comes from DEFAULT_GARAGE until the
+// function looks up each driver's own garage (only Summerhill has a roster).
+export const DEFAULT_GARAGE = "Summerhill";
+export function normalizeRosterPayload(json) {
+  if (Array.isArray(json?.duties) && Array.isArray(json?.fixedRestPattern)) {
+    return { duties: json.duties, fixedRestPattern: json.fixedRestPattern };
+  }
+  const blocks = json && typeof json === "object"
+    ? Object.values(json).filter((b) => Array.isArray(b?.duties) && Array.isArray(b?.fixedRestPattern))
+    : [];
+  if (!blocks.length) return null;
+  const home = json[DEFAULT_GARAGE] && blocks.includes(json[DEFAULT_GARAGE]) ? json[DEFAULT_GARAGE] : blocks[0];
+  return { duties: blocks.flatMap((b) => b.duties), fixedRestPattern: home.fixedRestPattern };
+}
+
 export function shiftBreakEnd(shift, duties) {
   if (!shift || shift.isSpare || shift.fixedType) return null;
   const duty = duties.find((d) => d.z === shift.zone && d.t === shift.dayType && d.r === shift.roster);
