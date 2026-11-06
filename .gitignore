@@ -30,3 +30,6 @@ dist.zip
 *.njsproj
 *.sln
 *.sw?
+
+# Impeccable design-check plugin scan log (per editing session, local paths).
+.impeccable/
