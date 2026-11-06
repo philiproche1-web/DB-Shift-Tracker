@@ -340,12 +340,20 @@ export function LogScreen({period, editShift, lookupDuty, initialDate, initialRe
 
         {zoneAlerts.map(a => <RouteAlertCard key={a.id} alert={a}/>)}
 
+        {/* Duty — straight under Zone (Phil 2026-11-06): pick it, then Log Shift. */}
+        {!isSpare && !fixedType && (
+          <div style={{marginBottom:16}}>
+            <FieldLabel hint={`${duties.length} for ${dayLabel}`}>Duty</FieldLabel>
+            <DutyPicker key={zone+dutyDayType} duties={duties} value={rIdx} onChange={pick}/>
+          </div>
+        )}
+
         {/* Duty type — a normal roster Duty is the implicit default (no button
             needed for it), so this row is just the 3 exceptions. Tap one to
             switch to it, tap again to go back to a normal Duty. */}
         <div style={{marginBottom:16}}>
           <FieldLabel>Duty type</FieldLabel>
-          <p style={{color:MUTED,fontSize:"0.6875rem",margin:"-6px 0 10px"}}>Logging a normal duty? Leave these unselected and pick it below. CPC/Training = Certificate of Professional Competence.</p>
+          <p style={{color:MUTED,fontSize:"0.6875rem",margin:"-6px 0 10px"}}>Logging a normal duty? Leave these unselected and pick it above. CPC/Training = Certificate of Professional Competence.</p>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
             {FIXED_DUTY_TYPES.map(opt => {
               const active = fixedType===opt.key;
@@ -367,14 +375,6 @@ export function LogScreen({period, editShift, lookupDuty, initialDate, initialRe
             })}
           </div>
         </div>
-
-        {/* Duty */}
-        {!isSpare && !fixedType && (
-          <div style={{marginBottom:16}}>
-            <FieldLabel hint={`${duties.length} for ${dayLabel}`}>Duty</FieldLabel>
-            <DutyPicker key={zone+dutyDayType} duties={duties} value={rIdx} onChange={pick}/>
-          </div>
-        )}
 
         {/* Also log this duty on other days this week — replaces the old standalone Repeat Duty screen */}
         {!editShift && !isSpare && !fixedType && date && (

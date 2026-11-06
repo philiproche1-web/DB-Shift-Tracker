@@ -135,7 +135,7 @@ describe("custom rest-day config (per-driver weekly override)", () => {
 
 describe("greetingDutyContext", () => {
   it("returns the roster when a real shift is logged", () => {
-    expect(greetingDutyContext(PERIOD, "2026-07-20")).toBe("you're on SZ1/01 today");
+    expect(greetingDutyContext(PERIOD, "2026-07-20")).toBe("you're on Z1/01 today");
   });
   it("returns the rest-day phrasing for a Rest Day", () => {
     expect(greetingDutyContext(PERIOD, "2026-07-22")).toBe("enjoy your rest day");

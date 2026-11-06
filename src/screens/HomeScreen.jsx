@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef, useLayoutEffect } from "react";
 import { MAX_HOURS, MAX_SUNDAY, getDayType, addDays, fmtShort, fmtHrs, today, calcSpreadover, greetingTimeBand, dutyNumber } from "../lib/dutyMath.js";
 import { isLiveNow } from "../lib/routeAlerts.js";
-import { DUTIES, shiftDepartLocation, pStats, periodForDate, dayInfo, getSeq, greetingDutyContext, computeShiftStreak, weekHighlights } from "../lib/roster.js";
+import { displayRoster, DUTIES, shiftDepartLocation, pStats, periodForDate, dayInfo, getSeq, greetingDutyContext, computeShiftStreak, weekHighlights } from "../lib/roster.js";
 import { BG, CARD, BORDER, CARD2, TEXT, MUTED, ACCENT, SUCCESS, DANGER, btnStyle, cardStyle, tag } from "../lib/theme.js";
 import { notifyOnce, loadSettings, saveSettings } from "../lib/persistence.js";
 import { subscribeToPush } from "../lib/push.js";
@@ -34,6 +34,8 @@ async function ensurePushSubscription(userId) {
     await subscribeToPush(userId);
   } catch { /* best effort — the Settings toggle stays the explicit path */ }
 }
+
+export { displayRoster };
 
 // ─── TODAY DUTY CARD ──────────────────────────────────────────────────────────
 // Camera (share) + OT buttons. Vertical beside the running board when the
@@ -77,9 +79,14 @@ export function TodayDutyCard({shift, label, accentColor, defaultExpanded=true, 
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:12}}>
           <div>
             <p style={{color:ac,fontSize:"0.6875rem",textTransform:"uppercase",letterSpacing:2,fontWeight:700,margin:"0 0 4px"}}>{label}</p>
-            <p style={{color:TEXT,fontSize:"1.75rem",fontWeight:800,margin:0,letterSpacing:"-1px"}}>{shift.roster}</p>
-            {dutyNumber(shift.duty) && <span style={{...tag(ACCENT),display:"inline-block",marginTop:4}}>Duty No. {dutyNumber(shift.duty)}</span>}
-            <p style={{color:MUTED,fontSize:"0.8125rem",margin:"3px 0 0"}}>{shift.zone}{shift.isSpare?" · Spare":""}{shift.isRestDay?" · Rest day":""}</p>
+            {/* Phil 2026-11-06: show "Z1/15X" (no leading S), Duty No. beside
+                it, and no zone line — the code already says the zone. Display
+                only: the stored roster code is never changed. */}
+            <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+              <p style={{color:TEXT,fontSize:"1.75rem",fontWeight:800,margin:0,letterSpacing:"-1px"}}>{displayRoster(shift.roster)}</p>
+              {dutyNumber(shift.duty) && <span style={{...tag(ACCENT),display:"inline-block"}}>Duty No. {dutyNumber(shift.duty)}</span>}
+            </div>
+            {(shift.isSpare || shift.isRestDay) && <p style={{color:MUTED,fontSize:"0.8125rem",margin:"3px 0 0"}}>{[shift.isSpare&&"Spare",shift.isRestDay&&"Rest day"].filter(Boolean).join(" · ")}</p>}
           </div>
           <div style={{textAlign:"right"}}>
             <p style={{color:TEXT,fontSize:"1.25rem",fontWeight:800,margin:0}}>{fmtHrs(spread)}</p>

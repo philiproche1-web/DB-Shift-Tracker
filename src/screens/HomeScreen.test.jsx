@@ -1,7 +1,7 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { createRoot } from "react-dom/client";
 import { act } from "react";
-import { HomeScreen } from "./HomeScreen.jsx";
+import { HomeScreen, displayRoster } from "./HomeScreen.jsx";
 import { today, sundayOf, addDays } from "../lib/dutyMath.js";
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
@@ -139,5 +139,23 @@ describe("HomeScreen duty card camera + OT buttons", () => {
     act(() => { mounted.container.querySelector('[aria-label="Share this duty"]').click(); });
     const caption = document.querySelector("#share-caption");
     expect(caption.value).toMatch(/^Looking to swap SZ1\/01 – .+\. Report 05:40, finish 13:55\.\nLooking for: early finish before 12:00$/);
+  });
+});
+
+describe("Today's Duty card header (Phil 2026-11-06)", () => {
+  it("drops the leading S on Zone 1/2 codes only", () => {
+    expect(displayRoster("SZ1/15X")).toBe("Z1/15X");
+    expect(displayRoster("SZ2/04")).toBe("Z2/04");
+    expect(displayRoster("33SK/03")).toBe("33SK/03");
+    expect(displayRoster("150/07")).toBe("150/07");
+    expect(displayRoster("Standard Spare")).toBe("Standard Spare");
+  });
+  it("shows Z1/01 with Duty No. beside it and no zone line", () => {
+    const period = basePeriod({ shifts: [shift("s1", todayDate)] });
+    mounted = render(<HomeScreen {...homeProps(period)} />);
+    const code = [...mounted.container.querySelectorAll("p")].find(p => p.textContent === "Z1/01");
+    expect(code).toBeTruthy();
+    expect(code.parentElement.textContent).toContain("Duty No. 1");
+    expect([...mounted.container.querySelectorAll("p")].some(p => p.textContent === "Zone 1")).toBe(false);
   });
 });

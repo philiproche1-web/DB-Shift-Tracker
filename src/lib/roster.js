@@ -273,9 +273,15 @@ const DAY_OFF_GREETING_PHRASES = {
 // Builds the Home-screen greeting's duty/day-context clause from the same
 // resolution `dayInfo` already does for the Upcoming carousel - no separate
 // rest-day/day-off logic to keep in sync.
+// Zone 1/2 roster codes start "SZ" (Summerhill Zone); drivers just say
+// "Z1/15X". Display only — never change the stored code (drivers search by it).
+export function displayRoster(r) {
+  return typeof r === "string" ? r.replace(/^SZ/, "Z") : r;
+}
+
 export function greetingDutyContext(period, date) {
   const info = dayInfo(period, date);
-  if (info.status === "shift") return `you're on ${info.shift.roster} today`;
+  if (info.status === "shift") return `you're on ${displayRoster(info.shift.roster)} today`;
   if (info.status === "dayoff") {
     if (info.dayOff.type === "Rest Day") return "enjoy your rest day";
     return DAY_OFF_GREETING_PHRASES[info.dayOff.type] || `you're on ${info.dayOff.type} today`;

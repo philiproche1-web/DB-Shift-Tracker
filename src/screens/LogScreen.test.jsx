@@ -216,3 +216,17 @@ describe("LogScreen OT shortcut (Home card OT button)", () => {
     expect(mounted.container.textContent).not.toContain("Working on a rest day");
   });
 });
+
+describe("LogScreen field order (Phil 2026-11-06)", () => {
+  it("Duty dropdown sits straight under Zone, above Duty type", () => {
+    const period = { id: "p1", startDate: start, shifts: [], daysOff: [] };
+    mounted = render(<LogScreen period={period} editShift={null} lookupDuty={null} initialDate={addDays(start, 2)}
+      initialRestDay={false} alerts={[]} onSave={noop} onCancel={noop} onOpenSettings={noop} />);
+    const zone = [...mounted.container.querySelectorAll("label")].find(l => l.textContent.trim() === "Zone");
+    const duty = [...mounted.container.querySelectorAll("label")].find(l => l.textContent.startsWith("Duty") && !l.textContent.startsWith("Duty type"));
+    const type = [...mounted.container.querySelectorAll("label")].find(l => l.textContent.trim() === "Duty type");
+    const follows = (a, b) => !!(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(follows(zone, duty)).toBe(true);
+    expect(follows(duty, type)).toBe(true);
+  });
+});
