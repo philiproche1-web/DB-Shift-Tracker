@@ -526,7 +526,7 @@ export default function App() {
       {screen==="dayoff"&&<LogDayOffScreen periods={periods} editDayOff={editDayOff}
         onSave={saveDayOff} onCancel={()=>{setEditDayOff(null);setScreen(dayOffFrom);}}
         onOpenSettings={()=>setShowSettings(true)}/>}
-      {screen==="lookup"&&<DutyLookup alerts={routeAlerts} onLogShift={(d,dt,date)=>{setLookupDuty({d,dt,date});setScreen("log");}} onOpenSettings={()=>setShowSettings(true)}/>}
+      {screen==="lookup"&&<DutyLookup onLogShift={(d,dt,date)=>{setLookupDuty({d,dt,date});setScreen("log");}} onOpenSettings={()=>setShowSettings(true)}/>}
       {screen==="home"&&<HomeScreen period={activePeriod} periods={periods}
         alerts={routeAlerts}
         onViewAlerts={()=>setScreen("alerts")}

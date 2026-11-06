@@ -1,9 +1,8 @@
 import { useState, useMemo } from "react";
 import { getDayType, isBankHoliday, addDays, fmtHrs, today, calcSpreadover, dutyNumber } from "../lib/dutyMath.js";
-import { alertsForZone } from "../lib/routeAlerts.js";
 import { getZones, getDuties, getSeq } from "../lib/roster.js";
 import { BG, CARD, CARD2, BORDER, TEXT, MUTED, ACCENT, SUCCESS, btnStyle, tag } from "../lib/theme.js";
-import { SegGroup, DutyPicker, RouteAlertCard, SettingsButton } from "../components/shared.jsx";
+import { SegGroup, DutyPicker, SettingsButton } from "../components/shared.jsx";
 
 export function parseEntry(e) {
   const m=e.match(/^(\d{1,2}:\d{2})\s*-\s*(.+)$/);
@@ -11,14 +10,13 @@ export function parseEntry(e) {
 }
 
 // ─── DUTY LOOKUP SCREEN ───────────────────────────────────────────────────────
-export function DutyLookup({alerts, onLogShift, onOpenSettings}) {
+export function DutyLookup({onLogShift, onOpenSettings}) {
   // Remember last used zone across sessions
   const savedZone = localStorage.getItem("dbus_last_zone") || getZones()[0];
   const [zone, setZone] = useState(savedZone);
   const [dayType, setDayType] = useState(getDayType(today()));
   const [rIdx, setRIdx] = useState(-1);
   const duties = useMemo(()=>getDuties(zone,dayType),[zone,dayType]);
-  const zoneAlerts = useMemo(() => alertsForZone(alerts||[], zone, today()), [alerts, zone]);
   const duty = rIdx>=0 ? duties[rIdx] : null;
   const sequence = useMemo(()=> duty ? getSeq(duty.z, duty.t, duty.r) : [], [duty]);
   // Today's a bank holiday: Sunday duties run across every route/garage, so
@@ -75,8 +73,6 @@ export function DutyLookup({alerts, onLogShift, onOpenSettings}) {
           <p style={{color:MUTED,fontSize:"0.6875rem",textTransform:"uppercase",letterSpacing:1.5,fontWeight:600,margin:"0 0 8px"}}>Zone</p>
           <SegGroup options={getZones()} value={zone} cols={4} onChange={handleZoneChange}/>
         </div>
-
-        {zoneAlerts.map(a => <RouteAlertCard key={a.id} alert={a}/>)}
 
         {/* Day selector */}
         <div style={{marginBottom:12}}>
