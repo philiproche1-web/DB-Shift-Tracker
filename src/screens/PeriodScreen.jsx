@@ -65,7 +65,7 @@ export function PeriodScreen({period, onEdit, onDelete, onEditDayOff, onDeleteDa
                 <p style={{color:w.total>0?ACCENT:MUTED,fontWeight:700,fontSize:"1rem",margin:0}}>{fmtHrs(w.total)}</p>
                 {w.sunday>0&&<p style={{color:SUCCESS,fontSize:"0.75rem",margin:0}}>Sun: {fmtHrs(w.sunday)}</p>}
                 {w.overtime>0&&<p style={{color:"#F59E0B",fontSize:"0.75rem",margin:0}}>OT: {fmtHrs(w.overtime)}</p>}
-                <span style={{color:MUTED,fontSize:"0.8125rem",transform:open===i?"rotate(180deg)":"none",transition:"transform 0.2s",display:"inline-block"}}>▾</span>
+                <span className={open===i?undefined:"rb-hint-pulse"} style={{color:MUTED,fontSize:"0.8125rem",transform:open===i?"rotate(180deg)":"none",transition:"transform 0.2s",display:"inline-block"}}>▾</span>
               </div>
             </div>
             {open===i&&(

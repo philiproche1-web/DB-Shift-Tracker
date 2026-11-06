@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { buildContext, earnedKeys, reconcile, coverageCounts, bestStreak, badgeRows, describeKey, earnedToday, earnedTodaySummary, popupFor, dismissAll, BADGES } from "./achievements.js";
 import { applyUsage } from "./usage.js";
+import { routesWorked, ROUTES } from "./achievements.js";
 import { addDays } from "./dutyMath.js";
 
 const TODAY = "2026-11-06";
@@ -79,11 +80,11 @@ describe("leave badges", () => {
 describe("covered days", () => {
   const fill = (start, count) => Array.from({ length: count }, (_, i) => sh(addDays(start, i)));
   it("a fully logged past period gives 1 period and 5 weeks", () => {
-    expect(coverageCounts([period("2026-08-02", fill("2026-08-02", 35))], TODAY)).toEqual({ weeks: 5, months: 0, periods: 1 });
+    expect(coverageCounts([period("2026-08-02", fill("2026-08-02", 35))], TODAY)).toMatchObject({ weeks: 5, months: 0, periods: 1 });
   });
   it("one gap breaks that week and the period", () => {
     const shifts = fill("2026-08-02", 35).filter((s) => s.date !== "2026-08-10");
-    expect(coverageCounts([period("2026-08-02", shifts)], TODAY)).toEqual({ weeks: 4, months: 0, periods: 0 });
+    expect(coverageCounts([period("2026-08-02", shifts)], TODAY)).toMatchObject({ weeks: 4, months: 0, periods: 0 });
   });
   it("a calendar month across two periods counts", () => {
     const ps = [period("2026-07-26", fill("2026-07-26", 35)), period("2026-08-30", fill("2026-08-30", 35))];
@@ -271,5 +272,35 @@ describe("Sick Note and the Michael badges", () => {
     let u = {};
     u = applyUsage(u, "share", "2026-08-03"); u = applyUsage(u, "share", "2026-08-03"); u = applyUsage(u, "share", "2026-08-04");
     expect(u.sharedDates).toEqual(["2026-08-03", "2026-08-04"]);
+  });
+});
+
+describe("route badges and calendar blocks", () => {
+  it("routes come from the duty's real running board (SZ1/15X weekday: 15A + 41)", () => {
+    const r = routesWorked([{ date: "2026-11-06", zone: "Zone 1", roster: "SZ1/15X" }]);
+    expect([...r].sort()).toEqual(["15A", "41"]);
+    expect(routesWorked([{ date: "2026-11-06", zone: null, roster: "Standard Spare", fixedType: "stdSpare" }]).size).toBe(0);
+  });
+  it("route badges and Route Master progress", () => {
+    const k = keysFor({ periods: one([sh("2026-08-04", { roster: "SZ1/15X" })]) });
+    expect(k).toEqual(expect.arrayContaining(["route_15A", "route_41"]));
+    expect(k).not.toContain("route_122");
+    expect(k).not.toContain("route_master");
+    expect(ROUTES).toHaveLength(11);
+  });
+  it("Full Quarter / Half Year / Three Quarters / Full Year use calendar blocks", () => {
+    const base = { periods: [], usage: {}, zones: [], today: TODAY, leaveSettings: { annualTotal: 20 } };
+    const withMonths = (months) => {
+      const ctx = buildContext(base);
+      ctx.coverage = { ...ctx.coverage, monthSet: months };
+      return earnedKeys(ctx);
+    };
+    const m = (ys, from, to) => Array.from({ length: to - from + 1 }, (_, i) => `${ys}-${String(from + i).padStart(2, "0")}`);
+    expect(withMonths(m(2026, 4, 6))).toContain("full_quarter:2026");
+    expect(withMonths(m(2026, 5, 7))).not.toContain("full_quarter:2026"); // May-Jul isn't a calendar quarter
+    const h = withMonths(m(2026, 1, 9));
+    expect(h).toEqual(expect.arrayContaining(["half_year:2026", "three_quarters:2026"]));
+    expect(h).not.toContain("full_year:2026");
+    expect(withMonths(m(2026, 1, 12))).toContain("full_year:2026");
   });
 });

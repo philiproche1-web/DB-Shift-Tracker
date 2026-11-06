@@ -93,7 +93,6 @@ export function TodayDutyCard({shift, label, accentColor, defaultExpanded=true, 
             <p style={{color:TEXT,fontSize:"1.25rem",fontWeight:800,margin:0}}>{fmtHrs(spread)}</p>
             {getDayType(shift.date)==="sunday"&&<span style={{...tag(SUCCESS),marginTop:4,display:"block"}}>Sunday</span>}
             <span className={expanded?undefined:"rb-hint-pulse"} style={{color:ac,fontSize:"0.75rem",marginTop:6,display:"block"}}>{expanded?"▲ less":"▼ running board"}</span>
-            <style>{`@keyframes rb-hint{0%,100%{opacity:1}50%{opacity:.25}}.rb-hint-pulse{animation:rb-hint 1s ease-in-out 4}@media (prefers-reduced-motion: reduce){.rb-hint-pulse{animation:none}}`}</style>
           </div>
         </div>
         {/* Key times row */}

@@ -57,7 +57,7 @@ export function LeaveCard({title, subtitle, note, color, used, total, remaining,
             ) : (
               <p style={{color:color,fontSize:"1.125rem",fontWeight:800,margin:0}}>{used} <span style={{color:MUTED,fontSize:"0.75rem",fontWeight:400}}>{usedLabel}</span></p>
             )}
-            <span style={{color:MUTED,fontSize:"0.6875rem",display:"block",marginTop:3}}>{open?"▲ hide":"▼ dates"}</span>
+            <span className={open?undefined:"rb-hint-pulse"} style={{color:MUTED,fontSize:"0.6875rem",display:"block",marginTop:3}}>{open?"▲ hide":"▼ dates"}</span>
           </div>
         </div>
       </div>
@@ -85,7 +85,7 @@ export function SelfCertCard({scH1, scH2, scColor, onEdit, onDelete}) {
           </div>
           <div style={{textAlign:"right"}}>
             <p style={{color:TEXT,fontSize:"1.125rem",fontWeight:800,margin:0}}>{totalUsed} <span style={{color:MUTED,fontSize:"0.75rem",fontWeight:400}}>used</span></p>
-            <span style={{color:MUTED,fontSize:"0.6875rem",display:"block",marginTop:3}}>{open?"▲ hide":"▼ dates"}</span>
+            <span className={open?undefined:"rb-hint-pulse"} style={{color:MUTED,fontSize:"0.6875rem",display:"block",marginTop:3}}>{open?"▲ hide":"▼ dates"}</span>
           </div>
         </div>
       </div>
@@ -138,7 +138,7 @@ function ForceMajeureCard({fm12, fm36, fmColor, onEdit, onDelete}) {
           </div>
           <div style={{textAlign:"right"}}>
             <p style={{color:TEXT,fontSize:"1.125rem",fontWeight:800,margin:0}}>{fm36.length} <span style={{color:MUTED,fontSize:"0.75rem",fontWeight:400}}>used (36mo)</span></p>
-            <span style={{color:MUTED,fontSize:"0.6875rem",display:"block",marginTop:3}}>{open?"▲ hide":"▼ dates"}</span>
+            <span className={open?undefined:"rb-hint-pulse"} style={{color:MUTED,fontSize:"0.6875rem",display:"block",marginTop:3}}>{open?"▲ hide":"▼ dates"}</span>
           </div>
         </div>
       </div>

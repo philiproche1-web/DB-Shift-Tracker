@@ -18,3 +18,9 @@ body {
   outline-offset: 2px;
 }
 
+
+/* Folded-section hint (Phil 2026-11-06): a chevron that hides content
+   blinks a few times when it appears so drivers notice it opens. */
+@keyframes rb-hint { 0%, 100% { opacity: 1; } 50% { opacity: .25; } }
+.rb-hint-pulse { animation: rb-hint 1s ease-in-out 4; }
+@media (prefers-reduced-motion: reduce) { .rb-hint-pulse { animation: none; } }

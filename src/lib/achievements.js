@@ -7,10 +7,11 @@
 //   yearly  — can be re-earned each calendar year; years() lists qualifying
 //             years; key `${id}:${year}`; the page shows the count
 import { addDays, getDayType, sundayOf } from "./dutyMath.js";
-import { dayInfo } from "./roster.js";
+import { dayInfo, getSeq } from "./roster.js";
 
 export const CATEGORIES = [
   { id: "duties", label: "Duties" },
+  { id: "routes", label: "Routes" },
   { id: "leave", label: "Leave" },
   { id: "covered", label: "Covered days" },
   { id: "app", label: "Using the app" },
@@ -63,7 +64,7 @@ export function coverageCounts(periods, today) {
     const days = new Date(y, m, 0).getDate();
     if (addDays(first, days - 1) < today && allCovered(first, days)) monthKeys.add(first);
   }
-  return { weeks: weekStarts.size, months: monthKeys.size, periods: fullPeriods };
+  return { weeks: weekStarts.size, months: monthKeys.size, periods: fullPeriods, monthSet: [...monthKeys].map((k) => k.slice(0, 7)) };
 }
 
 // Best run of consecutive dates in a list of "YYYY-MM-DD".
@@ -175,6 +176,30 @@ function swapsPerPeriod(c) {
   }));
 }
 
+// Calendar blocks fully covered (every day logged): quarters, halves,
+// Jan–Sep, whole year. Returns the years that qualify.
+function calendarBlockYears(c, monthGroups) {
+  const have = new Set(c.coverage.monthSet || []);
+  const years = [...new Set([...have].map((m) => m.slice(0, 4)))];
+  return years.filter((y) => monthGroups.some((g) => g.every((m) => have.has(`${y}-${String(m).padStart(2, "0")}`)))).sort();
+}
+const QUARTERS = [[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]];
+const HALVES = [[1, 2, 3, 4, 5, 6], [7, 8, 9, 10, 11, 12]];
+
+// Summerhill routes (from the roster's running boards). A shift "works" a
+// route when its running board has a trip on it.
+export const ROUTES = ["15A", "15B", "15D", "33", "41", "41B", "41C", "41D", "120", "122", "150"];
+export function routesWorked(shifts) {
+  const seen = new Set();
+  for (const s of shifts) {
+    if (!s.zone || !s.roster || s.fixedType) continue;
+    for (const entry of getSeq(s.zone, getDayType(s.date), s.roster)) {
+      for (const m of entry.matchAll(/\((\d{1,3}[A-Z]?)\b[^)]*\)/g)) seen.add(m[1]);
+    }
+  }
+  return seen;
+}
+
 const yearCount = (c, type) => countBy(ofType(c, type), (d) => year(d.date));
 const halfCount = (c, type, half) => countBy(ofType(c, type).filter((d) => (half === 1 ? month(d.date) <= 6 : month(d.date) >= 7)), (d) => year(d.date));
 
@@ -204,6 +229,12 @@ export const BADGES = [
     test: (c) => c.shifts.some((s) => s.zone === "150") },
   { id: "zone_33", cat: "duties", emoji: "🌊", color: "#FFCD00", name: "Route 33 Debut", rule: "Work a Route 33 (Skerries) duty", joke: "New patch unlocked.",
     test: (c) => c.shifts.some((s) => s.zone === "Skerries") },
+  ...ROUTES.map((r) => ({ id: `route_${r}`, cat: "routes", emoji: "\u{1F68F}", color: "#C084FC", name: `Route ${r}`,
+    rule: `Work a duty on the ${r}`, joke: "Another one for the collection.", test: (c) => c.routes.has(r) })),
+  { id: "route_master", cat: "routes", emoji: "\u{1F5FA}\uFE0F", color: "#C084FC", name: "Route Master", rule: "Work every Summerhill route",
+    joke: "You've seen it all. Twice.",
+    value: (c) => ROUTES.filter((r) => c.routes.has(r)).length, target: () => ROUTES.length,
+    test: (c) => ROUTES.every((r) => c.routes.has(r)) },
   { id: "all_zones", cat: "duties", emoji: "🗺️", color: "#FFCD00", name: "All Zones", rule: "Work a duty in every zone",
     joke: "Seen the lot.",
     value: (c) => c.zones.filter((z) => c.shifts.some((s) => s.zone === z)).length,
@@ -271,6 +302,14 @@ export const BADGES = [
     value: (c) => c.coverage.weeks },
   { id: "full_month", cat: "covered", emoji: "🗓️", color: "#60a5fa", levels: [1, 3, 6, 12], names: ["Full Month", "3 Full Months", "6 Full Months", "12 Full Months"],
     rule: (n) => n === 1 ? "Every day of a calendar month logged" : `${n} calendar months with every day logged`, joke: "A whole month, no gaps.", value: (c) => c.coverage.months },
+  { id: "full_quarter", cat: "covered", emoji: "\u{1F4C6}", color: "#60a5fa", name: "Full Quarter", yearly: true,
+    rule: "Every day of a calendar quarter logged (e.g. Jan–Mar)", joke: "Three months, no gaps.", years: (c) => calendarBlockYears(c, QUARTERS) },
+  { id: "half_year", cat: "covered", emoji: "\u{1F317}", color: "#60a5fa", name: "Half Year", yearly: true,
+    rule: "Every day of Jan–Jun or Jul–Dec logged", joke: "Halfway there.", years: (c) => calendarBlockYears(c, HALVES) },
+  { id: "three_quarters", cat: "covered", emoji: "\u{1F318}", color: "#60a5fa", name: "Three Quarters", yearly: true,
+    rule: "Every day from January to September logged", joke: "The home straight.", years: (c) => calendarBlockYears(c, [[1, 2, 3, 4, 5, 6, 7, 8, 9]]) },
+  { id: "full_year", cat: "covered", emoji: "\u{1F3C6}", color: "#60a5fa", name: "Full Year", yearly: true,
+    rule: "Every day of a calendar year logged", joke: "365 out of 365. Respect.", years: (c) => calendarBlockYears(c, [[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]]) },
   { id: "full_period", cat: "covered", emoji: "🏁", color: "#60a5fa", levels: [1, 3, 6, 10], names: ["Full Period", "3 Full Periods", "6 Full Periods", "10 Full Periods"],
     rule: (n) => n === 1 ? "Every day of a 5-week period logged" : `${n} periods with every day logged`, joke: "Thirty-five out of thirty-five.",
     value: (c) => c.coverage.periods },
@@ -295,7 +334,7 @@ export const BADGES = [
   { id: "taking_the_michael", cat: "app", emoji: "😏", color: "#F59E0B", name: "Taking the Michael", rule: "Share 3 different duty days in one week",
     joke: "Everyone knows a Michael.",
     value: (c) => Math.min(3, swapsPerWeek(c)), target: () => 3, test: (c) => swapsPerWeek(c) >= 3 },
-  { id: "taking_the_psss", cat: "app", emoji: "🙄", color: "#F59E0B", name: "Now You're Taking the Psss, Michael", rule: "Share all 5 duty days in one week",
+  { id: "taking_the_psss", cat: "app", emoji: "🙄", color: "#F59E0B", name: "Now You're Really Taking the Psss, Michael", rule: "Share all 5 duty days in one week",
     joke: "Do you actually work here?",
     value: (c) => Math.min(5, swapsPerWeek(c)), target: () => 5, test: (c) => swapsPerWeek(c) >= 5 },
   { id: "legendary_michael", cat: "app", emoji: "👑", color: "#F59E0B", name: "The Legendary Michael Award", rule: "Share 10 different duty days in one 5-week period",
@@ -317,6 +356,7 @@ export function buildContext({ periods = [], leaveSettings, usage = {}, zones = 
     daysOff: periods.flatMap((p) => p.daysOff || []),
     leaveSettings, usage, zones, today,
     periods,
+    routes: routesWorked(periods.flatMap((p) => p.shifts || [])),
     periodCount: periods.length,
     sickWeek: sickWeek(periods),
     coverage: coverageCounts(periods, today),

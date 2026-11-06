@@ -521,7 +521,7 @@ export function LogScreen({period, periods, editShift, lookupDuty, initialDate, 
                   <p style={{color:TEXT,fontSize:"0.875rem",fontWeight:600,margin:0}}>More options</p>
                   {summary && <p style={{color:isRestDay?DANGER:ACCENT,fontSize:"0.75rem",margin:"2px 0 0",fontWeight:600}}>{summary}</p>}
                 </div>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={MUTED} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink:0,transform:moreOptionsOpen?"rotate(180deg)":"none",transition:"transform 0.2s"}}><polyline points="6 9 12 15 18 9"/></svg>
+                <svg className={moreOptionsOpen?undefined:"rb-hint-pulse"} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={MUTED} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink:0,transform:moreOptionsOpen?"rotate(180deg)":"none",transition:"transform 0.2s"}}><polyline points="6 9 12 15 18 9"/></svg>
               </div>
               {moreOptionsOpen && (
                 <div style={{padding:"0 16px 16px"}}>
