@@ -45,22 +45,39 @@ export function loadFired() { try { return localStorage.getItem(FIRED_KEY); } ca
 export function saveFired(id) { try { localStorage.setItem(FIRED_KEY, id); } catch { /* best effort */ } }
 
 // ─── Sound + vibration ────────────────────────────────────────────────────
-let ctx = null, beepTimer = null, buzzTimer = null;
+let ctx = null, master = null, beepTimer = null, buzzTimer = null;
 
-function beep() {
-  const now = ctx.currentTime;
-  [0, 0.25, 0.5].forEach((t) => {
+// Alarm tune: the opening phrase of "The Wheels on the Bus" (traditional
+// melody), played as notes only — "…go round and round, round and round,
+// round and round" — then a short pause, repeated until Stop.
+// [frequency Hz, length in beats]
+const C5 = 523.25, E5 = 659.25, F5 = 698.46, G5 = 783.99, A5 = 880, C6 = 1046.5;
+export const BUS_TUNE = [
+  [C5, 0.5], [F5, 1], [F5, 0.5], [F5, 0.5], [F5, 1], [A5, 1], [C6, 1], [A5, 1], [F5, 2],
+  [G5, 1], [E5, 1], [C5, 2],
+  [C6, 1], [A5, 1], [F5, 2],
+];
+const BEAT_S = 0.28;
+const TUNE_GAP_S = 0.9;
+export const TUNE_LOOP_MS = Math.round((BUS_TUNE.reduce((n, [, b]) => n + b, 0) * BEAT_S + TUNE_GAP_S) * 1000);
+
+function playTune() {
+  let t = ctx.currentTime + 0.05;
+  for (const [f, beats] of BUS_TUNE) {
+    const d = beats * BEAT_S;
     const o = ctx.createOscillator();
     const g = ctx.createGain();
     o.type = "square";
-    o.frequency.value = 880;
-    g.gain.setValueAtTime(0.0001, now + t);
-    g.gain.exponentialRampToValueAtTime(0.3, now + t + 0.01);
-    g.gain.exponentialRampToValueAtTime(0.0001, now + t + 0.18);
-    o.connect(g).connect(ctx.destination);
-    o.start(now + t);
-    o.stop(now + t + 0.2);
-  });
+    o.frequency.value = f;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.22, t + 0.02);
+    g.gain.setValueAtTime(0.22, t + d * 0.7);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + d * 0.95);
+    o.connect(g).connect(master);
+    o.start(t);
+    o.stop(t + d);
+    t += d;
+  }
 }
 
 // Browsers only allow sound/vibration once the person has tapped the page
@@ -74,8 +91,12 @@ export function startAlarm({ sound = true, vibrate = true } = {}) {
       if (AC) {
         ctx = ctx || new AC();
         if (ctx.state === "suspended") ctx.resume().catch(() => {});
-        beep();
-        beepTimer = setInterval(beep, 1200);
+        // All notes go through one gain node so Stop can silence notes
+        // already queued, not just stop new loops.
+        master = ctx.createGain();
+        master.connect(ctx.destination);
+        playTune();
+        beepTimer = setInterval(playTune, TUNE_LOOP_MS);
       }
     } catch { /* no audio */ }
   }
@@ -91,6 +112,7 @@ export function stopAlarm() {
   if (beepTimer) clearInterval(beepTimer);
   if (buzzTimer) clearInterval(buzzTimer);
   beepTimer = buzzTimer = null;
+  if (master) { try { master.disconnect(); } catch { /* ignore */ } master = null; }
   // Only cancel a vibration we started; calling it before any tap logs a
   // browser error.
   if (wasBuzzing) { try { navigator.vibrate?.(0); } catch { /* ignore */ } }
